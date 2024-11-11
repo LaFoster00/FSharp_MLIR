@@ -27,6 +27,7 @@ project(
     LANGUAGES CXX C
 )
 
+# LLVM Setup
 include(cmake/llvm.cmake)
 build_llvm()
 
@@ -45,4 +46,10 @@ include_directories(${LLVM_INCLUDE_DIRS}
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
+# ANTLR4 SETUP
+include(cmake/antlr4.cmake)
+build_antlr()
+
 add_subdirectory(compiler)
+add_subdirectory(grammar)
+
