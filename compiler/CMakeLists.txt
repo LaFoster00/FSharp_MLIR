@@ -1,2 +1,3 @@
+project(compiler)
 
-add_subdirectory(src)
+add_subdirectory(lib)

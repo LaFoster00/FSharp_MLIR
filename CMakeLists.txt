@@ -32,8 +32,8 @@ include(cmake/llvm.cmake)
 build_llvm()
 
 find_package(MLIR REQUIRED CONFIG)
+find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
-
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 
 include(TableGen)
@@ -53,6 +53,8 @@ build_antlr()
 include_directories(${ANTLR4_INCLUDE_DIRS})
 link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 
-add_subdirectory(compiler)
+# Add Project source files
 add_subdirectory(grammar)
+add_subdirectory(compiler)
+add_subdirectory(test)
 

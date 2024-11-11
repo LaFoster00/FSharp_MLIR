@@ -8,20 +8,27 @@ project(
         LANGUAGES CXX C
 )
 
-antlr_target(SampleGrammarLexer TLexer.g4 LEXER
+ANTLR_TARGET(SampleGrammarLexer TLexer.g4 LEXER
         PACKAGE antlrcpptest)
 
-antlr_target(SampleGrammarParser TParser.g4 PARSER
+ANTLR_TARGET(SampleGrammarParser TParser.g4 PARSER
         PACKAGE antlrcpptest
         DEPENDS_ANTLR SampleGrammarLexer
-        COMPILE_FLAGS -lib ${ANTLR_SampleGrammarLexer_OUTPUT_DIR})
+        COMPILE_FLAGS -lib ${ANTLR_SampleGrammarLexer_OUTPUT_DIR} #Needed so that the token file can be found
+)
 
-# include generated files in project environment
-include_directories(${ANTLR_SampleGrammarLexer_OUTPUT_DIR})
-include_directories(${ANTLR_SampleGrammarParser_OUTPUT_DIR})
+set(GENERATED_SOURCE
+        ${SampleGrammarLexer_CXX_OUTPUTS}
+        ${SampleGrammarParser_CXX_OUTPUTS}
+)
 
-# add generated grammar to demo binary target
-add_executable(demo main.cpp
-        ${ANTLR_SampleGrammarLexer_CXX_OUTPUTS}
-        ${ANTLR_SampleGrammarParser_CXX_OUTPUTS})
-target_link_libraries(demo antlr4_static)
+foreach(src_file ${GENERATED_SOURCE})
+    set_source_files_properties(
+            ${src_file}
+            PROPERTIES
+            GENERATED TRUE
+    )
+endforeach(src_file ${GENERATED_SOURCE})
+
+add_custom_target(SampleGrammarGenerator DEPENDS ${GENERATED_SOURCE})
+
