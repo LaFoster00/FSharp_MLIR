@@ -23,12 +23,21 @@ macro(build_antlr)
     endif()
 
     set(ANTLR_EXECUTABLE "${ANTLR_JAR_LOCATION}" CACHE STRING "" FORCE)
-    include(${PROJECT_SOURCE_DIR}/extern/antlr4/runtime/Cpp/cmake/FindANTLR.cmake)
 
+    list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
-    # Compile antlr4 java runtime
-    message(STATUS "Compiling antlr4 CPP runtime from source.")
-    set(WITH_DEMO FALSE CACHE BOOL "")
-    set(WITH_LIBCXX TRUE CACHE BOOL "")
-    add_subdirectory(extern/antlr4/runtime/Cpp)
+    # Specify the version of the antlr4 library needed for this project.
+    # By default the latest version of antlr4 will be used.  You can specify a
+    # specific, stable version by setting a repository tag value or a link
+    # to a zip file containing the libary source.
+    set(ANTLR4_TAG 4.13.2)
+    # set(ANTLR4_ZIP_REPOSITORY https://github.com/antlr/antlr4/archive/refs/tags/4.13.2.zip)
+
+    # required if linking to static library
+    add_definitions(-DANTLR4CPP_STATIC)
+
+    # add external build for antlrcpp
+    include(ExternalAntlr4Cpp)
+
+    find_package(ANTLR REQUIRED)
 endmacro()

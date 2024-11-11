@@ -49,6 +49,9 @@ add_definitions(${LLVM_DEFINITIONS})
 # ANTLR4 SETUP
 include(cmake/antlr4.cmake)
 build_antlr()
+# add antlr4cpp artifacts to project environment
+include_directories(${ANTLR4_INCLUDE_DIRS})
+link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 
 add_subdirectory(compiler)
 add_subdirectory(grammar)
