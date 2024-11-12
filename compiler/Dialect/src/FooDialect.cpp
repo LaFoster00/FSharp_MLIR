@@ -21,7 +21,7 @@
 #include <string>
 
 using namespace mlir;
-using namespace mlir::foo;
+using namespace Foo;
 
 void FooDialect::initialize()
 {

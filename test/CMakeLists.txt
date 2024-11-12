@@ -15,7 +15,7 @@ add_executable(test main.cpp
         ${SampleGrammarParser_CXX_OUTPUTS}
 )
 
-add_dependencies(test MLIRFooOpsIncGen SampleGrammarGenerator)
+add_dependencies(test SampleGrammarGenerator)
 
 # include generated files in project environment
 target_include_directories(test PRIVATE ${SampleGrammarLexer_OUTPUT_DIR})
