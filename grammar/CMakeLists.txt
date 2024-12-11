@@ -32,3 +32,5 @@ endforeach(src_file ${GENERATED_SOURCE})
 
 add_custom_target(SampleGrammarGenerator DEPENDS ${GENERATED_SOURCE})
 
+
+add_subdirectory(test)

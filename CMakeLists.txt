@@ -56,5 +56,4 @@ link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 # Add Project source files
 add_subdirectory(grammar)
 add_subdirectory(compiler)
-add_subdirectory(test)
 
