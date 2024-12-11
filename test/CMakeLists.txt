@@ -24,11 +24,15 @@ target_include_directories(test PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include/)
 
 target_link_libraries(test
         PRIVATE
-        antlr4_static
         MLIRAnalysis
         MLIRFunctionInterfaces
         MLIRIR
         MLIRParser
         MLIRSideEffectInterfaces
         MLIRTransforms
+)
+
+target_link_libraries(test
+        PRIVATE
+        antlr4_shared
 )
