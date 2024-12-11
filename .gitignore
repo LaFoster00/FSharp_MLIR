@@ -1,4 +1,6 @@
 ### C++ template
+cmake-build-debug-wsl/
+
 # Prerequisites
 *.d
 
