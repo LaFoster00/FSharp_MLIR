@@ -1,7 +1,7 @@
 parser grammar FSharpParser;
 
 options {
-	tokenVocab = FSharpLexer;
+    tokenVocab = FSharpLexer;
 }
 
 main: expr+ EOF;
@@ -17,13 +17,24 @@ simpleexpr: callexpr
 
 inlineexpr: OPENPAR simpleexpr CLOSEPAR;
 
-literalexpr: INT | STRING;
+literalexpr: INT
+    | STRING;
 
 callexpr: ID callparams;
-arithexpr: addexpr | multexpr;
-addexpr: INT PLUS (INT | ID);
-multexpr: INT STAR (INT | ID);
 
-callparams: OPENPAR (ID | inlineexpr)? CLOSEPAR
-    | OPENPAR (ID | simpleexpr) (COMMA (ID | simpleexpr))* CLOSEPAR
-    | (ID | inlineexpr | literalexpr) (ID | inlineexpr | literalexpr)*;
+arithexpr: addexpr
+    | multexpr;
+
+operandsexpr: | ID
+    | literalexpr
+    | inlineexpr;
+
+addexpr: operandsexpr PLUS (operandsexpr | ID);
+
+multexpr: operandsexpr STAR (operandsexpr | ID);
+
+callparams:
+    OPENPAR (ID | inlineexpr)? CLOSEPAR
+    | OPENPAR (ID | simpleexpr | inlineexpr) (COMMA (ID | simpleexpr | inlineexpr))* CLOSEPAR
+    | (ID | literalexpr) (ID | inlineexpr | literalexpr)*
+    ;

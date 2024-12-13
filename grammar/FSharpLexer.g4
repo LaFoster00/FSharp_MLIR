@@ -1,5 +1,7 @@
 lexer grammar FSharpLexer;
 
+channels { CommentsChannel }
+
 LET: 'let';
 
 INT: Digit+;
@@ -19,4 +21,5 @@ STRING: '"' .*? '"';
 
 NEWLINE: '\r'? '\n';
 
+COMMENT : '//' ~[\r\n]* '\r'? '\n' -> channel(CommentsChannel);
 WS: [ \t]+ -> skip;
