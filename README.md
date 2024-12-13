@@ -11,3 +11,5 @@ This project is only tested in a linux environment (Debian) and requires the fol
    - `sudo apt install ccache`
 4. CMake:
    - `sudo apt install cmake`
+5. Ensure build essentials are installed:
+   - `sudo apt install build-essential`

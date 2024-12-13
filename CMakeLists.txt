@@ -17,7 +17,6 @@ list(APPEND CMAKE_PREFIX_PATH "extern/llvm-project/mlir/cmake")
 
 include(FetchContent)
 
-
 project(
     FSharp_MLIR
     VERSION 0.1
