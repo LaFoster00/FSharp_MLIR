@@ -25,7 +25,7 @@ NUMBER: INTEGER | FLOAT_NUMBER;
 INTEGER: DECIMAL_INTEGER;
 
 
-LET: 'let';
+LET        : 'let';
 BREAK      : 'break';
 CONTINUE   : 'continue';
 IF         : 'if';

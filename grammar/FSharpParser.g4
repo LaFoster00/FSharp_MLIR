@@ -7,13 +7,11 @@ options {
 
 @header { #include "FSharpParserBase.h" }
 
-main
-    : (NEWLINE | stmt)* EOF
-    ;
+main: (NEWLINE | stmt)* EOF;
 
 stmt
     : simple_stmts
-    //| compound_stmt
+    | compound_stmt
     ;
 
 simple_stmts
@@ -21,74 +19,41 @@ simple_stmts
     ;
 
 simple_stmt
-    : (
-        expr_stmt
-        //| flow_stmt
-    )
+    : expr_stmt
     ;
 
 expr_stmt
-    : annassign
+    : testlist_expr
     ;
 
-
-annassign
-    : LET name EQUAL test
+testlist_expr
+    : expr (COMMA expr)* COMMA?
     ;
 
-flow_stmt
-    : break_stmt
-    | continue_stmt
-    | return_stmt
+compound_stmt
+    : let_stmt
     ;
 
-break_stmt
-    : BREAK
+let_stmt
+    : LET name (funcdef | vardef) NEWLINE
     ;
 
-continue_stmt
-    : CONTINUE
+vardef
+    : EQUAL test
     ;
 
-return_stmt
-    : RETURN testlist?
+funcdef
+    : paramlist EQUAL (
+        | test test*
+    )
     ;
 
-testlist
-    : test (',' test)* ','?
+paramlist
+    : test (SPACES test)*
     ;
 
 test
     : or_test
-    ;
-
-compound_stmt
-    : //if_stmt
-    //| while_stmt
-    //| for_stmt
-    //| funcdef
-    //| match_stmt
-    ;
-
-block
-    : simple_stmts
-    | NEWLINE INDENT stmt+ DEDENT
-    ;
-
-literal_expr
-    : signed_number { this->CannotBePlusMinus() }?
-    | strings
-    | TRUE
-    | FALSE
-    ;
-
-signed_number
-    : NUMBER
-    | MINUS NUMBER
-    ;
-
-wildcard_pattern
-    : UNDERSCORE
     ;
 
 or_test
@@ -109,32 +74,33 @@ comparison
     ;
 
 comp_op
-    : LESS
-    | GREATER
+    : LESS_THAN
+    | GREATER_THAN
     | EQUAL
     | GT_EQ
-    | LS_EQ
+    | LT_EQ
     | NOT_EQ
     ;
 
 expr
-    : atom_expr
-    | (PLUSE | MINUS | TILDA)+ expr
-    | expr (STAR | DIV | MOD) expr
-    | expr (PLUS | MINUS) expr
+    : atom
+    | (PLUS | MINUS | TILDA)+ expr
+    | expr (PLUS | MINUS | STAR | DIV | MOD) expr
     ;
 
 atom_expr
-    : atom //trailer*
+    : atom
     ;
 
+block
+     : simple_stmts
+     | NEWLINE INDENT stmt+ DEDENT
+     ;
+
 atom
-    : //'(' (yield_expr | testlist_comp)? ')'
-    //| '[' testlist_comp? ']'
-    //| '{' dictorsetmaker? '}'
-    | name
+    : name
     | NUMBER
-    | strings
+    | STRING
     | TRUE
     | FALSE
     ;
@@ -143,8 +109,4 @@ name
     : NAME
     | UNDERSCORE
     | MATCH
-    ;
-
-strings
-    : STRING+
     ;
