@@ -20,7 +20,12 @@ using namespace antlr4;
 using namespace fsharpgrammar;
 
 int main(int , const char **) {
-  ANTLRInputStream input("🍴 = 🍐 + \"😎\";(((x * π))) * µ + ∰; a + (x * (y ? 0 : 1) + z);");
+  std::ifstream file("SimpleExpression.fs");
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::string fileContent = buffer.str();
+
+  ANTLRInputStream input(fileContent);
   FSharpLexer lexer(&input);
   CommonTokenStream tokens(&lexer);
 
@@ -32,7 +37,7 @@ int main(int , const char **) {
   FSharpParser parser(&tokens);
   tree::ParseTree* tree = parser.main();
 
-  std::cout << tree->toStringTree(&parser) << std::endl << std::endl;
+  std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
 
   return 0;
 }
