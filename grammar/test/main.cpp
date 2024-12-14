@@ -34,6 +34,8 @@ int main(int , const char **) {
     std::cout << token->toString() << std::endl;
   }
 
+  std::cout << "Finished Parsing." << std::endl;
+
   FSharpParser parser(&tokens);
   tree::ParseTree* tree = parser.main();
 

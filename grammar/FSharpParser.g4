@@ -15,7 +15,11 @@ stmt
     ;
 
 simple_stmts
-    : simple_stmt (SEMI_COLON simple_stmt)* SEMI_COLON? NEWLINE
+    : inline_stmts NEWLINE
+    ;
+
+inline_stmts
+    : simple_stmt (SEMI_COLON simple_stmt)* SEMI_COLON?
     ;
 
 simple_stmt
@@ -27,7 +31,7 @@ expr_stmt
     ;
 
 testlist_expr
-    : expr (COMMA expr)* COMMA?
+    : test test*
     ;
 
 compound_stmt
@@ -35,17 +39,7 @@ compound_stmt
     ;
 
 let_stmt
-    : LET name (funcdef | vardef) NEWLINE
-    ;
-
-vardef
-    : EQUAL test
-    ;
-
-funcdef
-    : paramlist EQUAL (
-        | test test*
-    )
+    : LET name paramlist? EQUAL block NEWLINE
     ;
 
 paramlist
@@ -53,7 +47,7 @@ paramlist
     ;
 
 test
-    : or_test
+    : expr+
     ;
 
 or_test
@@ -83,26 +77,39 @@ comp_op
     ;
 
 expr
-    : atom
+    : atom_expr
     | (PLUS | MINUS | TILDA)+ expr
     | expr (PLUS | MINUS | STAR | DIV | MOD) expr
     ;
 
 atom_expr
-    : atom
+    : atom trailer*
+    ;
+
+trailer
+    : DOT name
     ;
 
 block
-     : simple_stmts
+     : inline_stmts
      | NEWLINE INDENT stmt+ DEDENT
      ;
 
 atom
-    : name
+    : OPEN_PAREN exprlist_expr CLOSE_PAREN
+    | name
     | NUMBER
     | STRING
     | TRUE
     | FALSE
+    ;
+
+atomlist_expr
+    : atom+
+    ;
+
+exprlist_expr
+    : expr (COMMA? expr)*
     ;
 
 name

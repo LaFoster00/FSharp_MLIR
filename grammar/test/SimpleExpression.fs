@@ -2,6 +2,7 @@ let a = 10
 let b = 2 * -10
 let b = 2 * 10 * a
 let b = 2 * (a 10)
+let b = 2 * (a 10 b)
 let b = 2 * ((a 10) + 10)
 printf b
 printf a a (foo 10) 10 20
