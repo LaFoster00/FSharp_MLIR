@@ -8,18 +8,25 @@ project(
         LANGUAGES CXX C
 )
 
-ANTLR_TARGET(SampleGrammarLexer TLexer.g4 LEXER
-        PACKAGE antlrcpptest)
-
-ANTLR_TARGET(SampleGrammarParser TParser.g4 PARSER
-        PACKAGE antlrcpptest
-        DEPENDS_ANTLR SampleGrammarLexer
-        COMPILE_FLAGS -lib ${ANTLR_SampleGrammarLexer_OUTPUT_DIR} #Needed so that the token file can be found
+include_directories(
+        ${PROJECT_SOURCE_DIR}/cpp
 )
 
+ANTLR_TARGET(FSharpLexer FSharpLexer.g4 LEXER
+        PACKAGE fsharpgrammar)
+include_directories(${FSharpLexer_OUTPUT_DIR})
+
+
+ANTLR_TARGET(FSharpParser FSharpParser.g4 PARSER
+        PACKAGE fsharpgrammar
+        DEPENDS_ANTLR FSharpLexer
+        COMPILE_FLAGS -lib ${ANTLR_FSharpLexer_OUTPUT_DIR} #Needed so that the token file can be found
+)
+include_directories(${FSharpParser_OUTPUT_DIR})
+
 set(GENERATED_SOURCE
-        ${SampleGrammarLexer_CXX_OUTPUTS}
-        ${SampleGrammarParser_CXX_OUTPUTS}
+        ${FSharpLexer_CXX_OUTPUTS}
+        ${FSharpParser_CXX_OUTPUTS}
 )
 
 foreach(src_file ${GENERATED_SOURCE})
@@ -30,7 +37,8 @@ foreach(src_file ${GENERATED_SOURCE})
     )
 endforeach(src_file ${GENERATED_SOURCE})
 
-add_custom_target(SampleGrammarGenerator DEPENDS ${GENERATED_SOURCE})
+add_custom_target(FSharpGrammarGenerator DEPENDS ${GENERATED_SOURCE})
 
+add_subdirectory(cpp)
 
 add_subdirectory(test)

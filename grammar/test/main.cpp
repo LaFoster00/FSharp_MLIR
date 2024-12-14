@@ -13,15 +13,15 @@
 #include <iostream>
 
 #include "antlr4-runtime.h"
-#include "TLexer.h"
-#include "TParser.h"
+#include "FSharpLexer.h"
+#include "FSharpParser.h"
 
-using namespace antlrcpptest;
 using namespace antlr4;
+using namespace fsharpgrammar;
 
 int main(int , const char **) {
   ANTLRInputStream input("🍴 = 🍐 + \"😎\";(((x * π))) * µ + ∰; a + (x * (y ? 0 : 1) + z);");
-  TLexer lexer(&input);
+  FSharpLexer lexer(&input);
   CommonTokenStream tokens(&lexer);
 
   tokens.fill();
@@ -29,7 +29,7 @@ int main(int , const char **) {
     std::cout << token->toString() << std::endl;
   }
 
-  TParser parser(&tokens);
+  FSharpParser parser(&tokens);
   tree::ParseTree* tree = parser.main();
 
   std::cout << tree->toStringTree(&parser) << std::endl << std::endl;

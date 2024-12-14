@@ -1,6 +1,23 @@
 lexer grammar FSharpLexer;
 
+// https://github.com/antlr/grammars-v4/tree/master/python/python3
+
+// All comments that start with "///" are copy-pasted from
+// The Python Language Reference
+
+tokens {
+    INDENT,
+    DEDENT
+}
+
+options {
+    superClass = FSharpLexerBase;
+}
+
 channels { CommentsChannel }
+
+@header {#include "FSharpLexerBase.h"}
+
 
 LET: 'let';
 
