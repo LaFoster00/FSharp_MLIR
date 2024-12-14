@@ -64,6 +64,8 @@ PLUS                : '+';
 MINUS               : '-';
 DIV                 : '/';
 MOD                 : '%';
+TILDA               : '~';
+EXCLAMATION         : '!';
 OPEN_PAREN         : '(' {this->openBrace();};
 CLOSE_PAREN        : ')' {this->closeBrace();};
 COMMA              : ',';
@@ -79,6 +81,7 @@ LESS_THAN          : '<';
 GREATER_THAN       : '>';
 GT_EQ              : '>=';
 LT_EQ              : '<=';
+NOT_EQ             : '!=';
 PIPE_RIGHT         : '|>';
 ARROW              : '->';
 

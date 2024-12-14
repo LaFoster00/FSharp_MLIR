@@ -7,36 +7,144 @@ options {
 
 @header { #include "FSharpParserBase.h" }
 
-main: expr+ EOF;
+main
+    : (NEWLINE | stmt)* EOF
+    ;
 
-expr: letexpr;
+stmt
+    : simple_stmts
+    //| compound_stmt
+    ;
 
-letexpr: LET ID EQUAL simpleexpr;
+simple_stmts
+    : simple_stmt (SEMI_COLON simple_stmt)* SEMI_COLON? NEWLINE
+    ;
 
-simpleexpr: callexpr
-    | arithexpr
-    | literalexpr;
+simple_stmt
+    : (
+        expr_stmt
+        //| flow_stmt
+    )
+    ;
 
-inlineexpr: OPENPAR simpleexpr CLOSEPAR;
+expr_stmt
+    : annassign
+    ;
 
-literalexpr: INT
-    | STRING;
 
-callexpr: ID callparams;
+annassign
+    : LET name EQUAL test
+    ;
 
-arithexpr: addexpr
-    | multexpr;
+flow_stmt
+    : break_stmt
+    | continue_stmt
+    | return_stmt
+    ;
 
-operandsexpr: | ID
-    | literalexpr
-    | inlineexpr;
+break_stmt
+    : BREAK
+    ;
 
-addexpr: operandsexpr PLUS (operandsexpr | ID);
+continue_stmt
+    : CONTINUE
+    ;
 
-multexpr: operandsexpr STAR (operandsexpr | ID);
+return_stmt
+    : RETURN testlist?
+    ;
 
-callparams:
-    OPENPAR (ID | inlineexpr)? CLOSEPAR
-    | OPENPAR (ID | simpleexpr | inlineexpr) (COMMA (ID | simpleexpr | inlineexpr))* CLOSEPAR
-    | (ID | literalexpr) (ID | inlineexpr | literalexpr)*
+testlist
+    : test (',' test)* ','?
+    ;
+
+test
+    : or_test
+    ;
+
+compound_stmt
+    : //if_stmt
+    //| while_stmt
+    //| for_stmt
+    //| funcdef
+    //| match_stmt
+    ;
+
+block
+    : simple_stmts
+    | NEWLINE INDENT stmt+ DEDENT
+    ;
+
+literal_expr
+    : signed_number { this->CannotBePlusMinus() }?
+    | strings
+    | TRUE
+    | FALSE
+    ;
+
+signed_number
+    : NUMBER
+    | MINUS NUMBER
+    ;
+
+wildcard_pattern
+    : UNDERSCORE
+    ;
+
+or_test
+    : and_test (OR_OP and_test)*
+    ;
+
+and_test
+    : not_test (AND_OP not_test)*
+    ;
+
+not_test
+    : EXCLAMATION not_test
+    | comparison
+    ;
+
+comparison
+    : expr (comp_op expr)*
+    ;
+
+comp_op
+    : LESS
+    | GREATER
+    | EQUAL
+    | GT_EQ
+    | LS_EQ
+    | NOT_EQ
+    ;
+
+expr
+    : atom_expr
+    | (PLUSE | MINUS | TILDA)+ expr
+    | expr (STAR | DIV | MOD) expr
+    | expr (PLUS | MINUS) expr
+    ;
+
+atom_expr
+    : atom //trailer*
+    ;
+
+atom
+    : //'(' (yield_expr | testlist_comp)? ')'
+    //| '[' testlist_comp? ']'
+    //| '{' dictorsetmaker? '}'
+    | name
+    | NUMBER
+    | strings
+    | TRUE
+    | FALSE
+    ;
+
+name
+    : NAME
+    | UNDERSCORE
+    | MATCH
+    ;
+
+strings
+    : STRING+
     ;
