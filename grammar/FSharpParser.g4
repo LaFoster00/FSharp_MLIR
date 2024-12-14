@@ -1,15 +1,17 @@
 parser grammar FSharpParser;
 
 options {
+    superClass = FSharpParserBase;
     tokenVocab = FSharpLexer;
 }
 
+@header { #include "FSharpParserBase.h" }
+
 main: expr+ EOF;
 
-expr: letexpr
-    | simpleexpr NEWLINE;
+expr: letexpr;
 
-letexpr: LET ID EQUAL simpleexpr NEWLINE;
+letexpr: LET ID EQUAL simpleexpr;
 
 simpleexpr: callexpr
     | arithexpr

@@ -9,6 +9,8 @@ add_library(FSharpGrammar STATIC
         ${FSharpParser_CXX_OUTPUTS}
         FSharpLexerBase.h
         FSharpLexerBase.cpp
+        FSharpParserBase.h
+        FSharpParserBase.cpp
 )
 
 add_dependencies(FSharpGrammar FSharpGrammarGenerator)

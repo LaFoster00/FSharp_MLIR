@@ -123,7 +123,6 @@ void FSharpLexerBase::onNewLine()
     }
 }
 
-
 void FSharpLexerBase::reset()
 {
     tokens = std::vector<std::unique_ptr<antlr4::Token>>{};

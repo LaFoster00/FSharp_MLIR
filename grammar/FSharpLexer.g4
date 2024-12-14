@@ -18,25 +18,133 @@ channels { CommentsChannel }
 
 @header {#include "FSharpLexerBase.h"}
 
+STRING: STRING_LITERAL;
+
+NUMBER: INTEGER | FLOAT_NUMBER;
+
+INTEGER: DECIMAL_INTEGER;
+
 
 LET: 'let';
+BREAK      : 'break';
+CONTINUE   : 'continue';
+IF         : 'if';
+THEN       : 'then';
+ELIF       : 'elif';
+ELSE       : 'else';
+TRUE       : 'True';
+FALSE      : 'False';
+FOR        : 'for';
+IN         : 'in';
+TO         : 'to';
+DO         : 'do';
+WHILE      : 'while';
+MATCH      : 'match';
+UNDERSCORE : '_';
 
-INT: Digit+;
-Digit: [0-9];
+NEWLINE: ({this->atStartOfInput()}? SPACES | ( '\r'? '\n' | '\r' | '\f') SPACES?) {this->onNewLine();};
 
-ID: LETTER (LETTER | '0'..'9')*;
-fragment LETTER : [a-zA-Z\u0080-\u{10FFFF}];
+/// identifier   ::=  id_start id_continue*
+NAME: ID_START ID_CONTINUE*;
 
-EQUAL: '=';
-PLUS: '+';
-STAR: '*';
-OPENPAR: '(';
-CLOSEPAR: ')';
-COMMA: ',';
+/// stringliteral   ::=  (shortstring | longstring)
+STRING_LITERAL: SHORT_STRING;
+CHARACTER_LITERAL: '\'' (STRING_ESCAPE_SEQ | ~[\\\r\n\f']) '\'';
 
-STRING: '"' .*? '"';
+/// decimalinteger ::=  nonzerodigit digit* | "0"+
+DECIMAL_INTEGER: NON_ZERO_DIGIT DIGIT* | '0'+;
 
-NEWLINE: '\r'? '\n';
+/// floatnumber   ::=  pointfloat | exponentfloat
+FLOAT_NUMBER: POINT_FLOAT;
 
-COMMENT : '//' ~[\r\n]* '\r'? '\n' -> channel(CommentsChannel);
-WS: [ \t]+ -> skip;
+DOT                 : '.';
+STAR                : '*';
+EQUAL               : '=';
+PLUS                : '+';
+MINUS               : '-';
+DIV                 : '/';
+MOD                 : '%';
+OPEN_PAREN         : '(' {this->openBrace();};
+CLOSE_PAREN        : ')' {this->closeBrace();};
+COMMA              : ',';
+COLON              : ':';
+SEMI_COLON         : ';';
+OPEN_BRACK         : '[' {this->openBrace();};
+CLOSE_BRACK        : ']' {this->closeBrace();};
+OR_OP              : '||';
+AND_OP             : '&&';
+COMPO_LEFT         : '<<';
+COMPO_RIGHT        : '>>';
+LESS_THAN          : '<';
+GREATER_THAN       : '>';
+GT_EQ              : '>=';
+LT_EQ              : '<=';
+PIPE_RIGHT         : '|>';
+ARROW              : '->';
+
+SKIP_: ( SPACES | COMMENT ) -> skip;
+
+UNKNOWN_CHAR: .;
+
+fragment COMMENT: '//' ~[\r\n\f]*;
+
+/// shortstring     ::=  "'" shortstringitem* "'" | '"' shortstringitem* '"'
+/// shortstringitem ::=  shortstringchar | stringescapeseq
+/// shortstringchar ::=  <any source character except "\" or newline or the quote>
+fragment SHORT_STRING: '"' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"])* '"';
+
+/// stringescapeseq ::=  "\" <any source character>
+fragment STRING_ESCAPE_SEQ: '\\' . | '\\' NEWLINE;
+
+/// nonzerodigit   ::=  "1"..."9"
+fragment NON_ZERO_DIGIT: [1-9];
+
+/// digit          ::=  "0"..."9"
+fragment DIGIT: [0-9];
+
+/// pointfloat    ::=  [intpart] fraction | intpart "."
+fragment POINT_FLOAT: INT_PART? FRACTION | INT_PART '.';
+
+/// intpart       ::=  digit+
+fragment INT_PART: DIGIT+;
+
+/// fraction      ::=  "." digit+
+fragment FRACTION: '.' DIGIT+;
+
+fragment SPACES: [ \t]+;
+
+// TODO: ANTLR seems lack of some Unicode property support...
+//$ curl https://www.unicode.org/Public/13.0.0/ucd/PropList.txt | grep Other_ID_
+//1885..1886    ; Other_ID_Start # Mn   [2] MONGOLIAN LETTER ALI GALI BALUDA..MONGOLIAN LETTER ALI GALI THREE BALUDA
+//2118          ; Other_ID_Start # Sm       SCRIPT CAPITAL P
+//212E          ; Other_ID_Start # So       ESTIMATED SYMBOL
+//309B..309C    ; Other_ID_Start # Sk   [2] KATAKANA-HIRAGANA VOICED SOUND MARK..KATAKANA-HIRAGANA SEMI-VOICED SOUND MARK
+//00B7          ; Other_ID_Continue # Po       MIDDLE DOT
+//0387          ; Other_ID_Continue # Po       GREEK ANO TELEIA
+//1369..1371    ; Other_ID_Continue # No   [9] ETHIOPIC DIGIT ONE..ETHIOPIC DIGIT NINE
+//19DA          ; Other_ID_Continue # No       NEW TAI LUE THAM DIGIT ONE
+
+fragment UNICODE_OIDS: '\u1885' ..'\u1886' | '\u2118' | '\u212e' | '\u309b' ..'\u309c';
+
+fragment UNICODE_OIDC: '\u00b7' | '\u0387' | '\u1369' ..'\u1371' | '\u19da';
+
+
+/// id_start     ::=  <all characters in general categories Lu, Ll, Lt, Lm, Lo, Nl, the underscore, and characters with the Other_ID_Start property>
+fragment ID_START:
+    '_'
+    | [\p{L}]
+    | [\p{Nl}]
+    //| [\p{Other_ID_Start}]
+    | UNICODE_OIDS
+;
+
+/// id_continue  ::=  <all characters in id_start, plus characters in the categories Mn, Mc, Nd, Pc and others with the Other_ID_Continue property>
+fragment ID_CONTINUE:
+    ID_START
+    | [\p{Mn}]
+    | [\p{Mc}]
+    | [\p{Nd}]
+    | [\p{Pc}]
+    //| [\p{Other_ID_Continue}]
+    | UNICODE_OIDC
+;
