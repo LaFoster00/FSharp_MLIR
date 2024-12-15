@@ -52,11 +52,11 @@ let_stmt
     ;
 
 assignment_stmt
-    : EQUAL block NEWLINE
+    : EQUAL block
     ;
 
 funcdef_stmt
-    : paramlist EQUAL block NEWLINE
+    : paramlist EQUAL block
     ;
 
 // List of parameters separated by spaces
