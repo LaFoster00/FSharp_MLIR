@@ -48,13 +48,35 @@ compound_stmt
 
 // Let statement with optional parameters and a block
 let_stmt
-    : LET name paramlist? EQUAL block NEWLINE
+    : LET name (assignment_stmt | funcdef_stmt)
+    ;
+
+assignment_stmt
+    : EQUAL block NEWLINE
+    ;
+
+funcdef_stmt
+    : paramlist EQUAL block NEWLINE
     ;
 
 // List of parameters separated by spaces
 paramlist
-    : test (SPACES test)*
+    : OPEN_PAREN typedarg (COMMA typedarg)* CLOSE_PAREN type?
+    | untypedarg (COMMA untypedarg)* type?
     ;
+
+typedarg
+    : untypedarg type
+    ;
+
+untypedarg
+    : name
+    ;
+
+type
+    : COLON name
+    ;
+
 
 // Test expression, can be one or more expressions
 test
