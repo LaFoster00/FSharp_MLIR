@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/cmake-build-debug/antlr4_runtime/src/antlr4_runtime" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/extern/llvm-project" vcs="Git" />
   </component>
 </project>

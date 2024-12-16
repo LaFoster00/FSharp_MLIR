@@ -20,6 +20,7 @@ target_link_libraries(test
         PRIVATE
         FSharpGrammar
         antlr4_shared
+        magic_enum::magic_enum
 )
 
 

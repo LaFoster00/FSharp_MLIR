@@ -16,6 +16,8 @@
 #include "FSharpLexer.h"
 #include "FSharpParser.h"
 
+#include "magic_enum/magic_enum.hpp"
+
 using namespace antlr4;
 using namespace fsharpgrammar;
 
@@ -30,8 +32,13 @@ int main(int , const char **) {
   CommonTokenStream tokens(&lexer);
 
   tokens.fill();
+  size_t lastLine = 0;
   for (auto token : tokens.getTokens()) {
-    std::cout << token->toString() << std::endl;
+    auto type = static_cast<decltype(FSharpLexer::NUMBER)>(token->getType());
+    if (token->getLine() != lastLine)
+      std::cout << std::endl << "Line " << token->getLine() << ": \n";
+    std::cout << magic_enum::enum_name(type) << ' ';
+    lastLine = token->getLine();
   }
 
   std::cout << "Finished Parsing." << std::endl;
