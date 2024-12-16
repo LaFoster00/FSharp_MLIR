@@ -154,9 +154,9 @@ ident
 
 constant
     : INTEGER
-    | FLOAT
+    | FLOAT_NUMBER
     | STRING
-    | CHARACTER
+    | CHARACTER_LITERAL
     | BOOL
     | UNIT
     ;
