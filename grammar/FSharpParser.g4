@@ -17,25 +17,36 @@ module_or_namespace
 
 /// Represents a definition within a module
 module_decl
-    : MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT   # nested_module
-    | let_stmt                                                      #let_definition
+    : NEWLINE+ #emply_lines
+    | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
+    | let_stmt #let_definition
+    | expr_stmt NEWLINE #expr_definition
     ;
 
 let_stmt
-    : LET binding EQUALS expr_stmt NEWLINE #inline_let_definition
+    : LET binding EQUALS body
     ;
 
 binding
-    : MUTABLE? ident type? #variable_binding
-    | REC? ident type? #standalone_binding
+    : MUTABLE? ident opt_type #variable_binding
+    | REC? ident expr_stmt+ opt_type #standalone_binding
     ;
+
+opt_type
+    : (COLON type)?
+    ;
+
+body
+    : NEWLINE INDENT (expr_stmt NEWLINE)+ DEDENT #multiline_body
+    | expr_stmt NEWLINE #single_line_body
+    ;
+
 
 expr_stmt
     :
     /// F# syntax: 1, 1.3, () etc.
     constant                             #const_expr
     /// F# syntax: ident
-    /// Optimized representation for SynExpr.LongIdent (false, [id], id.idRange)
     | ident                              #ident_expr
     /// F# syntax: ident.ident...ident
     | long_ident                         #long_ident_expr
@@ -55,6 +66,13 @@ expr_stmt
     | NULL                                          #null_expr
     | expr_stmt operators expr_stmt                 #arith_expr
     | sign expr_stmt                                #sign_expr
+
+    /// F# syntax: let pat = expr in expr
+    /// F# syntax: let f pat1 .. patN = expr in expr
+    /// F# syntax: let rec f pat1 .. patN = expr in expr
+    /// F# syntax: use pat = expr in expr
+    | LET binding EQUALS expr_stmt #let_expr
+
     /// F# syntax: (expr)
     ///
     /// Parenthesized expressions. Kept in AST to distinguish A.M((x, y))
