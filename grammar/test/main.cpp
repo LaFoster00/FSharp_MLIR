@@ -21,6 +21,7 @@
 using namespace antlr4;
 using namespace fsharpgrammar;
 
+
 int main(int , const char **) {
   std::ifstream file("SimpleExpression.fs");
   std::stringstream buffer;
@@ -34,7 +35,7 @@ int main(int , const char **) {
   tokens.fill();
   size_t lastLine = 0;
   for (auto token : tokens.getTokens()) {
-    auto type = static_cast<decltype(FSharpLexer::NUMBER)>(token->getType());
+    auto type = static_cast<decltype(FSharpLexer::UNKNOWN_CHAR)>(token->getType());
     if (token->getLine() != lastLine)
       std::cout << std::endl << "Line " << token->getLine() << ": \n";
     std::cout << magic_enum::enum_name(type) << ' ';

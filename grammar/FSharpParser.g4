@@ -7,159 +7,135 @@ options {
 
 @header { #include "FSharpParserBase.h" }
 
-// Main entry point of the parser
-main: (NEWLINE | stmt)* EOF;
+main: (NEWLINE | module_or_namespace)+ EOF;
 
-// Statement rule, can be either simple or compound
-stmt
-    : simple_stmts
-    | compound_stmt
+module_or_namespace
+    : MODULE long_ident NEWLINE module_decl*    #namedmodule
+    | NAMESPACE long_ident NEWLINE module_decl* #namespace
+    | module_decl+                              #anonmodule
     ;
 
-// Simple statements followed by a newline
-simple_stmts
-    : inline_stmts NEWLINE
+/// Represents a definition within a module
+module_decl
+    : MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT   # nested_module
+    | let_stmt                                                      #let_definition
     ;
 
-// Inline statements separated by semicolons
-inline_stmts
-    : simple_stmt (SEMI_COLON simple_stmt)* SEMI_COLON?
-    ;
-
-// Simple statement, currently only expression statements
-simple_stmt
-    : expr_stmt
-    ;
-
-// Expression statement
-expr_stmt
-    : testlist_expr
-    ;
-
-// List of expressions
-testlist_expr
-    : test test*
-    ;
-
-// Compound statement, currently only let statements
-compound_stmt
-    : let_stmt
-    ;
-
-// Let statement with optional parameters and a block
 let_stmt
-    : LET name (assignment_stmt | funcdef_stmt)
+    : LET binding EQUALS expr_stmt NEWLINE #inline_let_definition
     ;
 
-assignment_stmt
-    : EQUAL block
+binding
+    : MUTABLE? ident type? #variable_binding
+    | REC? ident type? #standalone_binding
     ;
 
-funcdef_stmt
-    : paramlist EQUAL block
+expr_stmt
+    :
+    /// F# syntax: 1, 1.3, () etc.
+    constant                             #const_expr
+    /// F# syntax: ident
+    /// Optimized representation for SynExpr.LongIdent (false, [id], id.idRange)
+    | ident                              #ident_expr
+    /// F# syntax: ident.ident...ident
+    | long_ident                         #long_ident_expr
+    /// F# syntax: ident.ident...ident <- expr
+    | long_ident LEFT_ARROW expr_stmt    #long_ident_assign_expr
+    /// F# syntax: expr.ident.ident
+    | expr_stmt DOT long_ident           #dot_get_expr
+    /// F# syntax: expr.ident...ident <- expr
+    | expr_stmt DOT long_ident LEFT_ARROW expr_stmt  #dot_set_expr
+    /// F# syntax: expr <- expr
+    | expr_stmt LEFT_ARROW expr_stmt     #set_expr
+    /// F# syntax: expr.[expr]
+    | expr_stmt OPEN_BRACK expr_stmt CLOSE_BRACK  #dot_index_get_expr
+    /// F# syntax: expr.[expr, ..., expr] <- expr
+    | expr_stmt OPEN_BRACK (expr_stmt (COMMA expr_stmt)*)* CLOSE_BRACK LEFT_ARROW expr_stmt  #dot_index_set_expr
+    /// F# syntax: null
+    | NULL                                          #null_expr
+    | expr_stmt operators expr_stmt                 #arith_expr
+    | sign expr_stmt                                #sign_expr
+    /// F# syntax: (expr)
+    ///
+    /// Parenthesized expressions. Kept in AST to distinguish A.M((x, y))
+    /// from A.M(x, y), among other things.
+    | OPEN_PAREN expr_stmt CLOSE_PAREN      #paren_expr
+    /// F# syntax: expr: type
+    | expr_stmt COLON type                        #typed_expr
+    /// F# syntax: e1, ..., eN
+    | expr_stmt (COMMA expr_stmt)+          #tuple_expr
+    /// F# syntax: {| id1=e1; ...; idN=eN |}
+    | OPEN_BRACE ident EQUALS expr_stmt (SEMI_COLON ident EQUALS expr_stmt)* CLOSE_BRACE    #anon_record_expr
+    /// F# syntax: [ e1; ...; en ]
+    | OPEN_BRACK expr_stmt (SEMI_COLON expr_stmt)* CLOSE_BRACK                              #array_expr
+    /// F# syntax: [| e1; ...; en |]
+    | OPEN_BRACK PIPE expr_stmt (SEMI_COLON expr_stmt)* PIPE CLOSE_BRACK                    #list_expr
+    /// F# syntax: new C(...)
+    | NEW type OPEN_PAREN expr_stmt (COMMA expr_stmt)* CLOSE_PAREN                          #new_expr
+    /// F# syntax: f x
+    | expr_stmt expr_stmt+                                                              #append_expr
     ;
 
-// List of parameters separated by spaces
-paramlist
-    : OPEN_PAREN typedarg (COMMA typedarg)* CLOSE_PAREN type?
-    | untypedarg (COMMA untypedarg)* type?
+operators
+    : PLUS
+    | MINUS
+    | STAR
+    | DIV
+    | MOD
     ;
 
-typedarg
-    : untypedarg type
+sign
+    : PLUS
+    | MINUS
     ;
 
-untypedarg
-    : name
+long_ident
+    : ident (DOT ident)*;
+
+
+type:
+    /// F# syntax: A.B.C
+    long_ident                                            #long_ident_type
+
+    // | APPEND productions
+    /// F# syntax: type<type, ..., type>
+    | type LESS_THAN (type (COMMA type)*)* GREATER_THAN       #append_bracket_generic_type
+    /// F# syntax: type type
+    | type type                                             #append_double_type
+    /// F# syntax: (type, type) type
+    | OPEN_PAREN type COMMA type CLOSE_PAREN type                 #postfix_double_type
+
+    //| long_ident_append
+    /// F# syntax: type.A.B.C<type, ..., type>
+    | type (DOT ident)* LESS_THAN type (COMMA type)* GREATER_THAN    #long_ident_append_type
+
+    //| tuple
+    /// F# syntax: type * ... * type
+    | type (STAR type)+                                    #tuple_type
+
+    //| array
+    /// F# syntax: type[]
+    | type OPEN_BRACK CLOSE_BRACK                           #array_type
+
+    //| fun
+    /// F# syntax: type -> type
+    | type ARROW type                                       #fun_type
+
+    //| paren
+    /// F# syntax: (type)
+    | OPEN_PAREN type CLOSE_PAREN                           #paren_type
+
     ;
 
-type
-    : COLON name
+ident
+    : IDENT
     ;
 
-
-// Test expression, can be one or more expressions
-test
-    : expr+
-    ;
-
-// Logical OR test
-or_test
-    : and_test (OR_OP and_test)*
-    ;
-
-// Logical AND test
-and_test
-    : not_test (AND_OP not_test)*
-    ;
-
-// Logical NOT test
-not_test
-    : EXCLAMATION not_test
-    | comparison
-    ;
-
-// Comparison expression
-comparison
-    : expr (comp_op expr)*
-    ;
-
-// Comparison operators
-comp_op
-    : LESS_THAN
-    | GREATER_THAN
-    | EQUAL
-    | GT_EQ
-    | LT_EQ
-    | NOT_EQ
-    ;
-
-// Expression, can be an atom, unary operation, or binary operation
-expr
-    : atom_expr
-    | (PLUS | MINUS | TILDA)+ expr
-    | expr (PLUS | MINUS | STAR | DIV | MOD) expr
-    ;
-
-// Atom expression with optional trailers
-atom_expr
-    : atom trailer*
-    ;
-
-// Trailer for atom expressions, currently only dot notation
-trailer
-    : DOT name
-    ;
-
-// Block of statements, can be inline or indented
-block
-    : inline_stmts
-    | NEWLINE INDENT stmt+ DEDENT
-    ;
-
-// Atom, can be a parenthesized expression, name, number, string, or boolean
-atom
-    : OPEN_PAREN exprlist_expr CLOSE_PAREN
-    | name
-    | NUMBER
+constant
+    : INTEGER
+    | FLOAT
     | STRING
-    | TRUE
-    | FALSE
-    ;
-
-// List of atoms
-atomlist_expr
-    : atom+
-    ;
-
-// List of expressions separated by commas
-exprlist_expr
-    : expr (COMMA? expr)*
-    ;
-
-// Name, can be a regular name, underscore, or match keyword
-name
-    : NAME
-    | UNDERSCORE
-    | MATCH
+    | CHARACTER
+    | BOOL
+    | UNIT
     ;

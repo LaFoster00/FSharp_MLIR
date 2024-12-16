@@ -19,37 +19,40 @@ channels { CommentsChannel }
 @header {#include "FSharpLexerBase.h"}
 
 STRING: STRING_LITERAL;
-
-NUMBER: INTEGER | FLOAT_NUMBER;
-
+CHARACTER: CHARACTER_LITERAL;
 INTEGER: DECIMAL_INTEGER;
 
+UNIT        : '()';
+NEW         : 'new';
+MODULE      : 'module';
+NAMESPACE   : 'namespace';
+REC         : 'rec';
+LET         : 'let';
+BREAK       : 'break';
+CONTINUE    : 'continue';
+IF          : 'if';
+THEN        : 'then';
+ELIF        : 'elif';
+ELSE        : 'else';
+BOOL        : 'True' | 'False';
+FOR         : 'for';
+IN          : 'in';
+TO          : 'to';
+DO          : 'do';
+WHILE       : 'while';
+MATCH       : 'match';
+MUTABLE     : 'mutable';
+UNDERSCORE  : '_';
+NULL        : 'null';
 
-LET        : 'let';
-BREAK      : 'break';
-CONTINUE   : 'continue';
-IF         : 'if';
-THEN       : 'then';
-ELIF       : 'elif';
-ELSE       : 'else';
-TRUE       : 'True';
-FALSE      : 'False';
-FOR        : 'for';
-IN         : 'in';
-TO         : 'to';
-DO         : 'do';
-WHILE      : 'while';
-MATCH      : 'match';
-UNDERSCORE : '_';
-
-NEWLINE: ({this->atStartOfInput()}? SPACES | ( '\r'? '\n' | '\r' | '\f') SPACES?) {this->onNewLine();};
+NEWLINE: ({this->atStartOfInput()}? WHITESPACES | ( '\r'? '\n' | '\r' | '\f') WHITESPACES?) {this->onNewLine();};
 
 /// identifier   ::=  id_start id_continue*
-NAME: ID_START ID_CONTINUE*;
+IDENT: ID_START ID_CONTINUE*;
 
 /// stringliteral   ::=  (shortstring | longstring)
 STRING_LITERAL: SHORT_STRING;
-CHARACTER_LITERAL: '\'' (STRING_ESCAPE_SEQ | ~[\\\r\n\f']) '\'';
+CHARACTER_LITERAL: '\'' (STRING_ESCAPE_SEQ | ~[\\\r\n\f'])? '\'';
 
 /// decimalinteger ::=  nonzerodigit digit* | "0"+
 DECIMAL_INTEGER: NON_ZERO_DIGIT DIGIT* | '0'+;
@@ -59,33 +62,37 @@ FLOAT_NUMBER: POINT_FLOAT;
 
 DOT                 : '.';
 STAR                : '*';
-EQUAL               : '=';
+EQUALS              : '=';
 PLUS                : '+';
 MINUS               : '-';
 DIV                 : '/';
 MOD                 : '%';
 TILDA               : '~';
 EXCLAMATION         : '!';
-OPEN_PAREN         : '(' {this->openBrace();};
-CLOSE_PAREN        : ')' {this->closeBrace();};
-COMMA              : ',';
-COLON              : ':';
-SEMI_COLON         : ';';
-OPEN_BRACK         : '[' {this->openBrace();};
-CLOSE_BRACK        : ']' {this->closeBrace();};
-OR_OP              : '||';
-AND_OP             : '&&';
-COMPO_LEFT         : '<<';
-COMPO_RIGHT        : '>>';
-LESS_THAN          : '<';
-GREATER_THAN       : '>';
-GT_EQ              : '>=';
-LT_EQ              : '<=';
-NOT_EQ             : '!=';
-PIPE_RIGHT         : '|>';
-ARROW              : '->';
+OPEN_PAREN          : '(' {this->openBrace();};
+CLOSE_PAREN         : ')' {this->closeBrace();};
+OPEN_BRACE          : '{' {this->openBrace();};
+CLOSE_BRACE         : '}' {this->closeBrace();};
+COMMA               : ',';
+COLON               : ':';
+SEMI_COLON          : ';';
+OPEN_BRACK          : '[' {this->openBrace();};
+CLOSE_BRACK         : ']' {this->closeBrace();};
+PIPE                : '|';
+OR_OP               : '||';
+AND_OP              : '&&';
+COMPO_LEFT          : '<<';
+COMPO_RIGHT         : '>>';
+LESS_THAN           : '<';
+GREATER_THAN        : '>';
+GT_EQ               : '>=';
+LT_EQ               : '<=';
+NOT_EQ              : '!=';
+PIPE_RIGHT          : '|>';
+ARROW               : '->';
+LEFT_ARROW          : '<-';
 
-SKIP_: ( SPACES | COMMENT ) -> skip;
+SKIP_: (WHITESPACES | COMMENT) -> skip;
 
 UNKNOWN_CHAR: .;
 
@@ -114,7 +121,8 @@ fragment INT_PART: DIGIT+;
 /// fraction      ::=  "." digit+
 fragment FRACTION: '.' DIGIT+;
 
-fragment SPACES: [ \t]+;
+fragment WHITESPACE: [ \t];
+fragment WHITESPACES: WHITESPACE+;
 
 // TODO: ANTLR seems lack of some Unicode property support...
 //$ curl https://www.unicode.org/Public/13.0.0/ucd/PropList.txt | grep Other_ID_
