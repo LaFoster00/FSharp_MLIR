@@ -20,7 +20,7 @@ module_decl
     : NEWLINE+ #emply_lines
     | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
     | let_stmt #let_definition
-    | expr_stmt NEWLINE #expr_definition
+    | expr_stmt #expr_definition
     ;
 
 let_stmt
@@ -37,10 +37,14 @@ opt_type
     ;
 
 body
-    : NEWLINE INDENT (expr_stmt NEWLINE)+ DEDENT #multiline_body
-    | expr_stmt NEWLINE #single_line_body
+    : NEWLINE INDENT sequential_expr+ DEDENT #multiline_body
+    | sequential_expr #single_line_body
     ;
 
+sequential_expr
+    // F# syntax: expr; expr; ...; expr
+    : expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
+    ;
 
 expr_stmt
     :
@@ -51,28 +55,27 @@ expr_stmt
     /// F# syntax: ident.ident...ident
     | long_ident                         #long_ident_expr
     /// F# syntax: ident.ident...ident <- expr
-    | long_ident LEFT_ARROW expr_stmt    #long_ident_assign_expr
+    | long_ident LEFT_ARROW             #long_ident_assign_expr
     /// F# syntax: expr.ident.ident
     | expr_stmt DOT long_ident           #dot_get_expr
     /// F# syntax: expr.ident...ident <- expr
-    | expr_stmt DOT long_ident LEFT_ARROW expr_stmt  #dot_set_expr
+    | expr_stmt DOT long_ident LEFT_ARROW  #dot_set_expr
     /// F# syntax: expr <- expr
-    | expr_stmt LEFT_ARROW expr_stmt     #set_expr
+    | expr_stmt LEFT_ARROW     #set_expr
     /// F# syntax: expr.[expr]
     | expr_stmt OPEN_BRACK expr_stmt CLOSE_BRACK  #dot_index_get_expr
     /// F# syntax: expr.[expr, ..., expr] <- expr
-    | expr_stmt OPEN_BRACK (expr_stmt (COMMA expr_stmt)*)* CLOSE_BRACK LEFT_ARROW expr_stmt  #dot_index_set_expr
+    | expr_stmt OPEN_BRACK (expr_stmt (COMMA expr_stmt)*)* CLOSE_BRACK LEFT_ARROW  #dot_index_set_expr
     /// F# syntax: null
     | NULL                                          #null_expr
-    | expr_stmt operators expr_stmt                 #arith_expr
-    | sign expr_stmt                                #sign_expr
+    | expr_stmt operators expr_stmt                           #arith_expr
+    | sign expr_stmt                                    #sign_expr
 
     /// F# syntax: let pat = expr in expr
     /// F# syntax: let f pat1 .. patN = expr in expr
     /// F# syntax: let rec f pat1 .. patN = expr in expr
     /// F# syntax: use pat = expr in expr
     | LET binding EQUALS expr_stmt #let_expr
-
     /// F# syntax: (expr)
     ///
     /// Parenthesized expressions. Kept in AST to distinguish A.M((x, y))
@@ -91,7 +94,7 @@ expr_stmt
     /// F# syntax: new C(...)
     | NEW type OPEN_PAREN expr_stmt (COMMA expr_stmt)* CLOSE_PAREN                          #new_expr
     /// F# syntax: f x
-    | expr_stmt expr_stmt+                                                              #append_expr
+    | expr_stmt expr_stmt+                                                                  #append_expr
     ;
 
 operators
