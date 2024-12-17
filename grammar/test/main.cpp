@@ -23,7 +23,7 @@ using namespace fsharpgrammar;
 
 
 int main(int , const char **) {
-  std::ifstream file("SimpleExpression.fs");
+  std::ifstream file("Program.fs");
   std::stringstream buffer;
   buffer << file.rdbuf();
   std::string fileContent = buffer.str();
