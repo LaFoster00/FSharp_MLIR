@@ -40,86 +40,6 @@ body
     | inline_sequential_stmt #single_line_body
     ;
 
-dot_get
-    /// F# syntax: expr.ident.ident
-    : DOT long_ident
-    ;
-
-long_ident_assign
-    /// F# syntax: ident.ident...ident <- expr
-    : long_ident assign
-    ;
-
-dot_assign
-    /// F# syntax: expr.ident...ident <- expr
-    : DOT long_ident assign
-    ;
-
-assign
-    /// F# syntax: expr <- expr
-    : LEFT_ARROW expr_stmt
-    ;
-
-dot_index_get
-    /// F# syntax: expr.[expr]
-    : OPEN_BRACK expr_stmt CLOSE_BRACK
-    ;
-
-dot_index_set
-    /// F# syntax: expr.[expr, ..., expr] <- expr
-    : OPEN_BRACK (expr_stmt (COMMA expr_stmt)*)* CLOSE_BRACK LEFT_ARROW expr_stmt
-    ;
-
-arith
-    /// F# syntax: expr + expr
-    : operators expr_stmt
-    ;
-
-signed
-    /// F# syntax: (- | +) expr
-    : sign expr_stmt
-    ;
-
-typed
-/// F# syntax: expr: type
-    : COLON type
-    ;
-
-tuple
-    /// F# syntax: e1, ..., eN
-    : (COMMA expr_stmt)+ // TODO check if + here is helping
-    ;
-
-paren
-    /// F# syntax: (expr)
-    : OPEN_PAREN expr_stmt CLOSE_PAREN
-    ;
-
-anon_record
-    /// F# syntax: {| id1=e1; ...; idN=eN |}
-    : OPEN_BRACE ident EQUALS expr_stmt (SEMI_COLON ident EQUALS expr_stmt)* CLOSE_BRACE
-    ;
-
-array
-    /// F# syntax: [ e1; ...; en ]
-    : OPEN_BRACK expr_stmt? (SEMI_COLON expr_stmt)* CLOSE_BRACK
-    ;
-
-list
-    /// F# syntax: [| e1; ...; en |]
-    : OPEN_BRACK PIPE expr_stmt? (SEMI_COLON expr_stmt)* PIPE CLOSE_BRACK
-    ;
-
-new
-    /// F# syntax: new C(...)
-    : NEW type OPEN_PAREN expr_stmt CLOSE_PAREN
-    ;
-
-open
-    /// F# syntax: open long_ident
-    : OPEN long_ident
-    ;
-
 inline_sequential_stmt
     : expr_stmt (SEMI_COLON expr_stmt)*
     ;
@@ -129,54 +49,151 @@ sequential_stmt
     : expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
     ;
 
+dot_get_expr
+    /// F# syntax: expr.ident.ident
+    : DOT long_ident
+    ;
+
+long_ident_assign_expr
+    /// F# syntax: ident.ident...ident <- expr
+    : long_ident assign_expr
+    ;
+
+dot_assign_expr
+    /// F# syntax: expr.ident...ident <- expr
+    : DOT long_ident assign_expr
+    ;
+
+assign_expr
+    /// F# syntax: expr <- expr
+    : LEFT_ARROW expr_stmt
+    ;
+
+dot_index_get_expr
+    /// F# syntax: expr.[expr]
+    : OPEN_BRACK expr_stmt CLOSE_BRACK
+    ;
+
+dot_index_set_expr
+    /// F# syntax: expr.[expr, ..., expr] <- expr
+    : OPEN_BRACK (expr_stmt (COMMA expr_stmt)*)* CLOSE_BRACK LEFT_ARROW expr_stmt
+    ;
+
+arith_expr
+    /// F# syntax: expr + expr
+    : operators expr_stmt
+    ;
+
+signed_expr
+    /// F# syntax: (- | +) expr
+    : sign expr_stmt
+    ;
+
+typed_expr
+/// F# syntax: expr: type
+    : COLON type
+    ;
+
+tuple_expr
+    /// F# syntax: e1, ..., eN
+    : (COMMA expr_stmt)+ // TODO check if + here is helping
+    ;
+
+paren_expr
+    /// F# syntax: (expr)
+    : OPEN_PAREN expr_stmt CLOSE_PAREN
+    ;
+
+anon_record_expr
+    /// F# syntax: {| id1=e1; ...; idN=eN |}
+    : OPEN_BRACE ident EQUALS expr_stmt (SEMI_COLON ident EQUALS expr_stmt)* CLOSE_BRACE
+    ;
+
+array_expr
+    /// F# syntax: [ e1; ...; en ]
+    : OPEN_BRACK expr_stmt? (SEMI_COLON expr_stmt)* CLOSE_BRACK
+    ;
+
+list_expr
+    /// F# syntax: [| e1; ...; en |]
+    : OPEN_BRACK PIPE expr_stmt? (SEMI_COLON expr_stmt)* PIPE CLOSE_BRACK
+    ;
+
+new_expr
+    /// F# syntax: new C(...)
+    : NEW type OPEN_PAREN expr_stmt CLOSE_PAREN
+    ;
+
+open_expr
+    /// F# syntax: open long_ident
+    : OPEN long_ident
+    ;
+
+comparison_expr
+    /// F# syntax: expr > expr
+    /// F# syntax: !expr
+    : comp_ops expr_stmt
+    ;
+
+if_then_else_expr
+    /// F# syntax: if expr then body else body
+    // The NEWLINE? is needed since body will leave one extra newline
+    // This is because we normaly use it to match the sequential_stmt
+    : IF expr_stmt THEN body (NEWLINE? ELSE body)?
+    ;
 
 expr_stmt
     :
-
-    expr_stmt expr_stmt #append_expr
+    expr_stmt expr_stmt
     /// F# syntax: 1, 1.3, () etc.
-    | constant #const_expr
+    | constant_expr
     /// F# syntax: ident
-    | ident #ident_expr
+    | ident
     /// F# syntax: ident.ident...ident
-    | long_ident #long_ident_expr
+    | long_ident
     /// F# syntax: ident.ident...ident <- expr
-    | long_ident_assign #long_ident_assign_expr
+    | long_ident_assign_expr
     /// F# syntax: expr.ident.ident
-    | dot_get #dot_get_expr
+    | dot_get_expr
     /// F# syntax: expr.ident...ident <- expr
-    | dot_assign  #dot_set_expr
+    | dot_assign_expr
     /// F# syntax: expr <- expr
-    | assign    #set_expr
+    | assign_expr
     /// F# syntax: expr.[expr]
-    | dot_index_get  #dot_index_get_expr
+    | dot_index_get_expr
     /// F# syntax: expr.[expr, ..., expr] <- expr
-    | dot_index_set #dot_index_set_expr
+    | dot_index_set_expr
     /// F# syntax: let pat = expr in expr
     /// F# syntax: let f pat1 .. patN = expr in expr
     /// F# syntax: let rec f pat1 .. patN = expr in expr
     /// F# syntax: use pat = expr in expr
-    | let_stmt #let_expr
+    | let_stmt
     /// F# syntax: null
-    | NULL #null_expr
-    | arith #arith_expr
-    | signed  #sign_expr
+    | NULL
+    /// F# syntax: expr + expr
+    | arith_expr
+    /// F# syntax: (- | +) expr
+    | signed_expr
+    /// F# syntax: expr > expr
+    /// F# syntax: !expr
+    | comparison_expr
     /// F# syntax: expr: type
-    | typed #typed_expr
+    | typed_expr
     /// F# syntax: e1, ..., eN
-    | tuple #tuple_expr
+    | tuple_expr
     /// F# syntax: (expr)
-    | paren #paren_expr
+    | paren_expr
     /// F# syntax: {| id1=e1; ...; idN=eN |}
-    | anon_record #anon_record_expr
+    | anon_record_expr
     /// F# syntax: [ e1; ...; en ]
-    | array #array_expr
+    | array_expr
     /// F# syntax: [| e1; ...; en |]
-    | list #list_expr
+    | list_expr
     /// F# syntax: new C(...)
-    | new #new_expr
+    | new_expr
     /// F# syntax: open long_ident
-    | open #open_expr
+    | open_expr
+    | if_then_else_expr
     ;
 
 operators
@@ -185,6 +202,16 @@ operators
     | STAR
     | DIV
     | MOD
+    ;
+
+comp_ops
+    : EQUALS
+    | GREATER_THAN
+    | LESS_THAN
+    | GT_EQ
+    | LT_EQ
+    | NOT_EQ
+    | EXCLAMATION
     ;
 
 sign
@@ -267,7 +294,7 @@ ident
     : IDENT
     ;
 
-constant
+constant_expr
     : INTEGER
     | FLOAT_NUMBER
     | STRING

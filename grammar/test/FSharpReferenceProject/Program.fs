@@ -9,7 +9,15 @@ let b =
     let c =
         10 + 10
     c + 10
-let c: float = 10 + 20 * 30 - 50
+let c: float = float(10 + 20 * 30 - 50)
+
+let d = if 10 > 20 then 30 else 40
+let e =
+    if 10 > 20 then
+        30
+    else
+        40
+
 
 let getSourceTokenizer (file, input) =
     let sourceTok = FSharpSourceTokenizer([], file, None, Some true)
