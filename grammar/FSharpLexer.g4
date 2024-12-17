@@ -23,6 +23,7 @@ CHARACTER: CHARACTER_LITERAL;
 INTEGER: DECIMAL_INTEGER;
 
 UNIT        : '()';
+OPEN        : 'open';
 NEW         : 'new';
 MODULE      : 'module';
 NAMESPACE   : 'namespace';
