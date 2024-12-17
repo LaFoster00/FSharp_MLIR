@@ -45,6 +45,9 @@ MATCH       : 'match';
 MUTABLE     : 'mutable';
 UNDERSCORE  : '_';
 NULL        : 'null';
+WHEN        : 'when';
+WITH        : 'with';
+AS          : 'as';
 
 NEWLINE: ({this->atStartOfInput()}? WHITESPACES | ( '\r'? '\n' | '\r' | '\f') WHITESPACES?) {this->onNewLine();};
 
@@ -82,6 +85,7 @@ CLOSE_BRACK         : ']' {this->closeBrace();};
 PIPE                : '|';
 OR_OP               : '||';
 AND_OP              : '&&';
+AMPERCENT           : '&';
 COMPO_LEFT          : '<<';
 COMPO_RIGHT         : '>>';
 LESS_THAN           : '<';
@@ -90,7 +94,7 @@ GT_EQ               : '>=';
 LT_EQ               : '<=';
 NOT_EQ              : '!=';
 PIPE_RIGHT          : '|>';
-ARROW               : '->';
+RIGHT_ARROW         : '->';
 LEFT_ARROW          : '<-';
 
 SKIP_: (WHITESPACES | COMMENT) -> skip;

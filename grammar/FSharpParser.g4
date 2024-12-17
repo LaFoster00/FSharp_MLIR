@@ -27,12 +27,8 @@ let_stmt
     ;
 
 binding
-    : MUTABLE? ident opt_type #variable_binding
-    | REC? ident expr_stmt opt_type #standalone_binding
-    ;
-
-opt_type
-    : (COLON type)?
+    : MUTABLE? ident pattern? #variable_binding
+    | REC? ident pattern? #standalone_binding
     ;
 
 body
@@ -48,6 +44,68 @@ sequential_stmt
     /// F# syntax: expr; expr; ...; expr
     : expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
     ;
+
+tuple_pattern
+    /// F# syntax: (pat1, ..., patN)
+    : OPEN_PAREN pattern (COMMA pattern)+ CLOSE_PAREN
+    |
+    ;
+
+named_pat
+    /// F# syntax: ident
+    : ident
+    ;
+
+long_ident_pat
+    /// F# syntax: ident.ident...ident ident
+    : long_ident pattern
+    ;
+
+typed_pat
+    /// F# syntax: pat : type
+    : COLON type
+    ;
+
+paren_pat
+    /// F# syntax: (pat)
+    : OPEN_PAREN pattern CLOSE_PAREN
+    ;
+
+tuple_pat
+    /// F# syntax: (pat1, ..., patN)
+    : OPEN_PAREN pattern (COMMA pattern)+ CLOSE_PAREN
+    ;
+
+pattern
+    :
+    /// A constant in a pattern
+     constant_expr
+    /// A wildcard '_' in a pattern
+    | UNDERSCORE
+    /// A name pattern 'ident'
+    | named_pat
+    /// A long identifier pattern possibly with argument patterns
+    | long_ident_pat
+    /// A typed pattern 'pat : type'
+    | typed_pat
+    /// A disjunctive pattern 'pat1 | pat2'
+    | pattern PIPE pattern
+    /// A concunctive pattern 'pat1 :: pat2'
+    | pattern COLON COLON pattern
+    /// A conjunctive pattern 'pat1 & pat2'
+    | pattern AMPERCENT pattern
+    /// A conjunctive pattern 'pat1 as pat2'
+    | pattern AS pattern
+    /// A tuple pattern
+    | tuple_pat
+    /// A parenthesized pattern
+    | paren_pat
+    /// Null pattern
+    | NULL
+    /// A record pattern { identifier1 = pattern_1; ... ; identifier_n = pattern_n }
+    | OPEN_BRACE ident EQUALS pattern (SEMI_COLON ident EQUALS pattern)* CLOSE_BRACE
+    ;
+
 
 dot_get_expr
     /// F# syntax: expr.ident.ident
@@ -90,13 +148,13 @@ signed_expr
     ;
 
 typed_expr
-/// F# syntax: expr: type
+    /// F# syntax: expr: type
     : COLON type
     ;
 
 tuple_expr
     /// F# syntax: e1, ..., eN
-    : (COMMA expr_stmt)+ // TODO check if + here is helping
+    : OPEN_PAREN expr_stmt (COMMA expr_stmt)+ CLOSE_PAREN
     ;
 
 paren_expr
@@ -140,6 +198,16 @@ if_then_else_expr
     // The NEWLINE? is needed since body will leave one extra newline
     // This is because we normaly use it to match the sequential_stmt
     : IF expr_stmt THEN body (NEWLINE? ELSE body)?
+    ;
+
+match_clause_stmt
+    /// F# syntax: | pat -> expr
+    : PIPE pattern (WHEN expr_stmt)? RIGHT_ARROW body
+    ;
+
+match_expr
+    /// F# syntax: match expr with | pat1 -> expr1 | ... | patN -> exprN
+    : MATCH expr_stmt WITH (NEWLINE? match_clause_stmt )+
     ;
 
 expr_stmt
@@ -194,6 +262,7 @@ expr_stmt
     /// F# syntax: open long_ident
     | open_expr
     | if_then_else_expr
+    | match_expr
     ;
 
 operators
@@ -250,7 +319,7 @@ array_type
 
 fun_type
     /// F# syntax: type -> type
-    : ARROW type
+    : RIGHT_ARROW type
     ;
 
 paren_type
