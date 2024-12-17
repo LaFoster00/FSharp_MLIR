@@ -26,43 +26,43 @@ let getSourceTokenizer (file, input) =
 
  /// Tokenize a single line of F# code
 let rec tokenizeLine (tokenizer:FSharpLineTokenizer) state =
-  match tokenizer.ScanToken(state) with
-  | Some tok, state ->
-      // Print token name
-      printf "%s " tok.TokenName
-      // Tokenize the rest, in the new state
-      tokenizeLine tokenizer state
-  | None, state -> state
+    match tokenizer.ScanToken(state) with
+    | Some tok, state ->
+        // Print token name
+        printf "%s " tok.TokenName
+        // Tokenize the rest, in the new state
+        tokenizeLine tokenizer state
+    | None, state -> state
   
 /// Print token names for multiple lines of code
 let rec tokenizeLines (sourceTok: FSharpSourceTokenizer) state count lines = 
-  match lines with
-  | line::lines ->
-      // Create tokenizer & tokenize single line
-      printfn "\nLine %d" count
-      let tokenizer = sourceTok.CreateLineTokenizer(line)
-      let state = tokenizeLine tokenizer state
-      // Tokenize the rest using new state
-      tokenizeLines sourceTok state (count+1) lines
-  | [] -> ()
+    match lines with
+    | line::lines ->
+        // Create tokenizer & tokenize single line
+        printfn "\nLine %d" count
+        let tokenizer = sourceTok.CreateLineTokenizer(line)
+        let state = tokenizeLine tokenizer state
+        // Tokenize the rest using new state
+        tokenizeLines sourceTok state (count+1) lines
+    | [] -> ()
 
 /// Get untyped tree for a specified input
 let getUntypedTree (file, input) =
-      let checker = FSharpChecker.Create()
-      let inputSource = SourceText.ofString input
-      // Get compiler options for the 'project' implied by a single script file
-      let projOptions, diagnostics = 
-          checker.GetProjectOptionsFromScript(file, inputSource, assumeDotNetFramework=false)
-          |> Async.RunSynchronously
+    let checker = FSharpChecker.Create()
+    let inputSource = SourceText.ofString input
+    // Get compiler options for the 'project' implied by a single script file
+    let projOptions, diagnostics = 
+        checker.GetProjectOptionsFromScript(file, inputSource, assumeDotNetFramework=false)
+        |> Async.RunSynchronously
 
-      let parsingOptions, _errors = checker.GetParsingOptionsFromProjectOptions(projOptions)
+    let parsingOptions, _errors = checker.GetParsingOptionsFromProjectOptions(projOptions)
 
-      // Run the first phase (untyped parsing) of the compiler
-      let parseFileResults = 
-          checker.ParseFile(file, inputSource, parsingOptions) 
-          |> Async.RunSynchronously
+    // Run the first phase (untyped parsing) of the compiler
+    let parseFileResults = 
+        checker.ParseFile(file, inputSource, parsingOptions) 
+        |> Async.RunSynchronously
 
-      parseFileResults.ParseTree
+    parseFileResults.ParseTree
 
     
 let printAst (ast: ParsedInput) =

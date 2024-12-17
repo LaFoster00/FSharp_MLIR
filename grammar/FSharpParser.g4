@@ -27,12 +27,13 @@ let_stmt
     ;
 
 binding
-    : MUTABLE? ident pattern? #variable_binding
-    | REC? ident pattern? #standalone_binding
+    : MUTABLE? pat? #variable_binding
+    | REC? pat? #standalone_binding
     ;
 
 body
     : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
+    | NEWLINE PIPE sequential_stmt+ #multiline_match_body
     | inline_sequential_stmt #single_line_body
     ;
 
@@ -42,13 +43,8 @@ inline_sequential_stmt
 
 sequential_stmt
     /// F# syntax: expr; expr; ...; expr
-    : expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
-    ;
-
-tuple_pattern
-    /// F# syntax: (pat1, ..., patN)
-    : OPEN_PAREN pattern (COMMA pattern)+ CLOSE_PAREN
-    |
+    : NEWLINE+
+    | expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
     ;
 
 named_pat
@@ -56,9 +52,14 @@ named_pat
     : ident
     ;
 
+arg_pats
+    /// F# syntax: pat1 ... patN
+    : pat*
+    ;
+
 long_ident_pat
     /// F# syntax: ident.ident...ident ident
-    : long_ident pattern
+    : long_ident arg_pats
     ;
 
 typed_pat
@@ -68,24 +69,22 @@ typed_pat
 
 paren_pat
     /// F# syntax: (pat)
-    : OPEN_PAREN pattern CLOSE_PAREN
+    : OPEN_PAREN pat CLOSE_PAREN
     ;
 
-tuple_pat
-    /// F# syntax: (pat1, ..., patN)
-    : OPEN_PAREN pattern (COMMA pattern)+ CLOSE_PAREN
+pat //TODO create more fitting version of this that doesnt clutter the ast so much
+    // for general pattern matching but with tuple at the top so that it has higher precedence
+    : pattern (COMMA pattern)*
     ;
 
 pattern
     :
     /// A constant in a pattern
-     constant_expr
+    constant_expr
     /// A wildcard '_' in a pattern
     | UNDERSCORE
     /// A name pattern 'ident'
     | named_pat
-    /// A long identifier pattern possibly with argument patterns
-    | long_ident_pat
     /// A typed pattern 'pat : type'
     | typed_pat
     /// A disjunctive pattern 'pat1 | pat2'
@@ -96,14 +95,14 @@ pattern
     | pattern AMPERCENT pattern
     /// A conjunctive pattern 'pat1 as pat2'
     | pattern AS pattern
-    /// A tuple pattern
-    | tuple_pat
     /// A parenthesized pattern
     | paren_pat
     /// Null pattern
     | NULL
     /// A record pattern { identifier1 = pattern_1; ... ; identifier_n = pattern_n }
     | OPEN_BRACE ident EQUALS pattern (SEMI_COLON ident EQUALS pattern)* CLOSE_BRACE
+    /// A long identifier pattern possibly with argument patterns
+    | long_ident_pat
     ;
 
 
@@ -154,7 +153,7 @@ typed_expr
 
 tuple_expr
     /// F# syntax: e1, ..., eN
-    : OPEN_PAREN expr_stmt (COMMA expr_stmt)+ CLOSE_PAREN
+    : COMMA expr_stmt
     ;
 
 paren_expr
@@ -202,7 +201,7 @@ if_then_else_expr
 
 match_clause_stmt
     /// F# syntax: | pat -> expr
-    : PIPE pattern (WHEN expr_stmt)? RIGHT_ARROW body
+    : PIPE pat (WHEN expr_stmt)? RIGHT_ARROW body
     ;
 
 match_expr
