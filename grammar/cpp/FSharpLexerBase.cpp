@@ -34,6 +34,7 @@ std::unique_ptr<antlr4::Token> FSharpLexerBase::nextToken()
         emit(commonToken(FSharpParser::NEWLINE, "\n"));
         while (!indents.empty()) {
             emit(createDedent());
+            emit(commonToken(FSharpParser::NEWLINE, "\n"));
             indents.pop();
         }
         emit(commonToken(EOF, "<EOF>"));
@@ -51,7 +52,7 @@ std::unique_ptr<antlr4::Token> FSharpLexerBase::nextToken()
 }
 
 std::unique_ptr<antlr4::Token> FSharpLexerBase::createDedent() {
-    std::unique_ptr<antlr4::CommonToken> dedent = commonToken(FSharpParser::DEDENT, "");
+    std::unique_ptr<antlr4::CommonToken> dedent = commonToken(FSharpParser::DEDENT, "\t");
     return dedent;
 }
 
@@ -117,6 +118,7 @@ void FSharpLexerBase::onNewLine()
         else {
             while(!indents.empty() && indents.top() > indent) {
                 emit(createDedent());
+                emit(commonToken(FSharpParser::NEWLINE, "\n"));
                 indents.pop();
             }
         }
