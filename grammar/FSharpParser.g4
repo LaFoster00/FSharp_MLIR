@@ -19,7 +19,6 @@ module_or_namespace
 module_decl
     : NEWLINE+ #emply_lines
     | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
-    | let_stmt #let_definition
     | sequential_stmt #expr_definition
     ;
 
@@ -38,7 +37,7 @@ opt_type
 
 body
     : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
-    | sequential_stmt #single_line_body
+    | inline_sequential_stmt #single_line_body
     ;
 
 dot_get
@@ -74,14 +73,6 @@ dot_index_set
 arith
     /// F# syntax: expr + expr
     : operators expr_stmt
-    ;
-
-let
-    /// F# syntax: let pat = expr in expr
-    /// F# syntax: let f pat1 .. patN = expr in expr
-    /// F# syntax: let rec f pat1 .. patN = expr in expr
-    /// F# syntax: use pat = expr in expr
-    : let_stmt
     ;
 
 signed
@@ -129,6 +120,10 @@ open
     : OPEN long_ident
     ;
 
+inline_sequential_stmt
+    : expr_stmt (SEMI_COLON expr_stmt)*
+    ;
+
 sequential_stmt
     /// F# syntax: expr; expr; ...; expr
     : expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
@@ -161,7 +156,7 @@ expr_stmt
     /// F# syntax: let f pat1 .. patN = expr in expr
     /// F# syntax: let rec f pat1 .. patN = expr in expr
     /// F# syntax: use pat = expr in expr
-    | let #let_expr
+    | let_stmt #let_expr
     /// F# syntax: null
     | NULL #null_expr
     | arith #arith_expr

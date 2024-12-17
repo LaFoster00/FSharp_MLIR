@@ -52,7 +52,7 @@ std::unique_ptr<antlr4::Token> FSharpLexerBase::nextToken()
 }
 
 std::unique_ptr<antlr4::Token> FSharpLexerBase::createDedent() {
-    std::unique_ptr<antlr4::CommonToken> dedent = commonToken(FSharpParser::DEDENT, "\t");
+    std::unique_ptr<antlr4::CommonToken> dedent = commonToken(FSharpParser::DEDENT, "DEDENT");
     return dedent;
 }
 
@@ -105,7 +105,7 @@ void FSharpLexerBase::onNewLine()
         skip();
     }
     else {
-        emit(commonToken(FSharpLexer::NEWLINE, newLine));
+        emit(commonToken(FSharpLexer::NEWLINE, "\n"));
         int indent = getIndentationCount(spaces);
         int previous = indents.empty() ? 0 : indents.top();
         if (indent == previous) {
@@ -113,7 +113,7 @@ void FSharpLexerBase::onNewLine()
         }
         else if (indent > previous) {
             indents.push(indent);
-            emit(commonToken(FSharpLexer::INDENT, spaces));
+            emit(commonToken(FSharpLexer::INDENT, "INDENT"));
         }
         else {
             while(!indents.empty() && indents.top() > indent) {
