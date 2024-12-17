@@ -4,12 +4,12 @@ open FSharp.Compiler.Text
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Tokenization
 
-let a = 10 * 10
+let a: int = 10 * 10
 let b =
     let c =
         10 + 10
     c + 10
-let c = 10 + 20 * 30 - 50
+let c: float = 10 + 20 * 30 - 50
 
 let getSourceTokenizer (file, input) =
     let sourceTok = FSharpSourceTokenizer([], file, None, Some true)

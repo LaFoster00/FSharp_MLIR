@@ -196,37 +196,70 @@ long_ident
     : ident (DOT ident)*;
 
 
-type:
-    /// F# syntax: A.B.C
-    long_ident                                            #long_ident_type
-
-    // | APPEND productions
+append_bracket_generic_type
     /// F# syntax: type<type, ..., type>
-    | type LESS_THAN (type (COMMA type)*)* GREATER_THAN       #append_bracket_generic_type
-    /// F# syntax: type type
-    | type type                                             #append_double_type
+    : LESS_THAN type (COMMA type)* GREATER_THAN
+    ;
+
+postfix_double_type
     /// F# syntax: (type, type) type
-    | OPEN_PAREN type COMMA type CLOSE_PAREN type                 #postfix_double_type
+    : OPEN_PAREN type COMMA type CLOSE_PAREN type
+    ;
 
-    //| long_ident_append
+long_ident_append_type
     /// F# syntax: type.A.B.C<type, ..., type>
-    | type (DOT ident)* LESS_THAN type (COMMA type)* GREATER_THAN    #long_ident_append_type
+    : (DOT ident)* LESS_THAN type (COMMA type)* GREATER_THAN
+    ;
 
-    //| tuple
+tuple_type
     /// F# syntax: type * ... * type
-    | type (STAR type)+                                    #tuple_type
+    : (STAR type)+
+    ;
 
-    //| array
+array_type
     /// F# syntax: type[]
-    | type OPEN_BRACK CLOSE_BRACK                           #array_type
+    : OPEN_BRACK CLOSE_BRACK
+    ;
 
-    //| fun
+fun_type
     /// F# syntax: type -> type
-    | type ARROW type                                       #fun_type
+    : ARROW type
+    ;
 
-    //| paren
+paren_type
     /// F# syntax: (type)
-    | OPEN_PAREN type CLOSE_PAREN                           #paren_type
+    : OPEN_PAREN type CLOSE_PAREN
+    ;
+
+type:
+    /// F# syntax: type type
+    type type
+    /// F# syntax: type
+    | ident
+
+    /// F# syntax: A.B.C
+    | long_ident
+
+    /// F# syntax: type<type, ..., type>
+    | append_bracket_generic_type
+
+    /// F# syntax: (type, type) type
+    | postfix_double_type
+
+    /// F# syntax: type.A.B.C<type, ..., type>
+    | long_ident_append_type
+
+    /// F# syntax: type * ... * type
+    | tuple_type
+
+    /// F# syntax: type[]
+    | array_type
+
+    /// F# syntax: type -> type
+    | fun_type
+
+    /// F# syntax: (type)
+    | paren_type
 
     ;
 
