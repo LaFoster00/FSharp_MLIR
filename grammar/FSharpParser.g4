@@ -38,13 +38,21 @@ body
     ;
 
 inline_sequential_stmt
-    : expr_stmt (SEMI_COLON expr_stmt)*
+    : expression (SEMI_COLON expression)*
     ;
 
 sequential_stmt
     /// F# syntax: expr; expr; ...; expr
     : NEWLINE+
-    | expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
+    | expression (SEMI_COLON expression)* NEWLINE
+    ;
+
+/// PATERN MATCHING
+// Patern matching follows this structure to give a clear precedence of the patterns
+// Having them all in one production will cause bad matching behaviour with non trivial asts
+pattern
+    :
+    tuple_pat
     ;
 
 tuple_pat
@@ -124,84 +132,155 @@ long_ident_pat
    : long_ident atomic_pat*
    ;
 
-pattern
+/// EXPRESSIONS
+expression
     :
-    tuple_pat
+    assignment_expr
+    | non_assigment_expr
     ;
 
-dot_get_expr
-    /// F# syntax: expr.ident.ident
-    : DOT long_ident
+assignment_expr
+    : let_stmt
+    | long_ident_set_expr
+    | set_expr
+    | dot_set_expr
+    | dot_index_set_expr
     ;
 
-long_ident_assign_expr
+long_ident_set_expr
     /// F# syntax: ident.ident...ident <- expr
-    : long_ident assign_expr
+    : long_ident LEFT_ARROW expression
     ;
 
-dot_assign_expr
-    /// F# syntax: expr.ident...ident <- expr
-    : DOT long_ident assign_expr
-    ;
-
-assign_expr
+set_expr
     /// F# syntax: expr <- expr
-    : LEFT_ARROW expr_stmt
+    : atomic_expr LEFT_ARROW expression
     ;
 
-dot_index_get_expr
-    /// F# syntax: expr.[expr]
-    : OPEN_BRACK expr_stmt CLOSE_BRACK
+dot_set_expr
+    /// F# syntax: expr.ident...ident <- expr
+    : atomic_expr DOT long_ident LEFT_ARROW expression
     ;
 
 dot_index_set_expr
     /// F# syntax: expr.[expr, ..., expr] <- expr
-    : OPEN_BRACK (expr_stmt (COMMA expr_stmt)*)* CLOSE_BRACK LEFT_ARROW expr_stmt
+    : atomic_expr OPEN_BRACK (expression (COMMA expression)*)* CLOSE_BRACK LEFT_ARROW expression
     ;
 
-arith_expr
-    /// F# syntax: expr + expr
-    : operators expr_stmt
-    ;
-
-signed_expr
-    /// F# syntax: (- | +) expr
-    : sign expr_stmt
-    ;
-
-typed_expr
-    /// F# syntax: expr: type
-    : COLON type
+non_assigment_expr
+    : tuple_expr tuple_expr*
     ;
 
 tuple_expr
     /// F# syntax: e1, ..., eN
-    : COMMA expr_stmt
+    : or_expr (COMMA or_expr)*
+    ;
+
+or_expr
+    /// F# syntax: expr | expr
+    : and_expr (OR and_expr)*
+    ;
+
+and_expr
+    /// F# syntax: expr & expr
+    : equality_expr (AMPERCENT equality_expr)*
+    ;
+
+equality_expr
+    /// F# syntax: expr = expr
+    : relation_expr ((EQUALS | NOT_EQ) relation_expr)*
+    ;
+
+relation_expr
+    /// F# syntax: expr > expr
+    : additive_expr ((GREATER_THAN | LESS_THAN | GT_EQ | LT_EQ) additive_expr)*
+    ;
+
+additive_expr
+    /// F# syntax: expr + expr
+    : multiplicative_expr ((PLUS | MINUS) multiplicative_expr)*
+    ;
+
+multiplicative_expr
+    /// F# syntax: expr * expr
+    : dot_get_expr ((STAR | DIV | MOD) dot_get_expr)*
+    ;
+
+dot_get_expr
+    /// F# syntax: expr.ident.ident
+    : dot_index_get_expr (DOT long_ident)?
+    ;
+
+dot_index_get_expr
+    /// F# syntax: expr.[expr]
+    :  typed_expr (OPEN_BRACK typed_expr CLOSE_BRACK)?
+    ;
+
+typed_expr
+    /// F# syntax: expr: type
+    : unary_expression (COLON type)?
+    ;
+
+unary_expression
+    :
+    atomic_expr
+    | PLUS unary_expression
+    | MINUS unary_expression
+    | EXCLAMATION unary_expression
+    ;
+
+atomic_expr
+    :
+    paren_expr
+    | constant_expr
+    | ident
+    | long_ident
+    | let_stmt
+    | null_expr
+    | record_expr
+    | array_expr
+    | list_expr
+    | new_expr
+    | open_expr
+    | if_then_else_expr
+    | match_expr
+    | pipe_right_expr
+    ;
+
+null_expr
+    /// F# syntax: null
+    : NULL
     ;
 
 paren_expr
     /// F# syntax: (expr)
-    : OPEN_PAREN expr_stmt CLOSE_PAREN
+    : OPEN_PAREN expression CLOSE_PAREN
     ;
 
-anon_record_expr
+record_expr
     /// F# syntax: {| id1=e1; ...; idN=eN |}
-    : OPEN_BRACE ident EQUALS expr_stmt (SEMI_COLON ident EQUALS expr_stmt)* CLOSE_BRACE
+    : OPEN_BRACE record_expr_field (SEMI_COLON record_expr_field)* CLOSE_BRACE
+    ;
+
+record_expr_field
+    :
+    /// F# syntax: id = expr
+    ident EQUALS expression
     ;
 
 array_expr
     /// F# syntax: [ e1; ...; en ]
-    : OPEN_BRACK expr_stmt? (SEMI_COLON expr_stmt)* CLOSE_BRACK
+    : OPEN_BRACK expression? (SEMI_COLON expression)* CLOSE_BRACK
     ;
 
 list_expr
     /// F# syntax: [| e1; ...; en |]
-    : OPEN_BRACK PIPE expr_stmt? (SEMI_COLON expr_stmt)* PIPE CLOSE_BRACK
+    : OPEN_BRACK PIPE expression? (SEMI_COLON expression)* PIPE CLOSE_BRACK
     ;
 
 new_expr
     /// F# syntax: new C(...)
-    : NEW type OPEN_PAREN expr_stmt CLOSE_PAREN
+    : NEW type OPEN_PAREN expression CLOSE_PAREN
     ;
 
 open_expr
@@ -209,85 +288,28 @@ open_expr
     : OPEN long_ident
     ;
 
-comparison_expr
-    /// F# syntax: expr > expr
-    /// F# syntax: !expr
-    : comp_ops expr_stmt
-    ;
-
 if_then_else_expr
     /// F# syntax: if expr then body else body
     // The NEWLINE? is needed since body will leave one extra newline
     // This is because we normaly use it to match the sequential_stmt
-    : IF expr_stmt THEN body (NEWLINE? ELSE body)?
-    ;
-
-match_clause_stmt
-    /// F# syntax: | pat -> expr
-    : PIPE pattern (WHEN expr_stmt)? RIGHT_ARROW body
+    : IF expression THEN body (NEWLINE? ELSE body)?
     ;
 
 match_expr
     /// F# syntax: match expr with | pat1 -> expr1 | ... | patN -> exprN
-    : MATCH expr_stmt WITH (NEWLINE? match_clause_stmt )+
+    : MATCH expression WITH (NEWLINE? match_clause_stmt )+
     ;
 
-
-
-expr_stmt
-    :
-    expr_stmt expr_stmt
-    /// F# syntax: 1, 1.3, () etc.
-    | constant_expr
-    /// F# syntax: ident
-    | ident
-    /// F# syntax: ident.ident...ident
-    | long_ident
-    /// F# syntax: ident.ident...ident <- expr
-    | long_ident_assign_expr
-    /// F# syntax: expr.ident.ident
-    | dot_get_expr
-    /// F# syntax: expr.ident...ident <- expr
-    | dot_assign_expr
-    /// F# syntax: expr <- expr
-    | assign_expr
-    /// F# syntax: expr.[expr]
-    | dot_index_get_expr
-    /// F# syntax: expr.[expr, ..., expr] <- expr
-    | dot_index_set_expr
-    /// F# syntax: let pat = expr in expr
-    /// F# syntax: let f pat1 .. patN = expr in expr
-    /// F# syntax: let rec f pat1 .. patN = expr in expr
-    /// F# syntax: use pat = expr in expr
-    | let_stmt
-    /// F# syntax: null
-    | NULL
-    /// F# syntax: expr + expr
-    | arith_expr
-    /// F# syntax: (- | +) expr
-    | signed_expr
-    /// F# syntax: expr > expr
-    /// F# syntax: !expr
-    | comparison_expr
-    /// F# syntax: expr: type
-    | typed_expr
-    /// F# syntax: e1, ..., eN
-    | tuple_expr
-    /// F# syntax: (expr)
-    | paren_expr
-    /// F# syntax: {| id1=e1; ...; idN=eN |}
-    | anon_record_expr
-    /// F# syntax: [ e1; ...; en ]
-    | array_expr
-    /// F# syntax: [| e1; ...; en |]
-    | list_expr
-    /// F# syntax: new C(...)
-    | new_expr
-    /// F# syntax: open long_ident
-    | open_expr
-    | if_then_else_expr
-    | match_expr
+pipe_right_expr
+    /// F# syntax: |> expr
+    : PIPE_RIGHT body
     ;
+
+match_clause_stmt
+    /// F# syntax: | pat -> expr
+    : PIPE pattern (WHEN expression)? RIGHT_ARROW body
+    ;
+
 
 operators
     : PLUS
@@ -391,7 +413,7 @@ constant_expr
     : INTEGER
     | FLOAT_NUMBER
     | STRING
-    | CHARACTER_LITERAL
+    | CHARACTER
     | BOOL
     | UNIT
     ;

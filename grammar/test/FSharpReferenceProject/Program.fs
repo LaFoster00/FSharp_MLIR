@@ -18,6 +18,9 @@ let e =
     else
         40
 
+let f x y z = x + y + z
+let g = f 10 e 30
+
 
 let getSourceTokenizer (file, input) =
     let sourceTok = FSharpSourceTokenizer([], file, None, Some true)
