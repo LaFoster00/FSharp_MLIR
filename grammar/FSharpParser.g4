@@ -19,7 +19,7 @@ module_or_namespace
 module_decl
     : NEWLINE+ #emply_lines
     | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
-    | sequential_stmt #expr_definition
+    | sequential_stmt #expression_stmt
     ;
 
 let_stmt
@@ -27,8 +27,7 @@ let_stmt
     ;
 
 binding
-    : MUTABLE? pattern? #variable_binding
-    | REC? pattern? #standalone_binding
+    : (MUTABLE? | REC?) pattern?
     ;
 
 body

@@ -13,6 +13,9 @@ namespace fsharpgrammar {
     using namespace antlr4;
 
     class AstBuilder : FSharpParserBaseVisitor {
+    public:
+        std::any visitMain(FSharpParser::MainContext *ctx) override;
+        std::any visitAnonmodule(FSharpParser::AnonmoduleContext* context) override;
     };
 
 } // fsharpgrammar

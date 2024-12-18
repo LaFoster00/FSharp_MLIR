@@ -55,13 +55,9 @@ int main(int , const char **) {
 
   std::cout << "Simplifying tree" << std::endl;
 
+  AstBuilder builder;
+  std::any simplified_tree = builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree));
   std::cout << tree->toStringTree(&parser, true) << std::endl;
-
-  auto position = Position::create(1, 2);
-  std::cout << "Line: " << utils::to_string(position) << std::endl;
-
-  auto range = Range::create(20, 134, 48, 4);
-  std::cout << "Range: " << utils::to_string(range) << std::endl;
 
 
   return 0;
