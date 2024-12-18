@@ -27,8 +27,8 @@ let_stmt
     ;
 
 binding
-    : MUTABLE? pat? #variable_binding
-    | REC? pat? #standalone_binding
+    : MUTABLE? pattern? #variable_binding
+    | REC? pattern? #standalone_binding
     ;
 
 body
@@ -54,12 +54,7 @@ named_pat
 
 arg_pats
     /// F# syntax: pat1 ... patN
-    : pat*
-    ;
-
-long_ident_pat
-    /// F# syntax: ident.ident...ident ident
-    : long_ident arg_pats
+    : pattern*
     ;
 
 typed_pat
@@ -69,12 +64,17 @@ typed_pat
 
 paren_pat
     /// F# syntax: (pat)
-    : OPEN_PAREN pat CLOSE_PAREN
+    : OPEN_PAREN pattern CLOSE_PAREN
     ;
 
-pat //TODO create more fitting version of this that doesnt clutter the ast so much
-    // for general pattern matching but with tuple at the top so that it has higher precedence
-    : pattern (COMMA pattern)*
+tuple_pat
+    /// F# syntax: pat, ..., pat
+    : COMMA pattern
+    ;
+
+long_ident_pat
+    /// F# syntax: pat1.pat2...patN
+    : long_ident pattern
     ;
 
 pattern
@@ -87,6 +87,8 @@ pattern
     | named_pat
     /// A typed pattern 'pat : type'
     | typed_pat
+    /// A tuple pattern 'pat1, ..., patN'
+    | tuple_pat
     /// A disjunctive pattern 'pat1 | pat2'
     | pattern PIPE pattern
     /// A concunctive pattern 'pat1 :: pat2'
@@ -101,7 +103,6 @@ pattern
     | NULL
     /// A record pattern { identifier1 = pattern_1; ... ; identifier_n = pattern_n }
     | OPEN_BRACE ident EQUALS pattern (SEMI_COLON ident EQUALS pattern)* CLOSE_BRACE
-    /// A long identifier pattern possibly with argument patterns
     | long_ident_pat
     ;
 
@@ -201,7 +202,7 @@ if_then_else_expr
 
 match_clause_stmt
     /// F# syntax: | pat -> expr
-    : PIPE pat (WHEN expr_stmt)? RIGHT_ARROW body
+    : PIPE pattern (WHEN expr_stmt)? RIGHT_ARROW body
     ;
 
 match_expr
