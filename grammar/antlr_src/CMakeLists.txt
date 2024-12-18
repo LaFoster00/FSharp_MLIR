@@ -11,10 +11,6 @@ add_library(FSharpGrammar STATIC
         FSharpLexerBase.cpp
         FSharpParserBase.h
         FSharpParserBase.cpp
-        ../ast/AstBuilder.cpp
-        ../ast/AstBuilder.h
-        ../ast/Range.cpp
-        ../ast/Range.h
 )
 
 add_dependencies(FSharpGrammar
