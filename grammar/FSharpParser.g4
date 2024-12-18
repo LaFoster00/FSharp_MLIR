@@ -47,19 +47,46 @@ sequential_stmt
     | expr_stmt (SEMI_COLON expr_stmt)* NEWLINE
     ;
 
-named_pat
-    /// F# syntax: ident
-    : ident
+tuple_pat
+    /// F# syntax: pat, ..., pat
+    : and_pat (COMMA and_pat)*
     ;
 
-arg_pats
-    /// F# syntax: pat1 ... patN
-    : pattern*
+and_pat
+    /// F# syntax: pat1 & pat2
+    : or_pat (AMPERCENT or_pat)*
+    ;
+
+or_pat
+    /// F# syntax: pat1 | pat2
+    : as_pat (PIPE as_pat)*
+    ;
+
+as_pat
+    /// F# syntax: pat1 as pat2
+    : cons_pat (AS cons_pat)?
+    ;
+
+cons_pat
+    /// F# syntax: pat1 :: pat2
+    : typed_pat (COLON COLON typed_pat)?
     ;
 
 typed_pat
     /// F# syntax: pat : type
-    : COLON type
+    : atomic_pat (COLON type)?
+    ;
+
+atomic_pat
+    :
+    paren_pat
+    | anon_expr
+    | constant_expr
+    | named_pat
+    | record_pat
+    | array_pat
+    | long_ident_pat
+    | null_pat
     ;
 
 paren_pat
@@ -67,45 +94,40 @@ paren_pat
     : OPEN_PAREN pattern CLOSE_PAREN
     ;
 
-tuple_pat
-    /// F# syntax: pat, ..., pat
-    : COMMA pattern
+record_pat
+    /// F# syntax: { id1 = pat1; ...; idN = patN }
+    : OPEN_BRACE ident EQUALS atomic_pat (SEMI_COLON ident EQUALS atomic_pat)* CLOSE_BRACE
+    ;
+
+array_pat
+    /// F# syntax: [pat1; ...; patN]
+    : OPEN_BRACK atomic_pat? (SEMI_COLON atomic_pat)* CLOSE_BRACK
+    ;
+
+named_pat
+    /// F# syntax: ident
+    : ident
+    ;
+
+anon_expr
+    /// F# syntax: _
+    : UNDERSCORE
+    ;
+
+null_pat
+    /// F# syntax: null
+    : NULL
     ;
 
 long_ident_pat
-    /// F# syntax: pat1.pat2...patN
-    : long_ident pattern
-    ;
+   /// F# syntax: A.B pat1 ... patN
+   : long_ident atomic_pat*
+   ;
 
 pattern
     :
-    /// A constant in a pattern
-    constant_expr
-    /// A wildcard '_' in a pattern
-    | UNDERSCORE
-    /// A name pattern 'ident'
-    | named_pat
-    /// A typed pattern 'pat : type'
-    | typed_pat
-    /// A tuple pattern 'pat1, ..., patN'
-    | tuple_pat
-    /// A disjunctive pattern 'pat1 | pat2'
-    | pattern PIPE pattern
-    /// A concunctive pattern 'pat1 :: pat2'
-    | pattern COLON COLON pattern
-    /// A conjunctive pattern 'pat1 & pat2'
-    | pattern AMPERCENT pattern
-    /// A conjunctive pattern 'pat1 as pat2'
-    | pattern AS pattern
-    /// A parenthesized pattern
-    | paren_pat
-    /// Null pattern
-    | NULL
-    /// A record pattern { identifier1 = pattern_1; ... ; identifier_n = pattern_n }
-    | OPEN_BRACE ident EQUALS pattern (SEMI_COLON ident EQUALS pattern)* CLOSE_BRACE
-    | long_ident_pat
+    tuple_pat
     ;
-
 
 dot_get_expr
     /// F# syntax: expr.ident.ident
@@ -209,6 +231,8 @@ match_expr
     /// F# syntax: match expr with | pat1 -> expr1 | ... | patN -> exprN
     : MATCH expr_stmt WITH (NEWLINE? match_clause_stmt )+
     ;
+
+
 
 expr_stmt
     :
