@@ -11,6 +11,8 @@ add_library(FSharpGrammar STATIC
         FSharpLexerBase.cpp
         FSharpParserBase.h
         FSharpParserBase.cpp
+        ../transformations/ASTCanonicalizer.cpp
+        ../transformations/ASTCanonicalizer.h
 )
 
 add_dependencies(FSharpGrammar FSharpGrammarGenerator)

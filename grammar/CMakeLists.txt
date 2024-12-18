@@ -9,7 +9,7 @@ project(
 )
 
 include_directories(
-        ${PROJECT_SOURCE_DIR}/cpp
+        ${PROJECT_SOURCE_DIR}
 )
 
 ANTLR_TARGET(FSharpLexer FSharpLexer.g4 LEXER
@@ -39,6 +39,6 @@ endforeach(src_file ${GENERATED_SOURCE})
 
 add_custom_target(FSharpGrammarGenerator DEPENDS ${GENERATED_SOURCE})
 
-add_subdirectory(cpp)
+add_subdirectory(antlr_src)
 
 add_subdirectory(test)
