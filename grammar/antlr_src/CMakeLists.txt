@@ -15,9 +15,12 @@ add_library(FSharpGrammar STATIC
         ../transformations/ASTCanonicalizer.h
 )
 
-add_dependencies(FSharpGrammar FSharpGrammarGenerator)
+add_dependencies(FSharpGrammar
+        FSharpGrammarGenerator
+)
 
 target_link_libraries(FSharpGrammar
         PRIVATE
         antlr4_shared
+        ASTTransformations
 )

@@ -40,5 +40,6 @@ endforeach(src_file ${GENERATED_SOURCE})
 add_custom_target(FSharpGrammarGenerator DEPENDS ${GENERATED_SOURCE})
 
 add_subdirectory(antlr_src)
+add_subdirectory(transformations)
 
 add_subdirectory(test)
