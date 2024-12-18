@@ -13,8 +13,8 @@ add_library(FSharpGrammar STATIC
         FSharpParserBase.cpp
         ../ast/AstBuilder.cpp
         ../ast/AstBuilder.h
-        ../ast/range.cpp
-        ../ast/range.h
+        ../ast/Range.cpp
+        ../ast/Range.h
 )
 
 add_dependencies(FSharpGrammar

@@ -31,22 +31,22 @@ namespace fsharpgrammar
     static constexpr int64_t PosColumnMask = mask64(0, ColumnBitCount);
     static constexpr int64_t LineColumnMask = mask64(ColumnBitCount, LineBitCount);
 
-    struct position {
+    struct Position {
         static inline int Encoding_size = PosBitCount;
 
-        static constexpr position create(int64_t code)
+        static constexpr Position create(int64_t code)
         {
-            return position(code);
+            return Position(code);
         }
 
-        static constexpr position create(int line, int column)
+        static constexpr Position create(int line, int column)
         {
             line = std::max(0, line);
             column = std::max(0, column);
             int64_t code =
                 (static_cast<int64_t>(column) & PosColumnMask)
                 | ((static_cast<int64_t>(line) << ColumnBitCount) & LineColumnMask);
-            return position(code);
+            return Position(code);
         }
 
         [[nodiscard]] constexpr int line() const
@@ -59,24 +59,24 @@ namespace fsharpgrammar
             return static_cast<int>(Encoding & PosColumnMask);
         }
 
-        constexpr bool operator==(const position& other_position) const
+        constexpr bool operator==(const Position& other_position) const
         {
             return Encoding == other_position.Encoding;
         }
 
-        [[nodiscard]] constexpr bool is_adjacent_to(const position& other_position) const
+        [[nodiscard]] constexpr bool is_adjacent_to(const Position& other_position) const
         {
             return line() == other_position.line() && column() + 1 == other_position.column();
         }
 
         // Uses utils to_string to convert the position to a string
-        friend std::string to_string(const position& pos)
+        friend std::string to_string(const Position& pos)
         {
             return std::to_string(pos.line()) + ":" + std::to_string(pos.column());
         }
 
     private:
-        constexpr explicit position(int64_t code):
+        constexpr explicit Position(int64_t code):
         Encoding(code)
 #ifdef DEBUG
         , Line(line()), Column(column())
@@ -96,9 +96,9 @@ namespace fsharpgrammar
 namespace std
 {
     template<>
-    struct hash<fsharpgrammar::position>
+    struct hash<fsharpgrammar::Position>
     {
-        size_t operator()(const fsharpgrammar::position& pos) const noexcept
+        size_t operator()(const fsharpgrammar::Position& pos) const noexcept
         {
             return hash<int64_t>()(pos.Encoding);
         }
@@ -119,8 +119,8 @@ namespace fsharpgrammar {
     static constexpr int64_t HeightMask = mask64(HeightShift, HeightBitCount);
     static constexpr int64_t EndColumnMask = mask64(EndColumnShift, EndColumnBitCount);
 
-    struct range {
-        static constexpr range create(int start_line, int start_column, int end_line, int end_column)
+    struct Range {
+        static constexpr Range create(int start_line, int start_column, int end_line, int end_column)
         {
             int64_t code1 =
                 ((static_cast<int64_t>(start_column) << StartColumnShift) & StartColumnMask)
@@ -132,17 +132,17 @@ namespace fsharpgrammar {
                 | ((static_cast<int64_t>(end_line - start_line) << HeightShift) & HeightMask)
             ;
 
-            return range(code1, code2);
+            return Range(code1, code2);
         }
 
-        static constexpr range create(const position& start, const position& end)
+        static constexpr Range create(const Position& start, const Position& end)
         {
             return create(start.line(), start.column(), end.line(), end.column());
         }
 
-        static constexpr range create(int64_t code1, int64_t code2)
+        static constexpr Range create(int64_t code1, int64_t code2)
         {
-            return range(code1, code2);
+            return Range(code1, code2);
         }
 
         [[nodiscard]] constexpr int32_t start_line() const
@@ -165,52 +165,60 @@ namespace fsharpgrammar {
             return static_cast<int32_t>((code1 & EndColumnMask) >> EndColumnShift);
         }
 
-        [[nodiscard]] constexpr position start() const
+        [[nodiscard]] constexpr Position start() const
         {
-            return position::create(start_line(), start_column());
+            return Position::create(start_line(), start_column());
         }
 
-        [[nodiscard]] constexpr position end() const
+        [[nodiscard]] constexpr Position end() const
         {
-            return position::create(end_line(), end_column());
+            return Position::create(end_line(), end_column());
         }
 
-        [[nodiscard]] constexpr range start_range() const
+        [[nodiscard]] constexpr Range start_range() const
         {
-            return range::create(start(), start());
+            return Range::create(start(), start());
         }
 
-        [[nodiscard]] constexpr range end_range() const
+        [[nodiscard]] constexpr Range end_range() const
         {
-            return range::create(end(), end());
+            return Range::create(end(), end());
         }
 
-        [[nodiscard]] constexpr bool is_adjacent_to(const range& other_range) const
+        [[nodiscard]] constexpr bool is_adjacent_to(const Range& other_range) const
         {
             return this->end() == other_range.start();
         }
 
-        constexpr bool operator==(const range& other) const
+        constexpr bool operator==(const Range& other) const
         {
             return code1 == other.code1 & code2 == other.code2;
         }
 
-        friend std::string to_string(const range& range)
+        friend std::string to_string(const Range& range)
         {
             return "(" + utils::to_string(range.start()) + '-' + utils::to_string(range.end()) + ')';
         }
 
     private:
-        constexpr range(int64_t code1, int64_t code2)
+        constexpr Range(int64_t code1, int64_t code2)
             :
             code1(code1),
             code2(code2)
-        {
-        }
+#ifdef DEBUG
+            , StartLine(start_line()), StartColumn(start_column()), EndLine(end_line()), EndColumn(end_column())
+#endif
+        {}
 
     public:
         const int64_t code1;
         const int64_t code2;
+#ifdef DEBUG
+        const int32_t StartLine;
+        const int32_t StartColumn;
+        const int32_t EndLine;
+        const int32_t EndColumn;
+#endif
     };
 
 } // fsharpgrammar

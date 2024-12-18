@@ -20,7 +20,7 @@
 #include "magic_enum/magic_enum.hpp"
 
 #include "ast/AstBuilder.h"
-#include "ast/range.h"
+#include "ast/Range.h"
 
 using namespace antlr4;
 using namespace fsharpgrammar;
@@ -57,10 +57,10 @@ int main(int , const char **) {
 
   std::cout << tree->toStringTree(&parser, true) << std::endl;
 
-  auto position = position::create(1, 2);
+  auto position = Position::create(1, 2);
   std::cout << "Line: " << utils::to_string(position) << std::endl;
 
-  auto range = range::create(20, 134, 48, 4);
+  auto range = Range::create(20, 134, 48, 4);
   std::cout << "Range: " << utils::to_string(range) << std::endl;
 
 
