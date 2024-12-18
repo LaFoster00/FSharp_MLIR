@@ -17,7 +17,7 @@ ANTLR_TARGET(FSharpLexer FSharpLexer.g4 LEXER
 include_directories(${FSharpLexer_OUTPUT_DIR})
 
 
-ANTLR_TARGET(FSharpParser FSharpParser.g4 PARSER
+ANTLR_TARGET(FSharpParser FSharpParser.g4 PARSER VISITOR
         PACKAGE fsharpgrammar
         DEPENDS_ANTLR FSharpLexer
         COMPILE_FLAGS -lib ${ANTLR_FSharpLexer_OUTPUT_DIR} #Needed so that the token file can be found
@@ -40,6 +40,6 @@ endforeach(src_file ${GENERATED_SOURCE})
 add_custom_target(FSharpGrammarGenerator DEPENDS ${GENERATED_SOURCE})
 
 add_subdirectory(antlr_src)
-add_subdirectory(transformations)
+add_subdirectory(ast)
 
 add_subdirectory(test)

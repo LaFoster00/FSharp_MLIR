@@ -8,6 +8,10 @@ if(POLICY CMP0116)
     cmake_policy(SET CMP0116 OLD)
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(DEBUG)
+endif()
+
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
@@ -66,6 +70,7 @@ include_directories(${ANTLR4_INCLUDE_DIRS})
 link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 
 # Add Project source files
+add_subdirectory(utils)
 add_subdirectory(grammar)
 add_subdirectory(compiler)
 

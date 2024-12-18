@@ -11,8 +11,10 @@ add_library(FSharpGrammar STATIC
         FSharpLexerBase.cpp
         FSharpParserBase.h
         FSharpParserBase.cpp
-        ../transformations/ASTCanonicalizer.cpp
-        ../transformations/ASTCanonicalizer.h
+        ../ast/AstBuilder.cpp
+        ../ast/AstBuilder.h
+        ../ast/range.cpp
+        ../ast/range.h
 )
 
 add_dependencies(FSharpGrammar
@@ -22,5 +24,5 @@ add_dependencies(FSharpGrammar
 target_link_libraries(FSharpGrammar
         PRIVATE
         antlr4_shared
-        ASTTransformations
+        FSharpAST
 )

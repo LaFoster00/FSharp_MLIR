@@ -15,8 +15,12 @@
 #include "antlr4-runtime.h"
 #include "FSharpLexer.h"
 #include "FSharpParser.h"
+#include "utils/Utils.h"
 
 #include "magic_enum/magic_enum.hpp"
+
+#include "ast/AstBuilder.h"
+#include "ast/range.h"
 
 using namespace antlr4;
 using namespace fsharpgrammar;
@@ -42,12 +46,23 @@ int main(int , const char **) {
     lastLine = token->getLine();
   }
 
-  std::cout << "Finished Parsing." << std::endl;
+  std::cout << "Finished Lexing." << std::endl;
 
   FSharpParser parser(&tokens);
   tree::ParseTree* tree = parser.main();
 
   std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
+
+  std::cout << "Simplifying tree" << std::endl;
+
+  std::cout << tree->toStringTree(&parser, true) << std::endl;
+
+  auto position = position::create(1, 2);
+  std::cout << "Line: " << utils::to_string(position) << std::endl;
+
+  auto range = range::create(20, 134, 48, 4);
+  std::cout << "Range: " << utils::to_string(range) << std::endl;
+
 
   return 0;
 }

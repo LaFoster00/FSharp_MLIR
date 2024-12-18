@@ -162,7 +162,9 @@ ExternalProject_Add_Step(
     WORKING_DIRECTORY ${ANTLR4_BUILD_DIR})
 ExternalProject_Add_StepTargets(antlr4_runtime build_shared)
 
-add_library(antlr4_shared SHARED IMPORTED)
+add_library(antlr4_shared SHARED IMPORTED
+        ../utils/Utils.cpp
+        ../utils/Utils.h)
 add_dependencies(antlr4_shared antlr4_runtime-build_shared)
 set_target_properties(antlr4_shared PROPERTIES
                       IMPORTED_LOCATION ${ANTLR4_RUNTIME_LIBRARIES})
