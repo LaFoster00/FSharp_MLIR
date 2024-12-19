@@ -18,53 +18,54 @@ namespace fsharpgrammar {
                 std::any anon_module_result = anon_module->accept(this);
                 if (anon_module_result.has_value())
                 {
-                    auto result = ast::any_cast_ast<std::string>(anon_module_result, ctx);
+                    auto result = ast::any_cast<std::string>(anon_module_result, ctx);
                     //anon_modules.push_back(result);
                 }
             }
         }
-        return Main(std::move(anon_modules), Range::create(ctx));
+        return make_ast<Main>(std::move(anon_modules), Range::create(ctx));
     }
 
     std::any AstBuilder::visitAnonmodule(FSharpParser::AnonmoduleContext* context)
     {
-        return ModuleOrNamespace(
+        return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::AnonymousModule,
-            {},
-            {},
+            std::optional<std::string>{},
+            std::vector<ast_ptr<ModuleDeclaration>>{},
             Range::create(context));
     }
 
     std::any AstBuilder::visitNamedmodule(FSharpParser::NamedmoduleContext* context)
     {
-        return ModuleOrNamespace(
+        return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::NamedModule,
             ast::to_string(context->long_ident()),
-            {},
+            std::vector<ast_ptr<ModuleDeclaration>>{},
             Range::create(context));
     }
 
     std::any AstBuilder::visitNamespace(FSharpParser::NamespaceContext* ctx)
     {
-        return ModuleOrNamespace(
+        return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::Namespace,
             ast::to_string(ctx->long_ident()),
-            {},
+            std::vector<ast_ptr<ModuleDeclaration>>{},
             Range::create(ctx));
     }
 
     std::any AstBuilder::visitNested_module(FSharpParser::Nested_moduleContext* context)
     {
-        std::vector<ModuleDeclaration> module_declarations;
+        std::vector<ast_ptr<ModuleDeclaration>> module_declarations;
         for (auto module_decl : context->module_decl())
         {
             auto result = module_decl->accept(this);
-            module_declarations.push_back(ast::any_cast_ast<ModuleDeclaration>(result, context));
+            module_declarations.push_back(ast::any_cast<ModuleDeclaration>(result, context));
         }
 
-        return make_ast<ModuleOrNamespace>(ModuleOrNamespace::Type::NamedModule,
+        return make_ast<ModuleOrNamespace>(
+            ModuleOrNamespace::Type::NamedModule,
             ast::to_string(context->long_ident()),
-            {},
+            std::vector<ast_ptr<ModuleDeclaration>>{},
             Range::create(context));
     }
 

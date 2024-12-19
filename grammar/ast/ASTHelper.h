@@ -6,24 +6,18 @@
 
 #include <format>
 
+#include "ASTNode.h"
 #include "FSharpParser.h"
 #include "Range.h"
+#include "../../cmake-build-debug/_deps/magic_enum-src/include/magic_enum/magic_enum.hpp"
 
-namespace fsharpgrammar
-{
-    template<typename T>
-    using ast_ptr = std::shared_ptr<T>;
+#include "utils/Utils.h"
 
-    template <typename T, typename... Args>
-    auto make_ast(Args&&... args) -> decltype(std::make_shared<T>(std::forward<Args>(args)...)) {
-        return std::make_shared<T>(std::forward<Args>(args)...);
-    }
-}
 
 namespace fsharpgrammar::ast
 {
     template<typename T>
-    T any_cast_ast(std::any& obj, antlr4::ParserRuleContext *parserRuleContext)
+    ast_ptr<T> any_cast(std::any& obj, antlr4::ParserRuleContext *parserRuleContext)
     {
         try
         {
@@ -33,10 +27,10 @@ namespace fsharpgrammar::ast
         {
             std::string error_message = std::format(
                 "AST Building exception at \"{}\" {} expected {} but got {} instead",
-                parserRuleContext->getText(),
-                Range::create(parserRuleContext),
-                typeid(T).name(),
-                obj.type().name());
+                parserRuleContext->start->getText(),
+                utils::to_string(Range::create(parserRuleContext)),
+                utils::type_name<T>(),
+                utils::demangle(obj.type().name()));
             throw antlr4::ParseCancellationException(error_message);
         }
     }

@@ -64,8 +64,6 @@ namespace fsharpgrammar
             return "AnonymousModule";
         case ModuleOrNamespace::Type::Namespace:
             return "Namespace " + moduleOrNamespace.name.value();
-        default:
-            return "";
         }
     }
 
