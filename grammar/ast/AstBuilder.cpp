@@ -19,7 +19,7 @@ namespace fsharpgrammar {
                 if (anon_module_result.has_value())
                 {
                     auto result = ast::any_cast<ModuleOrNamespace>(anon_module_result, ctx);
-                    //anon_modules.push_back(result);
+                    anon_modules.push_back(result);
                 }
             }
         }
