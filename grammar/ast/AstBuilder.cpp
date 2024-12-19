@@ -18,7 +18,7 @@ namespace fsharpgrammar {
                 std::any anon_module_result = anon_module->accept(this);
                 if (anon_module_result.has_value())
                 {
-                    auto result = ast::any_cast<std::string>(anon_module_result, ctx);
+                    auto result = ast::any_cast<ModuleOrNamespace>(anon_module_result, ctx);
                     //anon_modules.push_back(result);
                 }
             }
