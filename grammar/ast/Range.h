@@ -10,6 +10,11 @@
 
 #include "utils/Utils.h"
 
+namespace antlr4
+{
+    class ParserRuleContext;
+}
+
 namespace fsharpgrammar
 {
     constexpr int64_t pown64(int32_t n)
@@ -139,6 +144,8 @@ namespace fsharpgrammar {
         {
             return create(start.line(), start.column(), end.line(), end.column());
         }
+
+        static Range create(const antlr4::ParserRuleContext* ctx);
 
         static constexpr Range create(int64_t code1, int64_t code2)
         {
