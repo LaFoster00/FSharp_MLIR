@@ -88,7 +88,7 @@ atomic_pat
     :
     paren_pat
     | anon_expr
-    | constant_expr
+    | constant
     | named_pat
     | record_pat
     | array_pat
@@ -231,7 +231,7 @@ unary_expression
 atomic_expr
     :
     paren_expr
-    | constant_expr
+    | constant
     | ident
     | long_ident
     | let_stmt
@@ -337,34 +337,53 @@ long_ident
     : ident (DOT ident)*;
 
 
-append_bracket_generic_type
-    /// F# syntax: type<type, ..., type>
-    : LESS_THAN type (COMMA type)* GREATER_THAN
-    ;
-
-postfix_double_type
-    /// F# syntax: (type, type) type
-    : OPEN_PAREN type COMMA type CLOSE_PAREN type
-    ;
-
-long_ident_append_type
-    /// F# syntax: type.A.B.C<type, ..., type>
-    : (DOT ident)* LESS_THAN type (COMMA type)* GREATER_THAN
-    ;
-
-tuple_type
-    /// F# syntax: type * ... * type
-    : (STAR type)+
-    ;
-
-array_type
-    /// F# syntax: type[]
-    : OPEN_BRACK CLOSE_BRACK
+type:
+    fun_type
     ;
 
 fun_type
     /// F# syntax: type -> type
-    : RIGHT_ARROW type
+    : tuple_type (RIGHT_ARROW type)*
+    ;
+
+tuple_type
+    /// F# syntax: type * ... * type
+    : append_type (STAR type)*
+    ;
+
+append_type
+    /// F# syntax: type<type, ..., type> or type type or (type, ..., type) type
+    : long_ident_append_type generic_args? #generic_type
+    | long_ident_append_type long_ident_append_type? #postfix_type
+    | paren_type long_ident_append_type #paren_postfix_type
+    ;
+
+long_ident_append_type
+    /// F# syntax: type.A.B.C<type, ..., type>
+    :
+    array_type ((DOT long_ident)+ generic_args)?
+    ;
+
+generic_args
+    /// F# syntax: <type, ..., type>
+    : LESS_THAN type (COMMA type)* GREATER_THAN
+    ;
+
+array_type
+    /// F# syntax: type[]
+    : atomic_type (OPEN_BRACK CLOSE_BRACK)?
+    ;
+
+
+
+atomic_type
+    : paren_type
+    | var_type
+    | long_ident
+    | anon_type
+    | static_constant_type
+    | static_constant_null_type
+    | generic_args
     ;
 
 paren_type
@@ -372,43 +391,31 @@ paren_type
     : OPEN_PAREN type CLOSE_PAREN
     ;
 
-type:
-    /// F# syntax: type type
-    type type
-    /// F# syntax: type
-    | ident
-
-    /// F# syntax: A.B.C
-    | long_ident
-
-    /// F# syntax: type<type, ..., type>
-    | append_bracket_generic_type
-
-    /// F# syntax: (type, type) type
-    | postfix_double_type
-
-    /// F# syntax: type.A.B.C<type, ..., type>
-    | long_ident_append_type
-
-    /// F# syntax: type * ... * type
-    | tuple_type
-
-    /// F# syntax: type[]
-    | array_type
-
-    /// F# syntax: type -> type
-    | fun_type
-
-    /// F# syntax: (type)
-    | paren_type
-
+var_type
+    /// F# syntax: var
+    : IDENT
     ;
+
+anon_type
+    /// F# syntax: _
+    : UNDERSCORE
+    ;
+
+static_constant_type
+    : constant
+    ;
+
+static_constant_null_type
+    : constant
+    | NULL
+    ;
+
 
 ident
     : IDENT
     ;
 
-constant_expr
+constant
     : INTEGER
     | FLOAT_NUMBER
     | STRING
