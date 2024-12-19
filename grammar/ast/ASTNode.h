@@ -144,6 +144,29 @@ namespace fsharpgrammar
     {
         enum class Type
         {
+            TupelPattern,
+            AndPattern,
+            OrPattern,
+            AsPattern,
+            ConsPattern,
+            TypedPattern
+        };
+
+        Pattern(Type type, std::optional<std::string> value, Range&& range);
+        ~Pattern() override = default;
+
+        [[nodiscard]] Range get_range() const override
+        {
+            return range;
+        }
+
+        const Type type;
+        const std::optional<std::string> value;
+        const Range range;
+    };
+
+    class AtomicPattern : public IASTNode {
+        enum class Type {
             ParenPattern,
             AnonymousExpression,
             Constant,
@@ -154,8 +177,8 @@ namespace fsharpgrammar
             NullPattern
         };
 
-        Pattern(Type type, std::optional<std::string> value, Range&& range);
-        ~Pattern() override = default;
+        AtomicPattern(Type type, std::optional<std::string> value, Range&& range);
+        ~AtomicPattern() override = default;
 
         [[nodiscard]] Range get_range() const override
         {
