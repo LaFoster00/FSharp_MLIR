@@ -8,17 +8,21 @@
 #include <vector>
 
 #include "Range.h"
+#include "fmt/core.h"
+#include <type_traits>
+
+
 
 namespace fsharpgrammar
 {
-    template<typename T>
+    template <typename T>
     using ast_ptr = std::shared_ptr<T>;
 
     template <typename T, typename... Args>
-    auto make_ast(Args&&... args) -> decltype(std::make_shared<T>(std::forward<Args>(args)...)) {
+    auto make_ast(Args&&... args) -> decltype(std::make_shared<T>(std::forward<Args>(args)...))
+    {
         return std::make_shared<T>(std::forward<Args>(args)...);
     }
-
 
     class IASTNode
     {
@@ -27,7 +31,21 @@ namespace fsharpgrammar
         virtual ~IASTNode() = default;
 
         [[nodiscard]] virtual Range get_range() const = 0;
+        [[nodiscard]] virtual std::string get_string() const = 0;
     };
+}
+
+template<typename T>
+    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNode, T>, char>> : fmt::formatter<std::string>
+{
+    auto format(const fsharpgrammar::IASTNode& node, fmt::format_context& ctx) const
+    {
+        return fmt::formatter<std::string>::format(node.get_string(), ctx);
+    }
+};
+
+namespace fsharpgrammar
+{
 
     class ModuleOrNamespace;
     class ModuleDeclaration;
@@ -50,6 +68,11 @@ namespace fsharpgrammar
         friend std::string to_string(const Main& main)
         {
             return "Main";
+        }
+
+        [[nodiscard]] std::string get_string() const override
+        {
+            return to_string(*this);
         }
 
     private:
@@ -82,7 +105,11 @@ namespace fsharpgrammar
 
         friend std::string to_string(const ModuleOrNamespace& moduleOrNamespace);
 
-    public:
+        [[nodiscard]] std::string get_string() const override
+        {
+            return to_string(*this);
+        }
+
         const Type type;
         const std::optional<std::string> name;
         const std::vector<ast_ptr<ModuleDeclaration>> module_decls;
@@ -99,8 +126,13 @@ namespace fsharpgrammar
         {
             return range;
         }
+
         friend std::string to_string(const ModuleDeclaration& moduleDeclaration);
-    public:
+        [[nodiscard]] std::string get_string() const override
+        {
+            return to_string(*this);
+        }
+
         const std::vector<ast_ptr<Expression>> expressions;
         const Range range;
     };
@@ -114,12 +146,17 @@ namespace fsharpgrammar
             Range&& range);
 
         friend std::string to_string(const NestedModuleDeclaration& nestedModuleDeclaration);
+
         [[nodiscard]] Range get_range() const override
         {
             return range;
         }
 
-    public:
+        [[nodiscard]] std::string get_string() const override
+        {
+            return to_string(*this);
+        }
+
         const std::string name;
         const std::vector<ast_ptr<ModuleDeclaration>> module_decls;
         const Range range;
@@ -131,12 +168,17 @@ namespace fsharpgrammar
         Expression(Range&& range);
 
         friend std::string to_string(const Expression& expression);
+
         [[nodiscard]] Range get_range() const override
         {
             return range;
         }
 
-    public:
+        [[nodiscard]] std::string get_string() const override
+        {
+            return to_string(*this);
+        }
+
         Range range;
     };
 
@@ -160,6 +202,11 @@ namespace fsharpgrammar
         [[nodiscard]] Range get_range() const override
         {
             return range;
+        }
+
+        [[nodiscard]] std::string get_string() const override
+        {
+            return "Pattern";
         }
 
         const Type type;
