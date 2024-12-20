@@ -28,6 +28,9 @@ project(
     LANGUAGES CXX C
 )
 
+# CMAKE UTILITIES
+include(cmake/utils.cmake)
+
 # LLVM Setup
 include(cmake/llvm.cmake)
 build_llvm()
@@ -60,8 +63,17 @@ build_antlr()
 include_directories(${ANTLR4_INCLUDE_DIRS})
 link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 
+# Define global utility library resources
+set(FSHARP_MLIR_UTILITY_LIBS
+        magic_enum::magic_enum
+        fmt::fmt
+        CACHE INTERNAL "")
+set(FSHARP_MLIR_UTILITY_INCLUDES CACHE INTERNAL "")
+
 # Add Project source files
 add_subdirectory(utils)
 add_subdirectory(grammar)
 add_subdirectory(compiler)
 
+message(STATUS "FSHARP_MLIR_UTILITY_LIBS : ${FSHARP_MLIR_UTILITY_LIBS}")
+message(STATUS "FSHARP_MLIR_UTILITY_INCLUDES : ${FSHARP_MLIR_UTILITY_INCLUDES}")

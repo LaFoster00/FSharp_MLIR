@@ -16,7 +16,7 @@ options {
 
 channels { CommentsChannel }
 
-@header {#include "antlr_src/FSharpLexerBase.h"}
+@header {#include "FSharpLexerBase.h"}
 
 STRING: STRING_LITERAL;
 CHARACTER: CHARACTER_LITERAL;

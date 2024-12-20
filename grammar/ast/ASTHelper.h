@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <format>
-
 #include "ASTNode.h"
 #include "FSharpParser.h"
 #include "Range.h"
-#include "../../cmake-build-debug/_deps/magic_enum-src/include/magic_enum/magic_enum.hpp"
+#include "fmt/format.h"
 
 #include "utils/Utils.h"
 
@@ -25,7 +23,7 @@ namespace fsharpgrammar::ast
         }
         catch(std::bad_any_cast&)
         {
-            std::string error_message = std::format(
+            std::string error_message = fmt::format(
                 "AST Building exception at \"{}\" {} expected {} but got {} instead",
                 parserRuleContext->start->getText(),
                 utils::to_string(Range::create(parserRuleContext)),

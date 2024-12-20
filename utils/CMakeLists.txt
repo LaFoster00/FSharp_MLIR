@@ -11,4 +11,10 @@ target_include_directories(Utils PRIVATE
         ${PROJECT_SOURCE_DIR}/Utils
 )
 
-set(UTILS_INCLUDE_DIR ${PROJECT_SOURCE_DIR} CACHE INTERNAL "")
+append_to_cached_variable(FSHARP_MLIR_UTILITY_LIBS
+        Utils
+)
+
+append_to_cached_variable(FSHARP_MLIR_UTILITY_INCLUDES
+    ${PROJECT_SOURCE_DIR}
+)

@@ -9,20 +9,16 @@ add_executable(FSharpGrammarTest
         main.cpp
 )
 
-add_dependencies(FSharpGrammarTest FSharpGrammar)
-
 # include generated files in project environment
 target_include_directories(FSharpGrammarTest PRIVATE
         ${PROJECT_SOURCE_DIR}/../
-        ${UTILS_INCLUDE_DIR}
+        ${FSHARP_MLIR_UTILITY_INCLUDES}
 )
 
 target_link_libraries(FSharpGrammarTest
         PRIVATE
         FSharpGrammar
-        antlr4_shared
-        magic_enum::magic_enum
-        Utils
+        ${FSHARP_MLIR_UTILITY_LIBS}
 )
 
 
