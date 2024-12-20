@@ -8,38 +8,18 @@ project(
         LANGUAGES CXX C
 )
 
-include_directories(
-        ${PROJECT_SOURCE_DIR}
-)
-
-ANTLR_TARGET(FSharpLexer FSharpLexer.g4 LEXER
-        PACKAGE fsharpgrammar)
-include_directories(${FSharpLexer_OUTPUT_DIR})
-
-
-ANTLR_TARGET(FSharpParser FSharpParser.g4 PARSER VISITOR
-        PACKAGE fsharpgrammar
-        DEPENDS_ANTLR FSharpLexer
-        COMPILE_FLAGS -lib ${ANTLR_FSharpLexer_OUTPUT_DIR} #Needed so that the token file can be found
-)
-include_directories(${FSharpParser_OUTPUT_DIR})
-
-set(GENERATED_SOURCE
-        ${FSharpLexer_CXX_OUTPUTS}
-        ${FSharpParser_CXX_OUTPUTS}
-)
-
-foreach(src_file ${GENERATED_SOURCE})
-    set_source_files_properties(
-            ${src_file}
-            PROPERTIES
-            GENERATED TRUE
-    )
-endforeach(src_file ${GENERATED_SOURCE})
-
-add_custom_target(FSharpGrammarGenerator DEPENDS ${GENERATED_SOURCE})
-
-add_subdirectory(antlr_src)
+add_subdirectory(antlr)
 add_subdirectory(ast)
+
+add_library(FSharpGrammar INTERFACE)
+target_link_libraries(FSharpGrammar
+    INTERFACE
+        FSharpGrammarAntlr
+        FSharpGrammarAST
+        antlr4_shared
+)
+target_include_directories(FSharpGrammar INTERFACE
+    ${PROJECT_SOURCE_DIR}
+)
 
 add_subdirectory(test)

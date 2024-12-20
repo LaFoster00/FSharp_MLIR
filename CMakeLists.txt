@@ -28,14 +28,8 @@ project(
     LANGUAGES CXX C
 )
 
-# download CPM.cmake
-file(
-    DOWNLOAD
-    https://github.com/cpm-cmake/CPM.cmake/releases/download/v0.38.3/CPM.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake
-    EXPECTED_HASH SHA256=cc155ce02e7945e7b8967ddfaff0b050e958a723ef7aad3766d368940cb15494
-)
-include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
+# CMAKE UTILITIES
+include(cmake/utils.cmake)
 
 # LLVM Setup
 include(cmake/llvm.cmake)
@@ -45,12 +39,6 @@ find_package(MLIR REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-
-CPMAddPackage(
-        NAME magic_enum
-        GITHUB_REPOSITORY Neargye/magic_enum
-        GIT_TAG v0.9.7 # Where `x.y.z` is the release version you want to use.
-)
 
 include(TableGen)
 include(AddLLVM)
@@ -62,6 +50,12 @@ include_directories(${LLVM_INCLUDE_DIRS}
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
+# Magic enum setup
+include(cmake/magic_enum.cmake)
+
+# fmt setup
+include(cmake/fmt.cmake)
+
 # ANTLR4 SETUP
 include(cmake/antlr4.cmake)
 build_antlr()
@@ -69,8 +63,17 @@ build_antlr()
 include_directories(${ANTLR4_INCLUDE_DIRS})
 link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 
+# Define global utility library resources
+set(FSHARP_MLIR_UTILITY_LIBS
+        magic_enum::magic_enum
+        fmt::fmt
+        CACHE INTERNAL "")
+set(FSHARP_MLIR_UTILITY_INCLUDES CACHE INTERNAL "")
+
 # Add Project source files
 add_subdirectory(utils)
 add_subdirectory(grammar)
 add_subdirectory(compiler)
 
+message(STATUS "FSHARP_MLIR_UTILITY_LIBS : ${FSHARP_MLIR_UTILITY_LIBS}")
+message(STATUS "FSHARP_MLIR_UTILITY_INCLUDES : ${FSHARP_MLIR_UTILITY_INCLUDES}")

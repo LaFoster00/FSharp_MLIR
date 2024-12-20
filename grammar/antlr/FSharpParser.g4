@@ -5,7 +5,7 @@ options {
     tokenVocab = FSharpLexer;
 }
 
-@header { #include "antlr_src/FSharpParserBase.h" }
+@header { #include "FSharpParserBase.h" }
 
 main: (NEWLINE | module_or_namespace)+ EOF;
 

@@ -3,8 +3,6 @@
 //
 #pragma once
 
-#include "antlr4-runtime.h"
-#include "FSharpLexer.h"
 #include "FSharpParser.h"
 #include "FSharpParserBaseVisitor.h"
 
