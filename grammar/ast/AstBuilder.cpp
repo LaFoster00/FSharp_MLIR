@@ -11,16 +11,12 @@ namespace fsharpgrammar {
     std::any AstBuilder::visitMain(FSharpParser::MainContext* ctx)
     {
         std::vector<ast_ptr<ModuleOrNamespace>> anon_modules;
-        for (auto child : ctx->children)
+        for (auto module_or_namespace : ctx->module_or_namespace())
         {
-            if (auto anon_module = dynamic_cast<FSharpParser::AnonmoduleContext*>(child))
+            std::any module_result = module_or_namespace->accept(this);
+            if (module_result.has_value())
             {
-                std::any anon_module_result = anon_module->accept(this);
-                if (anon_module_result.has_value())
-                {
-                    auto result = ast::any_cast<ModuleOrNamespace>(anon_module_result, ctx);
-                    anon_modules.push_back(result);
-                }
+                anon_modules.push_back(ast::any_cast<ModuleOrNamespace>(module_result, ctx));
             }
         }
         return make_ast<Main>(std::move(anon_modules), Range::create(ctx));
