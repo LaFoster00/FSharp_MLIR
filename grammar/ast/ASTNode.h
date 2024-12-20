@@ -37,11 +37,27 @@ namespace fsharpgrammar
         [[nodiscard]] virtual Range get_range() const = 0;
     };
 
+
+    // Helper to check if all types inherit from INodeAlternative
+    template <typename Base, typename... Ts>
+    constexpr bool are_all_base_of = (std::is_base_of_v<Base, Ts> && ...);
+
     struct INodeAlternative
     {
         virtual ~INodeAlternative() = default;
         [[nodiscard]] virtual Range get_range() const = 0;
+
+        template<typename... T>
+        requires are_all_base_of<INodeAlternative, T...>
+        static Range get_range(std::variant<T...> alternatives)
+        {
+            return std::visit([](const auto& obj) {
+                        return obj.get_range(); // Call the method on the base class
+                    }, alternatives);
+        }
     };
+
+
 
 }
 
@@ -190,9 +206,7 @@ namespace fsharpgrammar
 
         [[nodiscard]] Range get_range() const override
         {
-            return std::visit([](const auto& obj) {
-                    return obj.get_range(); // Call the method on the base class
-                }, declaration);
+            return INodeAlternative::get_range(declaration);
         }
 
         friend std::string to_string(const ModuleDeclaration& moduleDeclaration);
@@ -243,9 +257,7 @@ namespace fsharpgrammar
 
         [[nodiscard]] Range get_range() const override
         {
-            return std::visit([](const auto& obj) {
-                    return obj.get_range(); // Call the method on the base class
-                }, expression);
+            return INodeAlternative::get_range(expression);
         }
 
         const ExpressionType expression;
