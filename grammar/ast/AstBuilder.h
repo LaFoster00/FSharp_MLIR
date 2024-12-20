@@ -32,6 +32,14 @@ namespace fsharpgrammar {
         // non assignment expression
         std::any visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context) override;
         std::any visitApp_expr(FSharpParser::App_exprContext* context) override;
+        std::any visitTuple_expr(FSharpParser::Tuple_exprContext* context) override;
+        std::any visitOr_expr(FSharpParser::Or_exprContext* context) override;
+        std::any visitAnd_expr(FSharpParser::And_exprContext* context) override;
+        std::any visitEquality_expr(FSharpParser::Equality_exprContext* context) override;
+        std::any visitRelation_expr(FSharpParser::Relation_exprContext* context) override;
+        std::any visitAdditive_expr(FSharpParser::Additive_exprContext* context) override;
+        std::any visitMultiplicative_expr(FSharpParser::Multiplicative_exprContext* context) override;
+        std::any visitDot_get_expr(FSharpParser::Dot_get_exprContext* context) override;
 
         // assignment expression
         std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;

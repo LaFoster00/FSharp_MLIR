@@ -81,7 +81,7 @@ namespace fsharpgrammar
 
         friend std::string to_string(const PlaceholderNodeAlternative& placeholder)
         {
-            return "Placeholder " + placeholder.name;
+            return "Placeholder \n\t" + placeholder.name;
         }
 
         std::string name;
@@ -290,7 +290,24 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct TwoComponent : IExpressionType
+        struct Tuple : IExpressionType
+        {
+            Tuple(std::vector<ast_ptr<Expression>> &&expressions, const Range&& range)
+                : expressions(std::move(expressions)),
+            range(range)
+            {}
+
+            friend std::string to_string(const Tuple& tuple);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+            const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
+
+        struct OP : IExpressionType
         {
             enum class Type
             {
@@ -331,30 +348,27 @@ namespace fsharpgrammar
 
             using SpecializedType = std::variant<LogicalType, EqualityType, RelationType, ArithmeticType>;
 
-            TwoComponent(const ast_ptr<Expression>&& left, const ast_ptr<Expression>&& right, Type type, SpecializedType st,
-                         const Range&& range)
-                : left(std::move(left)),
-                  right(std::move(right)),
+            OP(std::vector<ast_ptr<Expression>>&& expressions, Type type, SpecializedType st, Range&& range)
+                : expressions(std::move(expressions)),
                     type(type),
                   st(st),
                   range(range)
             {}
 
-            friend std::string to_string(const TwoComponent& or_expr);
+            friend std::string to_string(const OP& or_expr);
 
             [[nodiscard]] Range get_range() const override
             {
                 return range;
             }
 
-            const ast_ptr<Expression> left;
-            const ast_ptr<Expression> right;
+            const std::vector<ast_ptr<Expression>> expressions;
             const Type type;
             const SpecializedType st;
             const Range range;
         };
 
-        using ExpressionType = std::variant<Sequential, Append, PlaceholderNodeAlternative>;
+        using ExpressionType = std::variant<Sequential, Append, Tuple, PlaceholderNodeAlternative>;
 
     public:
         Expression(ExpressionType&& expression);

@@ -63,83 +63,93 @@ namespace fsharpgrammar
     std::string to_string(const Expression::Append& append)
     {
         std::stringstream ss;
-        ss << fmt::format("Append {}", utils::to_string(append.range));
+        ss << fmt::format("Append {}\n", utils::to_string(append.range));
         for (auto expression : append.expressions)
         {
-            ss << utils::indent_string(fmt::format( "(\n{})\n", utils::to_string(*expression.get())));
+            ss << utils::indent_string(fmt::format( "({}\n)\n", utils::to_string(*expression.get())));
         }
 
         return ss.str();
     }
 
-    std::string to_string(const Expression::TwoComponent& two_component)
+    std::string to_string(const Expression::Tuple& tuple)
     {
-        std::string left_string = utils::indent_string(utils::to_string(*two_component.left.get()));
-        std::string right_string = utils::indent_string(utils::to_string(*two_component.right.get()));
+        std::stringstream ss;
+        ss << fmt::format("Tuple {}\n", utils::to_string(tuple.range));
+        for (int i = 0; i < tuple.expressions.size(); ++i)
+        {
+            ss << utils::indent_string(fmt::format("({}\n)\n", utils::to_string(*tuple.expressions[i].get())));
+            if (i < tuple.expressions.size() - 1)
+                ss << ",\n";
+        }
+        return ss.str();
+    }
 
+    std::string to_string(const Expression::OP& op)
+    {
         std::string title;
         std::string separator = "";
-        switch (two_component.type)
+        switch (op.type)
         {
-        case Expression::TwoComponent::Type::LOGICAL:
+        case Expression::OP::Type::LOGICAL:
             title = "Logical";
-            switch (std::get<Expression::TwoComponent::LogicalType>(two_component.st))
+            switch (std::get<Expression::OP::LogicalType>(op.st))
             {
-            case Expression::TwoComponent::LogicalType::AND:
+            case Expression::OP::LogicalType::AND:
                 separator = "And";
                 break;
-            case Expression::TwoComponent::LogicalType::OR:
+            case Expression::OP::LogicalType::OR:
                 separator = "Or";
                 break;
             }
             break;
-        case Expression::TwoComponent::Type::EQUALITY:
+        case Expression::OP::Type::EQUALITY:
             title = "Equality";
-            switch (std::get<Expression::TwoComponent::EqualityType>(two_component.st))
+            switch (std::get<Expression::OP::EqualityType>(op.st))
             {
-            case Expression::TwoComponent::EqualityType::EQUAL:
+            case Expression::OP::EqualityType::EQUAL:
                 separator = "Equal";
                 break;
-            case Expression::TwoComponent::EqualityType::NON_EQUAL:
+            case Expression::OP::EqualityType::NON_EQUAL:
                 separator = "Not-Equal";
                 break;
             }
             break;
-        case Expression::TwoComponent::Type::RELATION:
+        case Expression::OP::Type::RELATION:
             title = "Relation";
-            switch (std::get<Expression::TwoComponent::RelationType>(two_component.st))
+            switch (std::get<Expression::OP::RelationType>(op.st))
             {
-            case Expression::TwoComponent::RelationType::LESS:
+            case Expression::OP::RelationType::LESS:
                 separator = "<";
                 break;
-            case Expression::TwoComponent::RelationType::GREATER:
+            case Expression::OP::RelationType::GREATER:
                 separator = ">";
                 break;
-            case Expression::TwoComponent::RelationType::LESS_THAN:
+            case Expression::OP::RelationType::LESS_THAN:
                 separator = "<=";
                 break;
-            case Expression::TwoComponent::RelationType::GREATE_THAN:
+            case Expression::OP::RelationType::GREATE_THAN:
                 separator = ">=";
                 break;
             }
             break;
-        case Expression::TwoComponent::Type::ARITHMETIC:
+        case Expression::OP::Type::ARITHMETIC:
             title = "Arithmetic";
-            switch (std::get<Expression::TwoComponent::ArithmeticType>(two_component.st))
+            switch (std::get<Expression::OP::ArithmeticType>(op.st))
             {
-            case Expression::TwoComponent::ArithmeticType::ADD:
+            case Expression::OP::ArithmeticType::ADD:
                 separator = "+";
                 break;
-            case Expression::TwoComponent::ArithmeticType::SUBTRACT:
+            case Expression::OP::ArithmeticType::SUBTRACT:
                 separator = "-";
                 break;
-            case Expression::TwoComponent::ArithmeticType::MULTIPLY:
+            case Expression::OP::ArithmeticType::MULTIPLY:
                 separator = "*";
                 break;
-            case Expression::TwoComponent::ArithmeticType::DIVIDE:
+            case Expression::OP::ArithmeticType::DIVIDE:
                 separator = "/";
                 break;
-            case Expression::TwoComponent::ArithmeticType::MODULO:
+            case Expression::OP::ArithmeticType::MODULO:
                 separator = "%";
                 break;
             }
@@ -148,10 +158,17 @@ namespace fsharpgrammar
 
         std::stringstream ss;
 
-        ss << fmt::format("{} {}", title, utils::to_string(two_component.range));
-        ss << fmt::format( "(\n{})", left_string);
-        ss << fmt::format("{}\n",separator);
-        ss << fmt::format("\n(\n{})", right_string);
+        ss << fmt::format("{} {}\n", title, utils::to_string(op.range));
+
+        for (int i = 0; i < op.expressions.size(); ++i)
+        {
+            ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*op.expressions[i].get())));
+            if (i < op.expressions.size() - 1)
+            {
+                ss << separator << '\n';
+            }
+        }
+
         return ss.str();
     }
 

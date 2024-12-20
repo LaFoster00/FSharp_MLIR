@@ -150,9 +150,9 @@ namespace fsharpgrammar
     std::any AstBuilder::visitApp_expr(FSharpParser::App_exprContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto unary_expression : context->tuple_expr())
+        for (auto tuple_expr : context->tuple_expr())
         {
-            auto result = unary_expression->accept(this);
+            auto result = tuple_expr->accept(this);
             if (result.has_value())
                 expressions.push_back(ast::any_cast<Expression>(result, context));
         }
@@ -166,6 +166,80 @@ namespace fsharpgrammar
             return expressions[0];
         else
             return make_ast<Expression>(PlaceholderNodeAlternative("App Expr"));
+    }
+
+    std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
+    {
+        std::vector<ast_ptr<Expression>> expressions;
+        for (auto expr : context->or_expr())
+        {
+            std::any result = expr->accept(this);
+            if (result.has_value())
+                expressions.push_back(ast::any_cast<Expression>(result, context));
+        }
+        if (expressions.size() > 1)
+            return make_ast<Expression>(
+                    Expression::Tuple(
+                        std::move(expressions),
+                        Range::create(context))
+                );
+        else if (expressions.size() == 1)
+            return expressions[0];
+        else
+            return make_ast<Expression>(PlaceholderNodeAlternative("Implement Or Expr"));
+    }
+
+    std::any AstBuilder::visitOr_expr(FSharpParser::Or_exprContext* context)
+    {
+        if (context->and_expr().size() > 2)
+            return make_ast<Expression>(PlaceholderNodeAlternative("Or Expr"));
+        else
+            return context->and_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitAnd_expr(FSharpParser::And_exprContext* context)
+    {
+        if (context->equality_expr().size() > 2)
+            return make_ast<Expression>(PlaceholderNodeAlternative("And Expr"));
+        else
+            return context->equality_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitEquality_expr(FSharpParser::Equality_exprContext* context)
+    {
+        if (context->relation_expr().size() > 2)
+            return make_ast<Expression>(PlaceholderNodeAlternative("Equality Expr"));
+        else
+            return context->relation_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitRelation_expr(FSharpParser::Relation_exprContext* context)
+    {
+        if (context->additive_expr().size() > 2)
+            return make_ast<Expression>(PlaceholderNodeAlternative("Relation Expr"));
+        else
+            return context->additive_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitAdditive_expr(FSharpParser::Additive_exprContext* context)
+    {
+        if (context->multiplicative_expr().size() > 2)
+            return make_ast<Expression>(PlaceholderNodeAlternative("Additive Expr"));
+        else
+            return context->multiplicative_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitMultiplicative_expr(FSharpParser::Multiplicative_exprContext* context)
+    {
+        if (context->dot_get_expr().size() > 2)
+            return make_ast<Expression>(PlaceholderNodeAlternative("Multiplicative Expr"));
+        else
+            return context->dot_get_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitDot_get_expr(FSharpParser::Dot_get_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Dot Get Expr"));
     }
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
