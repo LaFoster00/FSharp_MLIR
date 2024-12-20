@@ -70,4 +70,6 @@ namespace utils
 
     std::string demangle(const char* name);
 
+    std::string indent_string(const std::string& input, const int32_t indent_count = 1);
+
 } // namespace utils

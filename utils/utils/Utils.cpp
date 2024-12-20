@@ -4,6 +4,8 @@
 
 #include "Utils.h"
 
+#include <sstream>
+
 #ifdef __GNUG__
 #include <cstdlib>
 #include <memory>
@@ -32,4 +34,20 @@ namespace utils
     }
 
 #endif
+    // Function to add indentation to a multiline string
+    std::string indent_string(const std::string& input, const int32_t indent_count) {
+        std::istringstream stream(input);
+        std::ostringstream result;
+        std::string line;
+        std::ostringstream indent_stream;
+        for (int32_t i = 0; i < indent_count; i++)
+        {
+            indent_stream << '\t';
+        }
+        while (std::getline(stream, line)) {
+            result << indent_stream.str() << line << '\n'; // Add indentation to each line
+        }
+        return result.str();
+    }
+
 }

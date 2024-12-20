@@ -20,7 +20,10 @@
 #include "magic_enum/magic_enum.hpp"
 
 #include "ast/AstBuilder.h"
+#include "ast/ASTNode.h"
 #include "ast/Range.h"
+
+#include "fmt/format.h"
 
 using namespace antlr4;
 using namespace fsharpgrammar;
@@ -56,9 +59,9 @@ int main(int , const char **) {
   std::cout << "Simplifying tree" << std::endl;
 
   AstBuilder builder;
-  std::any simplified_tree = builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree));
-  std::cout << tree->toStringTree(&parser, true) << std::endl;
+  ast_ptr<Main> ast = std::any_cast<ast_ptr<Main>>(builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree)));
 
+  fmt::print("AST Generation Result = \n{}", *(ast.get()));
 
   return 0;
 }

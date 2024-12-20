@@ -7,7 +7,7 @@ add_library(Utils STATIC
         ${SOURCE}
 )
 
-target_include_directories(Utils PRIVATE
+target_include_directories(Utils PUBLIC
         ${PROJECT_SOURCE_DIR}/Utils
 )
 
@@ -16,5 +16,5 @@ append_to_cached_variable(FSHARP_MLIR_UTILITY_LIBS
 )
 
 append_to_cached_variable(FSHARP_MLIR_UTILITY_INCLUDES
-    ${PROJECT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
 )

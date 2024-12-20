@@ -20,6 +20,7 @@ module_decl
     : NEWLINE+ #emply_lines
     | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
     | sequential_stmt #expression_stmt
+    | OPEN long_ident #open_stmt
     ;
 
 let_stmt
@@ -240,7 +241,6 @@ atomic_expr
     | array_expr
     | list_expr
     | new_expr
-    | open_expr
     | if_then_else_expr
     | match_expr
     | pipe_right_expr
@@ -280,11 +280,6 @@ list_expr
 new_expr
     /// F# syntax: new C(...)
     : NEW type OPEN_PAREN expression CLOSE_PAREN
-    ;
-
-open_expr
-    /// F# syntax: open long_ident
-    : OPEN long_ident
     ;
 
 if_then_else_expr
