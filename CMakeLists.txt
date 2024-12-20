@@ -28,15 +28,6 @@ project(
     LANGUAGES CXX C
 )
 
-# download CPM.cmake
-file(
-    DOWNLOAD
-    https://github.com/cpm-cmake/CPM.cmake/releases/download/v0.38.3/CPM.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake
-    EXPECTED_HASH SHA256=cc155ce02e7945e7b8967ddfaff0b050e958a723ef7aad3766d368940cb15494
-)
-include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
-
 # LLVM Setup
 include(cmake/llvm.cmake)
 build_llvm()
@@ -45,12 +36,6 @@ find_package(MLIR REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-
-CPMAddPackage(
-        NAME magic_enum
-        GITHUB_REPOSITORY Neargye/magic_enum
-        GIT_TAG v0.9.7 # Where `x.y.z` is the release version you want to use.
-)
 
 include(TableGen)
 include(AddLLVM)
@@ -61,6 +46,12 @@ include_directories(${LLVM_INCLUDE_DIRS}
                     ${MLIR_INCLUDE_DIRS})
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
+
+# Magic enum setup
+include(cmake/magic_enum.cmake)
+
+# fmt setup
+include(cmake/fmt.cmake)
 
 # ANTLR4 SETUP
 include(cmake/antlr4.cmake)
