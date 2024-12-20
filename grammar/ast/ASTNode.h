@@ -22,8 +22,8 @@ namespace fsharpgrammar
     template <typename T>
     using ast_ptr = std::shared_ptr<T>;
 
-    template <typename T,typename... Args>
-    requires std::is_base_of_v<IASTNode, T>
+    template <typename T, typename... Args>
+        requires std::is_base_of_v<IASTNode, T>
     auto make_ast(Args&&... args) -> decltype(std::make_shared<T>(std::forward<Args>(args)...))
     {
         return std::make_shared<T>(std::forward<Args>(args)...);
@@ -47,48 +47,50 @@ namespace fsharpgrammar
         virtual ~INodeAlternative() = default;
         [[nodiscard]] virtual Range get_range() const = 0;
 
-        template<typename... T>
-        requires are_all_base_of<INodeAlternative, T...>
+        template <typename... T>
+            requires are_all_base_of<INodeAlternative, T...>
         static Range get_range(std::variant<T...> alternatives)
         {
-            return std::visit([](const auto& obj) {
-                        return obj.get_range();
-                    }, alternatives);
+            return std::visit([](const auto& obj)
+            {
+                return obj.get_range();
+            }, alternatives);
         }
 
-        template<typename... T>
-        requires are_all_base_of<INodeAlternative, T...>
-        friend std::string to_string(const std::variant<T...> &alternatives)
+        template <typename... T>
+            requires are_all_base_of<INodeAlternative, T...>
+        friend std::string to_string(const std::variant<T...>& alternatives)
         {
-            return std::visit([](const auto& obj) {
-                        return utils::to_string(obj);
-                    }, alternatives);
+            return std::visit([](const auto& obj)
+            {
+                return utils::to_string(obj);
+            }, alternatives);
         }
     };
 
     struct PlaceholderNodeAlternative final : INodeAlternative
     {
-        explicit PlaceholderNodeAlternative(const std::string &name) : name(name) {}
+        explicit PlaceholderNodeAlternative(const std::string& name) : name(name)
+        {
+        }
 
         [[nodiscard]] Range get_range() const override
         {
             return Range::create(0, 0, 0, 0);
         }
 
-        friend std::string to_string(const PlaceholderNodeAlternative &placeholder)
+        friend std::string to_string(const PlaceholderNodeAlternative& placeholder)
         {
             return "Placeholder " + placeholder.name;
         }
 
         std::string name;
     };
-
-
-
 }
 
-template<typename T>
-    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNode, T>, char>> : fmt::formatter<std::string>
+template <typename T>
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNode, T>,
+                                          char>> : fmt::formatter<std::string>
 {
     auto format(const fsharpgrammar::IASTNode& node, fmt::format_context& ctx) const
     {
@@ -96,8 +98,9 @@ template<typename T>
     }
 };
 
-template<typename T>
-    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::INodeAlternative, T>, char>> : fmt::formatter<std::string>
+template <typename T>
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::INodeAlternative, T>,
+                                          char>> : fmt::formatter<std::string>
 {
     auto format(const fsharpgrammar::INodeAlternative& node, fmt::format_context& ctx) const
     {
@@ -107,7 +110,6 @@ template<typename T>
 
 namespace fsharpgrammar
 {
-
     class ModuleOrNamespace;
     class ModuleDeclaration;
     class Expression;
@@ -224,8 +226,9 @@ namespace fsharpgrammar
         };
 
         using ModuleDeclarationType = std::variant<NestedModule, Expression, Open>;
+
     public:
-        ModuleDeclaration(ModuleDeclarationType &&declaration);
+        ModuleDeclaration(ModuleDeclarationType&& declaration);
 
         [[nodiscard]] Range get_range() const override
         {
@@ -241,6 +244,7 @@ namespace fsharpgrammar
     {
     public:
         using IExpressionType = INodeAlternative;
+
         struct Sequential : IExpressionType
         {
             Sequential(
@@ -252,6 +256,7 @@ namespace fsharpgrammar
                   range(range)
             {
             }
+
             ~Sequential() override = default;
 
             friend std::string to_string(const Sequential& sequential);
@@ -268,9 +273,8 @@ namespace fsharpgrammar
 
         struct Append : IExpressionType
         {
-            Append(const ast_ptr<Expression>&& left, const ast_ptr<Expression>&& right, const Range&& range)
-                : left(std::move(left)),
-                  right(std::move(right)),
+            Append(std::vector<ast_ptr<Expression>> &&expressions, const Range&& range)
+                : expressions(std::move(expressions)),
                   range(range)
             {
             }
@@ -282,14 +286,78 @@ namespace fsharpgrammar
                 return range;
             }
 
+            const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
+
+        struct TwoComponent : IExpressionType
+        {
+            enum class Type
+            {
+                LOGICAL,
+                EQUALITY,
+                RELATION,
+                ARITHMETIC
+            };
+
+            enum class LogicalType
+            {
+                AND,
+                OR
+            };
+
+            enum class EqualityType
+            {
+                EQUAL,
+                NON_EQUAL
+            };
+
+            enum class RelationType
+            {
+                LESS,
+                GREATER,
+                LESS_THAN,
+                GREATE_THAN
+            };
+
+            enum class ArithmeticType
+            {
+                ADD,
+                SUBTRACT,
+                MULTIPLY,
+                DIVIDE,
+                MODULO
+            };
+
+            using SpecializedType = std::variant<LogicalType, EqualityType, RelationType, ArithmeticType>;
+
+            TwoComponent(const ast_ptr<Expression>&& left, const ast_ptr<Expression>&& right, Type type, SpecializedType st,
+                         const Range&& range)
+                : left(std::move(left)),
+                  right(std::move(right)),
+                    type(type),
+                  st(st),
+                  range(range)
+            {}
+
+            friend std::string to_string(const TwoComponent& or_expr);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
             const ast_ptr<Expression> left;
             const ast_ptr<Expression> right;
+            const Type type;
+            const SpecializedType st;
             const Range range;
         };
 
         using ExpressionType = std::variant<Sequential, Append, PlaceholderNodeAlternative>;
+
     public:
-        Expression(ExpressionType &&expression);
+        Expression(ExpressionType&& expression);
 
         friend std::string to_string(const Expression& expression)
         {

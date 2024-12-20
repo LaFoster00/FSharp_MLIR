@@ -168,6 +168,10 @@ dot_index_set_expr
     ;
 
 non_assigment_expr
+    : app_expr
+    ;
+
+app_expr
     : tuple_expr tuple_expr*
     ;
 

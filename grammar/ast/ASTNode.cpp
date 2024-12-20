@@ -64,8 +64,94 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Append {}", utils::to_string(append.range));
-        ss << fmt::format( "(\n{})", utils::indent_string(utils::to_string(*append.left.get())));
-        ss << fmt::format("\n(\n{})", utils::indent_string(utils::to_string(*append.left.get())));
+        for (auto expression : append.expressions)
+        {
+            ss << utils::indent_string(fmt::format( "(\n{})\n", utils::to_string(*expression.get())));
+        }
+
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::TwoComponent& two_component)
+    {
+        std::string left_string = utils::indent_string(utils::to_string(*two_component.left.get()));
+        std::string right_string = utils::indent_string(utils::to_string(*two_component.right.get()));
+
+        std::string title;
+        std::string separator = "";
+        switch (two_component.type)
+        {
+        case Expression::TwoComponent::Type::LOGICAL:
+            title = "Logical";
+            switch (std::get<Expression::TwoComponent::LogicalType>(two_component.st))
+            {
+            case Expression::TwoComponent::LogicalType::AND:
+                separator = "And";
+                break;
+            case Expression::TwoComponent::LogicalType::OR:
+                separator = "Or";
+                break;
+            }
+            break;
+        case Expression::TwoComponent::Type::EQUALITY:
+            title = "Equality";
+            switch (std::get<Expression::TwoComponent::EqualityType>(two_component.st))
+            {
+            case Expression::TwoComponent::EqualityType::EQUAL:
+                separator = "Equal";
+                break;
+            case Expression::TwoComponent::EqualityType::NON_EQUAL:
+                separator = "Not-Equal";
+                break;
+            }
+            break;
+        case Expression::TwoComponent::Type::RELATION:
+            title = "Relation";
+            switch (std::get<Expression::TwoComponent::RelationType>(two_component.st))
+            {
+            case Expression::TwoComponent::RelationType::LESS:
+                separator = "<";
+                break;
+            case Expression::TwoComponent::RelationType::GREATER:
+                separator = ">";
+                break;
+            case Expression::TwoComponent::RelationType::LESS_THAN:
+                separator = "<=";
+                break;
+            case Expression::TwoComponent::RelationType::GREATE_THAN:
+                separator = ">=";
+                break;
+            }
+            break;
+        case Expression::TwoComponent::Type::ARITHMETIC:
+            title = "Arithmetic";
+            switch (std::get<Expression::TwoComponent::ArithmeticType>(two_component.st))
+            {
+            case Expression::TwoComponent::ArithmeticType::ADD:
+                separator = "+";
+                break;
+            case Expression::TwoComponent::ArithmeticType::SUBTRACT:
+                separator = "-";
+                break;
+            case Expression::TwoComponent::ArithmeticType::MULTIPLY:
+                separator = "*";
+                break;
+            case Expression::TwoComponent::ArithmeticType::DIVIDE:
+                separator = "/";
+                break;
+            case Expression::TwoComponent::ArithmeticType::MODULO:
+                separator = "%";
+                break;
+            }
+            break;
+        }
+
+        std::stringstream ss;
+
+        ss << fmt::format("{} {}", title, utils::to_string(two_component.range));
+        ss << fmt::format( "(\n{})", left_string);
+        ss << fmt::format("{}\n",separator);
+        ss << fmt::format("\n(\n{})", right_string);
         return ss.str();
     }
 

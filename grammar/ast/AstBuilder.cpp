@@ -144,31 +144,28 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context)
     {
+        return context->app_expr()->accept(this);
+    }
+
+    std::any AstBuilder::visitApp_expr(FSharpParser::App_exprContext* context)
+    {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto tuple_expr : context->tuple_expr())
+        for (auto unary_expression : context->tuple_expr())
         {
-            auto result = tuple_expr->accept(this);
+            auto result = unary_expression->accept(this);
             if (result.has_value())
                 expressions.push_back(ast::any_cast<Expression>(result, context));
         }
-        if (expressions.size() == 2)
+        if (expressions.size() > 1)
             return make_ast<Expression>(
                 Expression::Append(
-                    std::move(expressions[0]),
-                    std::move(expressions[1]),
+                    std::move(expressions),
                     Range::create(context))
             );
         else if (expressions.size() == 1)
             return expressions[0];
         else
-            return {};
-    }
-
-    std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
-    {
-        return make_ast<Expression>(
-            PlaceholderNodeAlternative("Tuple Expr")
-        );
+            return make_ast<Expression>(PlaceholderNodeAlternative("App Expr"));
     }
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
@@ -178,7 +175,7 @@ namespace fsharpgrammar
         case 0:
             return context->let_stmt()->accept(this);
         default:
-            return {};
+            return make_ast<Expression>(PlaceholderNodeAlternative("Assignment Expr"));
         }
     }
 } // fsharpgrammar
