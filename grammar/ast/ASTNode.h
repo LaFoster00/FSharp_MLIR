@@ -52,7 +52,16 @@ namespace fsharpgrammar
         static Range get_range(std::variant<T...> alternatives)
         {
             return std::visit([](const auto& obj) {
-                        return obj.get_range(); // Call the method on the base class
+                        return obj.get_range();
+                    }, alternatives);
+        }
+
+        template<typename... T>
+        requires are_all_base_of<INodeAlternative, T...>
+        friend std::string to_string(const std::variant<T...> &alternatives)
+        {
+            return std::visit([](const auto& obj) {
+                        return utils::to_string(obj);
                     }, alternatives);
         }
     };
@@ -99,10 +108,7 @@ namespace fsharpgrammar
             return range;
         }
 
-        friend std::string to_string(const Main& main)
-        {
-            return "Main";
-        }
+        friend std::string to_string(const Main& main);
 
     private:
         std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
@@ -170,7 +176,7 @@ namespace fsharpgrammar
 
             friend std::string to_string(const Expression& expression)
             {
-                return "Expression";
+                return utils::to_string(*expression.expression.get());
             }
 
             [[nodiscard]] Range get_range() const override
@@ -188,7 +194,7 @@ namespace fsharpgrammar
 
             friend std::string to_string(const Open& open)
             {
-                return "Open";
+                return "Open " + open.moduleName;
             }
 
             [[nodiscard]] Range get_range() const override
@@ -231,10 +237,7 @@ namespace fsharpgrammar
             }
             ~Sequential() override = default;
 
-            friend std::string to_string(const Sequential& sequential)
-            {
-                return "Sequential";
-            }
+            friend std::string to_string(const Sequential& sequential);
 
             [[nodiscard]] Range get_range() const override
             {
@@ -252,7 +255,7 @@ namespace fsharpgrammar
 
         friend std::string to_string(const Expression& expression)
         {
-            return utils::to_string(expression);
+            return utils::to_string(expression.expression);
         }
 
         [[nodiscard]] Range get_range() const override

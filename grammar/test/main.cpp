@@ -59,13 +59,9 @@ int main(int , const char **) {
   std::cout << "Simplifying tree" << std::endl;
 
   AstBuilder builder;
-  std::any simplified_tree = builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree));
-  std::cout << tree->toStringTree(&parser, true) << std::endl;
+  ast_ptr<Main> ast = std::any_cast<ast_ptr<Main>>(builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree)));
 
-  ModuleOrNamespace bla(ModuleOrNamespace::Type::NamedModule, "Hello World", std::vector<ast_ptr<ModuleDeclaration>>{}, Range::create(30, 10, 2, 3));
-
-  std::cout << utils::to_string(bla) << std::endl;
-  fmt::print("Test Node {}", bla);
+  fmt::print("AST Generation Result = \n{}", *(ast.get()));
 
   return 0;
 }

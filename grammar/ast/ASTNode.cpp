@@ -4,6 +4,8 @@
 
 #include "ASTNode.h"
 
+#include <sstream>
+
 namespace fsharpgrammar
 {
     ModuleOrNamespace::ModuleOrNamespace(
@@ -67,26 +69,76 @@ namespace fsharpgrammar
     {
     }
 
+    std::string to_string(const Main& main)
+    {
+        std::vector<std::string> child_strings;
+        for (auto modules_or_namespace : main.modules_or_namespaces)
+        {
+            child_strings.push_back(utils::to_string(*modules_or_namespace.get()));
+        }
+        std::stringstream ss;
+        ss << "[Main\n";
+        for (auto child_string : child_strings)
+        {
+            ss << utils::indent_string(child_string);
+        }
+        ss << "]\n";
+        return ss.str();
+    }
+
     std::string to_string(const ModuleOrNamespace& moduleOrNamespace)
     {
+        std::stringstream ss;
         switch (moduleOrNamespace.type)
         {
         case ModuleOrNamespace::Type::NamedModule:
-            return "Module " + moduleOrNamespace.name.value();
+            ss << fmt::format("Module {} {}\n", moduleOrNamespace.name.value(), utils::to_string(moduleOrNamespace.range));
+            break;
         case ModuleOrNamespace::Type::AnonymousModule:
-            return "AnonymousModule";
+            ss << fmt::format("AnonymousModule {}\n", utils::to_string(moduleOrNamespace.range));
+            break;
         case ModuleOrNamespace::Type::Namespace:
-            return "Namespace " + moduleOrNamespace.name.value();
+            ss << fmt::format("Namespace {} {}\n", moduleOrNamespace.name.value(), utils::to_string(moduleOrNamespace.range));
+            break;
         }
+
+        for (auto module_decl : moduleOrNamespace.moduleDecls)
+        {
+            ss << utils::indent_string(utils::to_string(*module_decl.get()));
+        }
+        return ss.str();
     }
 
     std::string to_string(const ModuleDeclaration::NestedModule& nestedModuleDeclaration)
     {
-        return "NestedModuleDeclaration";
+        std::stringstream ss;
+        ss << fmt::format("[Nested Module {} {}\n", nestedModuleDeclaration.name, utils::to_string(nestedModuleDeclaration.range));
+        for (auto module_decl : nestedModuleDeclaration.moduleDecls)
+        {
+            ss << utils::indent_string(utils::to_string(*module_decl.get()));
+        }
+        return ss.str();
     }
 
     std::string to_string(const ModuleDeclaration& moduleDeclaration)
     {
-        return "ModuleDeclaration";
+        std::stringstream ss;
+        ss << fmt::format("Module Declaration {}\n", utils::to_string(moduleDeclaration.get_range()));
+        ss << utils::indent_string(utils::to_string(moduleDeclaration.declaration));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Sequential& sequential)
+    {
+        std::stringstream ss;
+        ss << "(Sequential " + utils::to_string(sequential.range) + "\n";
+        for (size_t i = 0; i < sequential.expressions.size(); ++i)
+        {
+            ss << utils::indent_string(utils::to_string(*sequential.expressions[i]));
+            if (i < sequential.expressions.size() - 1)
+                ss << ';';
+        }
+        ss << "\n)";
+        return ss.str();
     }
 } // fsharpgrammar
