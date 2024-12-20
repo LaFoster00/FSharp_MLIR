@@ -17,13 +17,13 @@
 
 namespace fsharpgrammar
 {
-    template<typename T>
-    class IASTNodeT;
+    class IASTNode;
+
     template <typename T>
     using ast_ptr = std::shared_ptr<T>;
 
     template <typename T,typename... Args>
-    requires std::is_base_of_v<IASTNodeT<T>, T>
+    requires std::is_base_of_v<IASTNode, T>
     auto make_ast(Args&&... args) -> decltype(std::make_shared<T>(std::forward<Args>(args)...))
     {
         return std::make_shared<T>(std::forward<Args>(args)...);
@@ -35,46 +35,31 @@ namespace fsharpgrammar
         friend class ASTBuilder;
         virtual ~IASTNode() = default;
         [[nodiscard]] virtual Range get_range() const = 0;
-        [[nodiscard]] virtual std::string get_string() const = 0;
-    };
-
-    template<typename T>
-    class IASTNodeT : public IASTNode
-    {
-    public:
-        ~IASTNodeT() override = default;
-
-        [[nodiscard]] std::string get_string() const override
-        {
-            return to_string(*static_cast<const T*>(this));
-        }
     };
 
     struct INodeAlternative
     {
         virtual ~INodeAlternative() = default;
         [[nodiscard]] virtual Range get_range() const = 0;
-        [[nodiscard]] virtual std::string get_string() const = 0;
     };
 
-    template<typename T>
-    struct INodeAlternativeT : public INodeAlternative
-    {
-        virtual ~INodeAlternativeT() = default;
-
-        std::string get_string() const override
-        {
-            return to_string(*static_cast<const T*>(this));
-        }
-    };
 }
 
 template<typename T>
-    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNodeT<T>, T>, char>> : fmt::formatter<std::string>
+    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNode, T>, char>> : fmt::formatter<std::string>
 {
     auto format(const fsharpgrammar::IASTNode& node, fmt::format_context& ctx) const
     {
-        return fmt::formatter<std::string>::format(node.get_string(), ctx);
+        return fmt::formatter<std::string>::format(utils::to_string(static_cast<const T&>(node)), ctx);
+    }
+};
+
+template<typename T>
+    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::INodeAlternative, T>, char>> : fmt::formatter<std::string>
+{
+    auto format(const fsharpgrammar::INodeAlternative& node, fmt::format_context& ctx) const
+    {
+        return fmt::formatter<std::string>::format(utils::to_string(static_cast<const T&>(node)), ctx);
     }
 };
 
@@ -85,7 +70,7 @@ namespace fsharpgrammar
     class ModuleDeclaration;
     class Expression;
 
-    class Main : public IASTNodeT<Main>
+    class Main : public IASTNode
     {
     public:
         Main(
@@ -108,7 +93,7 @@ namespace fsharpgrammar
         const Range range;
     };
 
-    class ModuleOrNamespace : public IASTNodeT<ModuleOrNamespace>
+    class ModuleOrNamespace : public IASTNode
     {
     public:
         enum class Type
@@ -139,10 +124,10 @@ namespace fsharpgrammar
         const Range range;
     };
 
-    class ModuleDeclaration : public IASTNodeT<ModuleDeclaration>
+    class ModuleDeclaration : public IASTNode
     {
     public:
-        struct NestedModule : INodeAlternativeT<NestedModule>
+        struct NestedModule : INodeAlternative
         {
             NestedModule(
                 const std::string& name,
@@ -161,7 +146,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct Expression : INodeAlternativeT<Expression>
+        struct Expression : INodeAlternative
         {
             Expression(
                 ast_ptr<fsharpgrammar::Expression>&& expression,
@@ -181,7 +166,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct Open : INodeAlternativeT<Open>
+        struct Open : INodeAlternative
         {
             Open(const std::string& module_name, Range&& range);
 
@@ -198,20 +183,24 @@ namespace fsharpgrammar
             const std::string moduleName;
             const Range range;
         };
+
+        using ModuleDeclarationType = std::variant<NestedModule, Expression, Open>;
     public:
-        ModuleDeclaration(std::unique_ptr<INodeAlternative> &&declaration);
+        ModuleDeclaration(ModuleDeclarationType &&declaration);
 
         [[nodiscard]] Range get_range() const override
         {
-            return declaration->get_range();
+            return std::visit([](const auto& obj) {
+                    return obj.get_range(); // Call the method on the base class
+                }, declaration);
         }
 
         friend std::string to_string(const ModuleDeclaration& moduleDeclaration);
 
-        const std::unique_ptr<INodeAlternative> declaration;
+        const ModuleDeclarationType declaration;
     };
 
-    class Expression : public IASTNodeT<Expression>
+    class Expression : public IASTNode
     {
     public:
         using IExpressionType = INodeAlternative;
@@ -228,10 +217,11 @@ namespace fsharpgrammar
             }
             ~Sequential() override = default;
 
-            [[nodiscard]] std::string get_string() const override
+            friend std::string to_string(const Sequential& sequential)
             {
                 return "Sequential";
             }
+
             [[nodiscard]] Range get_range() const override
             {
                 return range;
@@ -242,28 +232,26 @@ namespace fsharpgrammar
             const Range range;
         };
 
+        using ExpressionType = std::variant<Sequential>;
     public:
-        Expression(std::unique_ptr<IExpressionType> &&expression);
+        Expression(ExpressionType &&expression);
 
         friend std::string to_string(const Expression& expression)
         {
-            return expression.get_string();
+            return utils::to_string(expression);
         }
 
         [[nodiscard]] Range get_range() const override
         {
-            return expression->get_range();
+            return std::visit([](const auto& obj) {
+                    return obj.get_range(); // Call the method on the base class
+                }, expression);
         }
 
-        [[nodiscard]] std::string get_string() const override
-        {
-            return to_string(*this);
-        }
-
-        std::unique_ptr<IExpressionType> expression;
+        const ExpressionType expression;
     };
 
-    class Pattern : public IASTNodeT<Expression>
+    class Pattern : public IASTNode
     {
         enum class Type
         {
@@ -285,7 +273,7 @@ namespace fsharpgrammar
             return range;
         }
 
-        [[nodiscard]] std::string get_string() const override
+        friend std::string to_string(const Pattern& pattern)
         {
             return "Pattern";
         }

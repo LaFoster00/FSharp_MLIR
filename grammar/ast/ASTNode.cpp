@@ -46,13 +46,13 @@ namespace fsharpgrammar
     {
     }
 
-    ModuleDeclaration::ModuleDeclaration(std::unique_ptr<INodeAlternative> &&module_decl)
+    ModuleDeclaration::ModuleDeclaration(ModuleDeclarationType &&module_decl)
         :
         declaration(std::move(module_decl))
     {
     }
 
-    Expression::Expression(std::unique_ptr<IExpressionType>&& expression)
+    Expression::Expression(ExpressionType&& expression)
         :
     expression(std::move(expression))
     {

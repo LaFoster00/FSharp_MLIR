@@ -77,8 +77,7 @@ namespace fsharpgrammar
             module_declarations.push_back(ast::any_cast<ModuleDeclaration>(result, context));
         }
 
-        std::unique_ptr<ModuleDeclaration::NestedModule> nested_module = std::make_unique<
-            ModuleDeclaration::NestedModule>(
+        ModuleDeclaration::NestedModule nested_module(
             ast::to_string(context->long_ident()),
             std::move(module_declarations),
             Range::create(context));
@@ -95,7 +94,7 @@ namespace fsharpgrammar
             result = ast::any_cast<Expression>(expression, context);
 
         return make_ast<ModuleDeclaration>(
-            std::make_unique<ModuleDeclaration::Expression>(
+            ModuleDeclaration::Expression(
                 std::move(result),
                 Range::create(context)
             )
@@ -105,7 +104,7 @@ namespace fsharpgrammar
     std::any AstBuilder::visitOpen_stmt(FSharpParser::Open_stmtContext* context)
     {
         return make_ast<ModuleDeclaration>(
-            std::make_unique<ModuleDeclaration::Open>(
+            ModuleDeclaration::Open(
                 ast::to_string(context->long_ident()),
                 Range::create(context)));
     }
@@ -120,7 +119,7 @@ namespace fsharpgrammar
         }
 
         return make_ast<Expression>(
-            std::make_unique<Expression::Sequential>(
+            Expression::Sequential(
                 std::move(expressions),
                 false,
                 Range::create(context))
@@ -129,6 +128,6 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitExpression(FSharpParser::ExpressionContext* ctx)
     {
-        return make_ast<Expression>(std::unique_ptr<Expression::IExpressionType>(nullptr));
+        return make_ast<Expression>(Expression::Sequential(std::vector<ast_ptr<Expression>>{}, true, Range::create(ctx)));
     }
 } // fsharpgrammar
