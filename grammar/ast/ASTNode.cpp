@@ -14,34 +14,47 @@ namespace fsharpgrammar
         :
         type(type),
         name(std::move(name)),
-        module_decls(std::move(module_decls)),
+        moduleDecls(std::move(module_decls)),
         range(range)
     {
     }
 
-    ModuleDeclaration::ModuleDeclaration(
-        std::vector<ast_ptr<Expression>>&& expressions,
-        Range&& range)
-        :
-    expressions(std::move(expressions)),
-    range(range)
-    {
-    }
-
-    NestedModuleDeclaration::NestedModuleDeclaration(
-        const std::string_view name,
+    ModuleDeclaration::NestedModule::NestedModule(
+        const std::string& name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
-        Range&& range)
-        :
+        Range&& range):
         name(name),
-        module_decls(std::move(module_decls)),
+        moduleDecls(std::move(module_decls)),
         range(range)
     {
     }
 
-    Expression::Expression(Range&& range)
+    ModuleDeclaration::Expression::Expression(
+        ast_ptr<fsharpgrammar::Expression>&& expression,
+        Range&& range)
         :
-    range(range)
+        expression(std::move(expression)),
+        range(range)
+    {
+
+    }
+
+    ModuleDeclaration::Open::Open(const std::string& module_name, Range&& range)
+        :
+        moduleName(module_name),
+        range(range)
+    {
+    }
+
+    ModuleDeclaration::ModuleDeclaration(std::unique_ptr<INodeAlternative> &&module_decl)
+        :
+        declaration(std::move(module_decl))
+    {
+    }
+
+    Expression::Expression(std::unique_ptr<IExpressionType>&& expression)
+        :
+    expression(std::move(expression))
     {
     }
 
@@ -67,18 +80,13 @@ namespace fsharpgrammar
         }
     }
 
-    std::string to_string(const ModuleDeclaration& moduleDeclaration)
-    {
-        return "ModuleDeclaration";
-    }
-
-    std::string to_string(const NestedModuleDeclaration& nestedModuleDeclaration)
+    std::string to_string(const ModuleDeclaration::NestedModule& nestedModuleDeclaration)
     {
         return "NestedModuleDeclaration";
     }
 
-    std::string to_string(const Expression& expression)
+    std::string to_string(const ModuleDeclaration& moduleDeclaration)
     {
-        return "Expression";
+        return "ModuleDeclaration";
     }
 } // fsharpgrammar

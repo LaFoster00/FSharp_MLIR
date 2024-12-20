@@ -10,15 +10,20 @@
 #include "Range.h"
 #include "fmt/core.h"
 #include <type_traits>
+#include <variant>
 
+#include "ASTNode.h"
 
 
 namespace fsharpgrammar
 {
+    template<typename T>
+    class IASTNodeT;
     template <typename T>
     using ast_ptr = std::shared_ptr<T>;
 
-    template <typename T, typename... Args>
+    template <typename T,typename... Args>
+    requires std::is_base_of_v<IASTNodeT<T>, T>
     auto make_ast(Args&&... args) -> decltype(std::make_shared<T>(std::forward<Args>(args)...))
     {
         return std::make_shared<T>(std::forward<Args>(args)...);
@@ -29,14 +34,43 @@ namespace fsharpgrammar
     public:
         friend class ASTBuilder;
         virtual ~IASTNode() = default;
-
         [[nodiscard]] virtual Range get_range() const = 0;
         [[nodiscard]] virtual std::string get_string() const = 0;
+    };
+
+    template<typename T>
+    class IASTNodeT : public IASTNode
+    {
+    public:
+        ~IASTNodeT() override = default;
+
+        [[nodiscard]] std::string get_string() const override
+        {
+            return to_string(*static_cast<const T*>(this));
+        }
+    };
+
+    struct INodeAlternative
+    {
+        virtual ~INodeAlternative() = default;
+        [[nodiscard]] virtual Range get_range() const = 0;
+        [[nodiscard]] virtual std::string get_string() const = 0;
+    };
+
+    template<typename T>
+    struct INodeAlternativeT : public INodeAlternative
+    {
+        virtual ~INodeAlternativeT() = default;
+
+        std::string get_string() const override
+        {
+            return to_string(*static_cast<const T*>(this));
+        }
     };
 }
 
 template<typename T>
-    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNode, T>, char>> : fmt::formatter<std::string>
+    struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNodeT<T>, T>, char>> : fmt::formatter<std::string>
 {
     auto format(const fsharpgrammar::IASTNode& node, fmt::format_context& ctx) const
     {
@@ -49,10 +83,9 @@ namespace fsharpgrammar
 
     class ModuleOrNamespace;
     class ModuleDeclaration;
-    class NestedModuleDeclaration;
     class Expression;
 
-    class Main : public IASTNode
+    class Main : public IASTNodeT<Main>
     {
     public:
         Main(
@@ -70,17 +103,12 @@ namespace fsharpgrammar
             return "Main";
         }
 
-        [[nodiscard]] std::string get_string() const override
-        {
-            return to_string(*this);
-        }
-
     private:
         std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
         const Range range;
     };
 
-    class ModuleOrNamespace : public IASTNode
+    class ModuleOrNamespace : public IASTNodeT<ModuleOrNamespace>
     {
     public:
         enum class Type
@@ -105,51 +133,126 @@ namespace fsharpgrammar
 
         friend std::string to_string(const ModuleOrNamespace& moduleOrNamespace);
 
-        [[nodiscard]] std::string get_string() const override
-        {
-            return to_string(*this);
-        }
-
         const Type type;
         const std::optional<std::string> name;
-        const std::vector<ast_ptr<ModuleDeclaration>> module_decls;
+        const std::vector<ast_ptr<ModuleDeclaration>> moduleDecls;
         const Range range;
     };
 
-    class ModuleDeclaration : public IASTNode
+    class ModuleDeclaration : public IASTNodeT<ModuleDeclaration>
     {
     public:
-        ModuleDeclaration(
-            std::vector<ast_ptr<Expression>>&& expressions, Range&& range);
+        struct NestedModule : INodeAlternativeT<NestedModule>
+        {
+            NestedModule(
+                const std::string& name,
+                std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
+                Range&& range);
+
+            friend std::string to_string(const NestedModule& nestedModuleDeclaration);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const std::string name;
+            const std::vector<ast_ptr<ModuleDeclaration>> moduleDecls;
+            const Range range;
+        };
+
+        struct Expression : INodeAlternativeT<Expression>
+        {
+            Expression(
+                ast_ptr<fsharpgrammar::Expression>&& expression,
+                Range&& range);
+
+            friend std::string to_string(const Expression& expression)
+            {
+                return "Expression";
+            }
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const ast_ptr<fsharpgrammar::Expression> expression;
+            const Range range;
+        };
+
+        struct Open : INodeAlternativeT<Open>
+        {
+            Open(const std::string& module_name, Range&& range);
+
+            friend std::string to_string(const Open& open)
+            {
+                return "Open";
+            }
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const std::string moduleName;
+            const Range range;
+        };
+    public:
+        ModuleDeclaration(std::unique_ptr<INodeAlternative> &&declaration);
 
         [[nodiscard]] Range get_range() const override
         {
-            return range;
+            return declaration->get_range();
         }
 
         friend std::string to_string(const ModuleDeclaration& moduleDeclaration);
-        [[nodiscard]] std::string get_string() const override
-        {
-            return to_string(*this);
-        }
 
-        const std::vector<ast_ptr<Expression>> expressions;
-        const Range range;
+        const std::unique_ptr<INodeAlternative> declaration;
     };
 
-    class NestedModuleDeclaration : public IASTNode
+    class Expression : public IASTNodeT<Expression>
     {
     public:
-        NestedModuleDeclaration(
-            std::string_view name,
-            std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
-            Range&& range);
+        using IExpressionType = INodeAlternative;
+        struct Sequential : IExpressionType
+        {
+            Sequential(
+                std::vector<ast_ptr<Expression>>&& expressions,
+                bool is_inline,
+                Range&& range)
+                : expressions(std::move(expressions)),
+                  isInline(is_inline),
+                  range(range)
+            {
+            }
+            ~Sequential() override = default;
 
-        friend std::string to_string(const NestedModuleDeclaration& nestedModuleDeclaration);
+            [[nodiscard]] std::string get_string() const override
+            {
+                return "Sequential";
+            }
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const std::vector<ast_ptr<Expression>> expressions;
+            const bool isInline;
+            const Range range;
+        };
+
+    public:
+        Expression(std::unique_ptr<IExpressionType> &&expression);
+
+        friend std::string to_string(const Expression& expression)
+        {
+            return expression.get_string();
+        }
 
         [[nodiscard]] Range get_range() const override
         {
-            return range;
+            return expression->get_range();
         }
 
         [[nodiscard]] std::string get_string() const override
@@ -157,32 +260,10 @@ namespace fsharpgrammar
             return to_string(*this);
         }
 
-        const std::string name;
-        const std::vector<ast_ptr<ModuleDeclaration>> module_decls;
-        const Range range;
+        std::unique_ptr<IExpressionType> expression;
     };
 
-    class Expression : public IASTNode
-    {
-    public:
-        Expression(Range&& range);
-
-        friend std::string to_string(const Expression& expression);
-
-        [[nodiscard]] Range get_range() const override
-        {
-            return range;
-        }
-
-        [[nodiscard]] std::string get_string() const override
-        {
-            return to_string(*this);
-        }
-
-        Range range;
-    };
-
-    class Pattern : public IASTNode
+    class Pattern : public IASTNodeT<Expression>
     {
         enum class Type
         {
