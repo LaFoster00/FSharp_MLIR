@@ -115,19 +115,70 @@ namespace fsharpgrammar
         for (auto expr : context->expression())
         {
             auto result = expr->accept(this);
-            expressions.push_back(ast::any_cast<Expression>(result, context));
+            if (result.has_value())
+                expressions.push_back(ast::any_cast<Expression>(result, context));
         }
 
-        return make_ast<Expression>(
-            Expression::Sequential(
-                std::move(expressions),
-                false,
-                Range::create(context))
-        );
+        if (expressions.size() > 1)
+            return make_ast<Expression>(
+                Expression::Sequential(
+                    std::move(expressions),
+                    false,
+                    Range::create(context))
+            );
+        else if (expressions.size() == 1)
+            return expressions.front();
+        else
+            return make_ast<Expression>(PlaceholderNodeAlternative("Sequential Expr"));
     }
 
     std::any AstBuilder::visitExpression(FSharpParser::ExpressionContext* ctx)
     {
-        return make_ast<Expression>(Expression::Sequential(std::vector<ast_ptr<Expression>>{}, true, Range::create(ctx)));
+        if (ctx->assignment_expr())
+            return ctx->assignment_expr()->accept(this);
+        if (ctx->non_assigment_expr())
+            return ctx->non_assigment_expr()->accept(this);
+
+        throw std::runtime_error("Invalid expression");
+    }
+
+    std::any AstBuilder::visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context)
+    {
+        std::vector<ast_ptr<Expression>> expressions;
+        for (auto tuple_expr : context->tuple_expr())
+        {
+            auto result = tuple_expr->accept(this);
+            if (result.has_value())
+                expressions.push_back(ast::any_cast<Expression>(result, context));
+        }
+        if (expressions.size() == 2)
+            return make_ast<Expression>(
+                Expression::Append(
+                    std::move(expressions[0]),
+                    std::move(expressions[1]),
+                    Range::create(context))
+            );
+        else if (expressions.size() == 1)
+            return expressions[0];
+        else
+            return {};
+    }
+
+    std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
+    {
+        return make_ast<Expression>(
+            PlaceholderNodeAlternative("Tuple Expr")
+        );
+    }
+
+    std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
+    {
+        switch (context->getRuleIndex())
+        {
+        case 0:
+            return context->let_stmt()->accept(this);
+        default:
+            return {};
+        }
     }
 } // fsharpgrammar

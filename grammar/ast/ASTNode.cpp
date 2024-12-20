@@ -60,6 +60,15 @@ namespace fsharpgrammar
     {
     }
 
+    std::string to_string(const Expression::Append& append)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Append {}", utils::to_string(append.range));
+        ss << fmt::format( "(\n{})", utils::indent_string(utils::to_string(*append.left.get())));
+        ss << fmt::format("\n(\n{})", utils::indent_string(utils::to_string(*append.left.get())));
+        return ss.str();
+    }
+
     Main::Main(
         std::vector<ast_ptr<ModuleOrNamespace>>&& modules_or_namespaces,
         Range&& range)

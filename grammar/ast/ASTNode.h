@@ -66,6 +66,23 @@ namespace fsharpgrammar
         }
     };
 
+    struct PlaceholderNodeAlternative final : INodeAlternative
+    {
+        explicit PlaceholderNodeAlternative(const std::string &name) : name(name) {}
+
+        [[nodiscard]] Range get_range() const override
+        {
+            return Range::create(0, 0, 0, 0);
+        }
+
+        friend std::string to_string(const PlaceholderNodeAlternative &placeholder)
+        {
+            return "Placeholder " + placeholder.name;
+        }
+
+        std::string name;
+    };
+
 
 
 }
@@ -249,7 +266,28 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        using ExpressionType = std::variant<Sequential>;
+        struct Append : IExpressionType
+        {
+            Append(const ast_ptr<Expression>&& left, const ast_ptr<Expression>&& right, const Range&& range)
+                : left(std::move(left)),
+                  right(std::move(right)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Append& append);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const ast_ptr<Expression> left;
+            const ast_ptr<Expression> right;
+            const Range range;
+        };
+
+        using ExpressionType = std::variant<Sequential, Append, PlaceholderNodeAlternative>;
     public:
         Expression(ExpressionType &&expression);
 
@@ -265,6 +303,8 @@ namespace fsharpgrammar
 
         const ExpressionType expression;
     };
+
+    std::string to_string(const Expression::Append& append);
 
     class Pattern : public IASTNode
     {

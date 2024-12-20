@@ -28,6 +28,13 @@ namespace fsharpgrammar {
         // expression
         std::any visitSequential_stmt(FSharpParser::Sequential_stmtContext* context) override;
         std::any visitExpression(FSharpParser::ExpressionContext *ctx) override;
+
+        // non assignment expression
+        std::any visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context) override;
+        std::any visitTuple_expr(FSharpParser::Tuple_exprContext* context) override;
+
+        // assignment expression
+        std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;
     };
 
 } // fsharpgrammar
