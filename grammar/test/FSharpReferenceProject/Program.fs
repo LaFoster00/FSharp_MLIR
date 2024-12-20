@@ -95,3 +95,33 @@ lines
 getUntypedTree (filePath, fileContents)
 |> printAst
 
+//Pattern matching
+let tuple_pat = (1, "hello", true)
+match tuple_pat with
+| (1, "hello", true) -> printfn "Matched tuple (1, \"hello\", true)"
+| _ -> printfn "No match"
+
+let and_pat = (1, "hello", 3)
+match and_pat with
+| (1, "hello", 3) & (1, _, _) -> printfn "Matched first part and second part"
+| _ -> printfn "No match"
+
+let or_pat = "apple"
+match or_pat with
+| "apple" | "banana" -> printfn "Matched apple or banana"
+| _ -> printfn "No match"
+
+let as_pat = Some(10)
+match as_pat with
+| Some x as value -> printfn "Matched Some with value: %d, full match: %A" x value
+| None -> printfn "Matched None"
+
+let cons_pat = [1; 2; 3]
+match cons_pat with
+| 1 :: tail -> printfn "Matched 1 as head, and tail is: %A" tail
+| _ -> printfn "No match"
+
+let typed_pat = "hello"
+match typed_pat with
+| :? string as str -> printfn "Matched a string: %s" str
+| _ -> printfn "No match"
