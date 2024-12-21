@@ -49,6 +49,7 @@ namespace utils
         bool first_line = true;
         while (std::getline(stream, line)) {
             if (!line.empty())
+            {
                 if (first_line)
                 {
                     first_line = false;
@@ -61,6 +62,7 @@ namespace utils
                 {
                     result << indent_string << line << '\n'; // Add indentation to each line
                 }
+            }
         }
 
         // Place the closing bracket

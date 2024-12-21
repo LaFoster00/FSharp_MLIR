@@ -65,7 +65,6 @@ namespace fsharpgrammar {
 
         // pattern
         std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
-    };
 
         std::any visitType(FSharpParser::TypeContext* context) override;
 
