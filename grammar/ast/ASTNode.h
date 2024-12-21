@@ -113,6 +113,7 @@ namespace fsharpgrammar
     class ModuleDeclaration;
     class Expression;
     class Type;
+    class Constant;
 
     class Main : public IASTNode
     {
@@ -387,7 +388,8 @@ namespace fsharpgrammar
                 : expression(std::move(expression)),
                   identifier(identifier),
                   range(range)
-            {}
+            {
+            }
 
             friend std::string to_string(const DotGet& dot_get);
 
@@ -408,9 +410,10 @@ namespace fsharpgrammar
                 ast_ptr<Expression>&& index_expression,
                 const Range&& range)
                 : base_expression(std::move(base_expression)),
-                    index_expression(std::move(index_expression)),
+                  index_expression(std::move(index_expression)),
                   range(range)
-            {}
+            {
+            }
 
             friend std::string to_string(const DotIndexedGet& dot_get);
 
@@ -434,14 +437,14 @@ namespace fsharpgrammar
             }
 
             friend std::string to_string(const Typed& typed);
-            [[nodiscard]] Range get_range() const override { return range;}
+            [[nodiscard]] Range get_range() const override { return range; }
 
             const ast_ptr<Expression> expression;
             const ast_ptr<Type> type;
             const Range range;
         };
 
-        struct Unary : IExpressionType
+        struct Unary final : IExpressionType
         {
             enum class Type
             {
@@ -453,8 +456,9 @@ namespace fsharpgrammar
             Unary(ast_ptr<Expression>&& expression, Type type, Range&& range)
                 : expression(std::move(expression)),
                   type(type),
-                    range(range)
-            {}
+                  range(range)
+            {
+            }
 
             friend std::string to_string(const Unary& unary);
 
@@ -462,6 +466,36 @@ namespace fsharpgrammar
 
             const ast_ptr<Expression> expression;
             const Type type;
+            const Range range;
+        };
+
+        struct Paren : IExpressionType
+        {
+            Paren(ast_ptr<Expression>&& expression, const Range&& range)
+                : expression(std::move(expression)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Paren& paren);
+
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> expression;
+            const Range range;
+        };
+
+        struct Constant : IExpressionType
+        {
+            Constant(ast_ptr<fsharpgrammar::Constant>&& constant, const Range&& range)
+                : constant(std::move(constant)),
+                  range(range)
+            {}
+
+            friend std::string to_string(const Expression::Constant& constant);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<fsharpgrammar::Constant> constant;
             const Range range;
         };
 
@@ -475,6 +509,8 @@ namespace fsharpgrammar
             DotIndexedGet,
             Typed,
             Unary,
+            Paren,
+            Constant,
             PlaceholderNodeAlternative>;
 
     public:
@@ -537,8 +573,34 @@ namespace fsharpgrammar
             return "Type " + utils::to_string(type.range);
         }
 
-        [[nodiscard]] Range get_range() const override {return range; }
+        [[nodiscard]] Range get_range() const override { return range; }
 
+        const Range range;
+    };
+
+    class Constant final : public IASTNode
+    {
+    public:
+        using Type = std::variant<
+            int32_t,
+            float_t,
+            std::string,
+            char8_t,
+            bool>;
+
+    public:
+        Constant(std::optional<Type> value, Range&& range)
+            : value(std::move(value)),
+              range(range)
+        {
+        }
+
+        friend std::string to_string(const Constant& constant);
+
+        [[nodiscard]] Range get_range() const override { return range; }
+
+        // If not set signals unit '()'
+        const std::optional<Type> value;
         const Range range;
     };
 } // fsharpmlir

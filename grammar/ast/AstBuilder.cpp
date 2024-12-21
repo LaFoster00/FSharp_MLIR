@@ -518,7 +518,76 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitAtomic_expr(FSharpParser::Atomic_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Atomic Expr"));
+        return context->children[0]->accept(this);
+    }
+
+    std::any AstBuilder::visitParen_expr(FSharpParser::Paren_exprContext* context)
+    {
+        auto result = context->expression()->accept(this);
+        return make_ast<Expression>(
+            Expression::Paren(
+                ast::any_cast<Expression>(result, context),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitConstant_expr(FSharpParser::Constant_exprContext* context)
+    {
+        return make_ast<Expression>(
+            Expression::Constant(
+                ast::any_cast<Constant>(context->constant()->accept(this), context),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitIdent_expr(FSharpParser::Ident_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Ident Expr"));
+    }
+
+    std::any AstBuilder::visitLong_ident_expr(FSharpParser::Long_ident_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Long Ident Expr"));
+    }
+
+    std::any AstBuilder::visitNull_expr(FSharpParser::Null_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Null Expr"));
+    }
+
+    std::any AstBuilder::visitRecord_expr(FSharpParser::Record_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Record Expr"));
+    }
+
+    std::any AstBuilder::visitArray_expr(FSharpParser::Array_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Array Expr"));
+    }
+
+    std::any AstBuilder::visitList_expr(FSharpParser::List_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("List Expr"));
+    }
+
+    std::any AstBuilder::visitNew_expr(FSharpParser::New_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("New Expr"));
+    }
+
+    std::any AstBuilder::visitIf_then_else_expr(FSharpParser::If_then_else_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("IfThenElse Expr"));
+    }
+
+    std::any AstBuilder::visitMatch_expr(FSharpParser::Match_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Match Expr"));
+    }
+
+    std::any AstBuilder::visitPipe_right_expr(FSharpParser::Pipe_right_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Pipe Right Expr"));
     }
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
@@ -526,14 +595,35 @@ namespace fsharpgrammar
         switch (context->getRuleIndex())
         {
         case 0:
-            return context->let_stmt()->accept(this);
+            return context->let_expr()->accept(this);
         default:
             return make_ast<Expression>(PlaceholderNodeAlternative("Assignment Expr"));
         }
     }
 
+    std::any AstBuilder::visitLet_expr(FSharpParser::Let_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Let Expr"));
+    }
+
     std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
     {
         return make_ast<Type>(Range::create(context));
+    }
+
+    std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)
+    {
+        if (context->INTEGER())
+            return make_ast<Constant>(std::stoi(context->INTEGER()->getText()), Range::create(context));
+        if (context->FLOAT_NUMBER())
+            return make_ast<Constant>(std::stof(context->FLOAT_NUMBER()->getText()), Range::create(context));
+        if (context->STRING())
+            return make_ast<Constant>(context->STRING()->getText(), Range::create(context));
+        if (context->CHARACTER())
+            return make_ast<Constant>(context->CHARACTER()->getText()[0], Range::create(context));
+        if (context->BOOL())
+            return make_ast<Constant>(context->BOOL()->getText() == "true", Range::create(context));
+
+        return make_ast<Constant>(std::optional<Constant::Type>{}, Range::create(context));
     }
 } // fsharpgrammar

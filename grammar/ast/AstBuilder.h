@@ -46,12 +46,26 @@ namespace fsharpgrammar {
 
         // atomic
         std::any visitAtomic_expr(FSharpParser::Atomic_exprContext* context) override;
+        std::any visitParen_expr(FSharpParser::Paren_exprContext* context) override;
+        std::any visitConstant_expr(FSharpParser::Constant_exprContext* context) override;
+        std::any visitIdent_expr(FSharpParser::Ident_exprContext* context) override;
+        std::any visitLong_ident_expr(FSharpParser::Long_ident_exprContext* context) override;
+        std::any visitNull_expr(FSharpParser::Null_exprContext* context) override;
+        std::any visitRecord_expr(FSharpParser::Record_exprContext* context) override;
+        std::any visitArray_expr(FSharpParser::Array_exprContext* context) override;
+        std::any visitList_expr(FSharpParser::List_exprContext* context) override;
+        std::any visitNew_expr(FSharpParser::New_exprContext* context) override;
+        std::any visitIf_then_else_expr(FSharpParser::If_then_else_exprContext* context) override;
+        std::any visitMatch_expr(FSharpParser::Match_exprContext* context) override;
+        std::any visitPipe_right_expr(FSharpParser::Pipe_right_exprContext* context) override;
 
         // assignment expression
         std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;
+        std::any visitLet_expr(FSharpParser::Let_exprContext* context) override;
 
         std::any visitType(FSharpParser::TypeContext* context) override;
-    };
 
+        std::any visitConstant(FSharpParser::ConstantContext* context) override;
+    };
 } // fsharpgrammar
 

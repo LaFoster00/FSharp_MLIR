@@ -65,6 +65,20 @@ namespace fsharpgrammar
         return INodeAlternative::get_range(expression);
     }
 
+    std::string to_string(const Expression::Sequential& sequential)
+    {
+        std::stringstream ss;
+        ss << "(Sequential " + utils::to_string(sequential.range) + "\n";
+        for (size_t i = 0; i < sequential.expressions.size(); ++i)
+        {
+            ss << utils::indent_string(utils::to_string(*sequential.expressions[i]));
+            if (i < sequential.expressions.size() - 1)
+                ss << ';';
+        }
+        ss << "\n)";
+        return ss.str();
+    }
+
     std::string to_string(const Expression::Append& append)
     {
         std::stringstream ss;
@@ -206,8 +220,8 @@ namespace fsharpgrammar
         ss << fmt::format(
             "\t[\n{}\t]\n",
             utils::indent_string(fmt::format(
-                "({})\n",
-                utils::to_string(*dot_get.index_expression)), 2)
+                                     "({})\n",
+                                     utils::to_string(*dot_get.index_expression)), 2)
         );
         return ss.str();
     }
@@ -218,7 +232,7 @@ namespace fsharpgrammar
         ss << "Typed\n";
         ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*typed.expression)));
         ss << ':';
-        ss <<  utils::indent_string(fmt::format("({})\n", utils::to_string(*typed.type)));
+        ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*typed.type)));
         return ss.str();
     }
 
@@ -240,6 +254,19 @@ namespace fsharpgrammar
         }
         ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*unary.expression)));
         return ss.str();
+    }
+
+    std::string to_string(const Expression::Paren& paren)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Parenthesis {}\n", utils::to_string(paren.range));
+        ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*paren.expression)));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Constant& constant)
+    {
+        return utils::to_string(*constant.constant);
     }
 
     Main::Main(
@@ -314,17 +341,26 @@ namespace fsharpgrammar
         return ss.str();
     }
 
-    std::string to_string(const Expression::Sequential& sequential)
+    std::string to_string(const Constant& constant)
     {
         std::stringstream ss;
-        ss << "(Sequential " + utils::to_string(sequential.range) + "\n";
-        for (size_t i = 0; i < sequential.expressions.size(); ++i)
+        ss << fmt::format("Constant {}\n", utils::to_string(constant.range));
+
+        if (constant.value.has_value())
         {
-            ss << utils::indent_string(utils::to_string(*sequential.expressions[i]));
-            if (i < sequential.expressions.size() - 1)
-                ss << ';';
+            auto value = std::visit(utils::overloaded{
+                           [](const int32_t i) { return std::to_string(i); },
+                           [](const float_t f) { return std::to_string(f); },
+                           [](const std::string& s) { return s; },
+                           [](const char8_t c) { return std::to_string(c); },
+                           [](const bool b) { return std::to_string(b); },
+                       }, constant.value.value());
+            ss << utils::indent_string(value + '\n');
         }
-        ss << "\n)";
+        else
+        {
+            ss << utils::indent_string("()\n");
+        }
         return ss.str();
     }
 } // fsharpgrammar
