@@ -319,7 +319,7 @@ namespace fsharpgrammar
                 utils::to_string(*op.expressions[i].get()),
                 1,
                 true,
-                false);
+                true);
             if (i < op.expressions.size() - 1)
             {
                 ss << '\t' << operators[i] << '\n';
