@@ -134,7 +134,7 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Module Declaration {}\n", utils::to_string(moduleDeclaration.get_range()));
-        ss << utils::indent_string(utils::to_string(moduleDeclaration.declaration), 1, true, false);
+        ss << utils::indent_string(utils::to_string(moduleDeclaration.declaration), 1, false);
         return ss.str();
     }
 
@@ -152,7 +152,7 @@ namespace fsharpgrammar
                            [](const char8_t c) { return std::to_string(c); },
                            [](const bool b) { return std::to_string(b); },
                        }, constant.value.value());
-            ss << utils::indent_string(value + '\n');
+            ss << utils::indent_string(value + '\n', 1, false);
         }
         else
         {
@@ -314,7 +314,9 @@ namespace fsharpgrammar
         {
             ss << utils::indent_string(
                 utils::to_string(*op.expressions[i].get()),
-                2);
+                1,
+                true,
+                false);
             if (i < op.expressions.size() - 1)
             {
                 ss << '\t' << operators[i] << '\n';
