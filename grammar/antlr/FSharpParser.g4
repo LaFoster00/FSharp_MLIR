@@ -23,20 +23,6 @@ module_decl
     | OPEN long_ident                                               #open_stmt
     ;
 
-let_stmt
-    : LET binding EQUALS body
-    ;
-
-binding
-    : (MUTABLE? | REC?) pattern?
-    ;
-
-body
-    : NEWLINE INDENT sequential_stmt+ DEDENT    #multiline_body
-    | NEWLINE PIPE sequential_stmt+             #multiline_match_body
-    | inline_sequential_stmt                    #single_line_body
-    ;
-
 inline_sequential_stmt
     : expression (SEMI_COLON expression)*
     ;
@@ -140,11 +126,25 @@ expression
     ;
 
 assignment_expr
-    : let_stmt
+    : let_expr
     | long_ident_set_expr
     | set_expr
     | dot_set_expr
     | dot_index_set_expr
+    ;
+
+let_expr
+    : LET binding EQUALS body
+    ;
+
+binding
+    : (MUTABLE? | REC?) pattern?
+    ;
+
+body
+    : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
+    | NEWLINE PIPE sequential_stmt+ #multiline_match_body
+    | inline_sequential_stmt #single_line_body
     ;
 
 long_ident_set_expr
@@ -168,6 +168,10 @@ dot_index_set_expr
     ;
 
 non_assigment_expr
+    : app_expr
+    ;
+
+app_expr
     : tuple_expr tuple_expr*
     ;
 
@@ -178,7 +182,7 @@ tuple_expr
 
 or_expr
     /// F# syntax: expr | expr
-    : and_expr (OR_OP and_expr)*
+    : and_expr (PIPE and_expr)*
     ;
 
 and_expr
@@ -213,7 +217,7 @@ dot_get_expr
 
 dot_index_get_expr
     /// F# syntax: expr.[expr]
-    :  typed_expr (OPEN_BRACK typed_expr CLOSE_BRACK)?
+    :  typed_expr (DOT OPEN_BRACK typed_expr CLOSE_BRACK)?
     ;
 
 typed_expr
@@ -232,10 +236,9 @@ unary_expression
 atomic_expr
     :
     paren_expr
-    | constant
-    | ident
-    | long_ident
-    | let_stmt
+    | constant_expr
+    | ident_expr
+    | long_ident_expr
     | null_expr
     | record_expr
     | array_expr
@@ -244,6 +247,18 @@ atomic_expr
     | if_then_else_expr
     | match_expr
     | pipe_right_expr
+    ;
+
+constant_expr
+     : constant
+     ;
+
+ident_expr
+    : ident
+    ;
+
+long_ident_expr
+    : long_ident
     ;
 
 null_expr

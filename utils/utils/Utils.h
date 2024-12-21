@@ -70,6 +70,8 @@ namespace utils
 
     std::string demangle(const char* name);
 
-    std::string indent_string(const std::string& input, const int32_t indent_count = 1);
+    std::string indent_string(const std::string& input, const int32_t indent_count = 1, bool addParen = true, bool lastParenNewLine = true, bool trailingNewline = true);
 
+    // helper type for the visitor #4
+    template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 } // namespace utils

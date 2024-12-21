@@ -4,6 +4,9 @@ open FSharp.Compiler.Text
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Tokenization
 
+a | b & 10 = d != e < f <= g > h >= i + j - k * l / m % n
+a.[10]
+
 let a: int = 10 * 10
 let b =
     let c =
@@ -38,7 +41,7 @@ let rec tokenizeLine (tokenizer:FSharpLineTokenizer) state =
     | None, state -> state
   
 /// Print token names for multiple lines of code
-let rec tokenizeLines (sourceTok: FSharpSourceTokenizer) state count lines = 
+let rec tokenizeLines (sourceTok: FSharpSourceTokenizer) state count lines  =
     match lines with
     | line::lines ->
         // Create tokenizer & tokenize single line
