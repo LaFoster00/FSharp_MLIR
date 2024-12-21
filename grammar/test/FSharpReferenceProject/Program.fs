@@ -123,8 +123,3 @@ let cons_pat = [1; 2; 3]
 match cons_pat with
 | 1 :: tail -> printfn "Matched 1 as head, and tail is: %A" tail
 | _ -> printfn "No match"
-
-let typed_pat = "hello"
-match typed_pat with
-| :? string as str -> printfn "Matched a string: %s" str
-| _ -> printfn "No match"
