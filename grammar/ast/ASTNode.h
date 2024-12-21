@@ -116,6 +116,8 @@ namespace fsharpgrammar
     class Constant;
     class Ident;
     class LongIdent;
+    class Pattern;
+    class MatchClause;
 
     class Main : public IASTNode
     {
@@ -587,6 +589,25 @@ namespace fsharpgrammar
             const ast_ptr<fsharpgrammar::LongIdent> longIdent;
         };
 
+        struct Match : IExpressionType
+        {
+            Match(
+                ast_ptr<Expression>&& expression,
+                std::vector<ast_ptr<MatchClause>>&& clauses,
+                Range&& range)
+                : expression(std::move(expression)),
+                  clauses(std::move(clauses)),
+                  range(range)
+            {}
+
+            friend std::string to_string(const Match& match);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> expression;
+            const std::vector<ast_ptr<MatchClause>> clauses;
+            const Range range;
+        };
+
 
         using ExpressionType = std::variant<
             Sequential,
@@ -601,6 +622,7 @@ namespace fsharpgrammar
             Constant,
             Ident,
             LongIdent,
+            Match,
             PlaceholderNodeAlternative>;
 
     public:
@@ -616,7 +638,28 @@ namespace fsharpgrammar
         const ExpressionType expression;
     };
 
-    std::string to_string(const Expression::Append& append);
+    class MatchClause final : public IASTNode
+    {
+    public:
+        MatchClause(ast_ptr<Pattern>&& pattern,
+            std::optional<ast_ptr<Expression>>&& when_expression,
+            std::vector<ast_ptr<Expression>>&& expressions,
+            Range&& range)
+            : pattern(std::move(pattern)),
+              when_expression(std::move(when_expression)),
+              expressions(std::move(expressions)),
+              range(range)
+        {}
+
+        friend std::string to_string(const MatchClause& match_clause);
+        [[nodiscard]] Range get_range() const override { return range; }
+
+    public:
+        const ast_ptr<Pattern> pattern;
+        const std::optional<ast_ptr<Expression>> when_expression;
+        const std::vector<ast_ptr<Expression>> expressions;
+        const Range range;
+    };
 
     class Pattern : public IASTNode
     {

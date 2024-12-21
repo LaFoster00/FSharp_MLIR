@@ -25,6 +25,11 @@ namespace fsharpgrammar {
         std::any visitExpression_stmt(FSharpParser::Expression_stmtContext* context) override;
         std::any visitOpen_stmt(FSharpParser::Open_stmtContext* context) override;
 
+        // Body
+        std::any visitMultiline_body(FSharpParser::Multiline_bodyContext* context) override;
+        std::any visitMultiline_match_body(FSharpParser::Multiline_match_bodyContext* context) override;
+        std::any visitSingle_line_body(FSharpParser::Single_line_bodyContext* context) override;
+
         // expression
         std::any visitSequential_stmt(FSharpParser::Sequential_stmtContext* context) override;
         std::any visitExpression(FSharpParser::ExpressionContext *ctx) override;
@@ -57,6 +62,7 @@ namespace fsharpgrammar {
         std::any visitNew_expr(FSharpParser::New_exprContext* context) override;
         std::any visitIf_then_else_expr(FSharpParser::If_then_else_exprContext* context) override;
         std::any visitMatch_expr(FSharpParser::Match_exprContext* context) override;
+        std::any visitMatch_clause_stmt(FSharpParser::Match_clause_stmtContext* context) override;
         std::any visitPipe_right_expr(FSharpParser::Pipe_right_exprContext* context) override;
 
         // assignment expression

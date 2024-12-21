@@ -392,6 +392,16 @@ namespace fsharpgrammar
         return utils::to_string(*constant.constant);
     }
 
+    std::string to_string(const Expression::Match& match)
+    {
+        return "Match";
+    }
+
+    std::string to_string(const MatchClause& match_clause)
+    {
+        return "MatchClause\n";
+    }
+
     std::string to_string(const Pattern& pattern)
     {
         std::stringstream ss;

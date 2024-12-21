@@ -363,28 +363,14 @@ tuple_type
 
 append_type
     /// F# syntax: type<type, ..., type> or type type or (type, ..., type) type
-    : long_ident_append_type generic_args? #generic_type
-    | long_ident_append_type long_ident_append_type? #postfix_type
-    | paren_type long_ident_append_type #paren_postfix_type
-    ;
-
-long_ident_append_type
-    /// F# syntax: type.A.B.C<type, ..., type>
-    :
-    array_type ((DOT long_ident)+ generic_args)?
-    ;
-
-generic_args
-    /// F# syntax: <type, ..., type>
-    : LESS_THAN type (COMMA type)* GREATER_THAN
+    : array_type array_type? #postfix_type
+    | paren_type array_type #paren_postfix_type
     ;
 
 array_type
     /// F# syntax: type[]
     : atomic_type (OPEN_BRACK CLOSE_BRACK)?
     ;
-
-
 
 atomic_type
     : paren_type
@@ -393,7 +379,6 @@ atomic_type
     | anon_type
     | static_constant_type
     | static_constant_null_type
-    | generic_args
     ;
 
 paren_type

@@ -108,6 +108,21 @@ namespace fsharpgrammar
                 Range::create(context)));
     }
 
+    std::any AstBuilder::visitMultiline_body(FSharpParser::Multiline_bodyContext* context)
+    {
+        return std::vector<ast_ptr<Expression>>();
+    }
+
+    std::any AstBuilder::visitMultiline_match_body(FSharpParser::Multiline_match_bodyContext* context)
+    {
+        return std::vector<ast_ptr<Expression>>();
+    }
+
+    std::any AstBuilder::visitSingle_line_body(FSharpParser::Single_line_bodyContext* context)
+    {
+        return std::vector<ast_ptr<Expression>>();
+    }
+
     std::any AstBuilder::visitSequential_stmt(FSharpParser::Sequential_stmtContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
@@ -125,10 +140,8 @@ namespace fsharpgrammar
                     false,
                     Range::create(context))
             );
-        else if (expressions.size() == 1)
-            return expressions.front();
-        else
-            return make_ast<Expression>(PlaceholderNodeAlternative("Sequential Expr"));
+
+        return expressions.front();
     }
 
     std::any AstBuilder::visitExpression(FSharpParser::ExpressionContext* ctx)
@@ -161,10 +174,8 @@ namespace fsharpgrammar
                     std::move(expressions),
                     Range::create(context))
             );
-        else if (expressions.size() == 1)
-            return expressions[0];
-        else
-            return make_ast<Expression>(PlaceholderNodeAlternative("App Expr"));
+
+        return expressions[0];
     }
 
     std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
@@ -182,10 +193,8 @@ namespace fsharpgrammar
                     std::move(expressions),
                     Range::create(context))
             );
-        else if (expressions.size() == 1)
-            return expressions[0];
-        else
-            return make_ast<Expression>(PlaceholderNodeAlternative("Implement Or Expr"));
+
+        return expressions[0];
     }
 
 
@@ -587,7 +596,39 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitMatch_expr(FSharpParser::Match_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Match Expr"));
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        std::vector<ast_ptr<MatchClause>> match_clauses;
+        for (auto match_clause_stmt : context->match_clause_stmt())
+        {
+            match_clauses.push_back(
+                ast::any_cast<MatchClause>(match_clause_stmt->accept(this), context)
+            );
+        }
+
+        return make_ast<Expression>(
+            Expression::Match(
+                std::move(expression),
+                std::move(match_clauses),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitMatch_clause_stmt(FSharpParser::Match_clause_stmtContext* context)
+    {
+        auto pattern = ast::any_cast<Pattern>(context->pattern()->accept(this), context);
+        std::optional<ast_ptr<Expression>> expression{};
+        if (context->expression())
+        {
+            expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        }
+        auto body_expressions = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body()->accept(this));
+
+        return make_ast<MatchClause>(
+            std::move(pattern),
+            std::move(expression),
+            std::move(body_expressions),
+            Range::create(context)
+        );
     }
 
     std::any AstBuilder::visitPipe_right_expr(FSharpParser::Pipe_right_exprContext* context)
@@ -650,7 +691,8 @@ namespace fsharpgrammar
     std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
     {
         std::vector<ast_ptr<Pattern>> patterns;
-        if (context->and_pat().size() > 1) {
+        if (context->and_pat().size() > 1)
+        {
             for (auto pat : context->and_pat())
             {
                 auto result = pat->accept(this);
@@ -659,11 +701,9 @@ namespace fsharpgrammar
         }
 
         return make_ast<Pattern>(
-            Pattern(
-                Pattern::Type::TuplePattern,
-                std::move(patterns),
-                Range::create(context)
-            )
+            Pattern::Type::TuplePattern,
+            std::move(patterns),
+            Range::create(context)
         );
     }
 } // fsharpgrammar
