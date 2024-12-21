@@ -65,7 +65,10 @@ namespace fsharpgrammar {
 
         std::any visitType(FSharpParser::TypeContext* context) override;
 
+        // universally used
         std::any visitConstant(FSharpParser::ConstantContext* context) override;
+        std::any visitIdent(FSharpParser::IdentContext* context) override;
+        std::any visitLong_ident(FSharpParser::Long_identContext* context) override;
     };
 } // fsharpgrammar
 

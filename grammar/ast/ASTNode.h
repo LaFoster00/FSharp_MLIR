@@ -114,6 +114,8 @@ namespace fsharpgrammar
     class Expression;
     class Type;
     class Constant;
+    class Ident;
+    class LongIdent;
 
     class Main : public IASTNode
     {
@@ -132,6 +134,70 @@ namespace fsharpgrammar
 
     private:
         std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
+        const Range range;
+    };
+
+    class Ident final : public IASTNode
+    {
+    public:
+        Ident(std::string&& ident, const Range&& range)
+            : ident(std::move(ident)),
+              range(range)
+        {
+        }
+        Ident(const std::string& ident, const Range& range)
+            : ident(ident),
+              range(range)
+        {}
+
+        friend std::string to_string(const Ident& ident);
+        [[nodiscard]] Range get_range() const override { return range; }
+
+    public:
+        const std::string ident;
+        const Range range;
+    };
+
+    class LongIdent final : public IASTNode
+    {
+    public:
+        LongIdent(std::vector<ast_ptr<Ident>>&& idents, const Range&& range)
+            : idents(std::move(idents)),
+              range(range)
+        {
+        }
+
+        friend std::string to_string(const LongIdent& ident);
+        [[nodiscard]] Range get_range() const override { return range; }
+
+    public:
+        const std::vector<ast_ptr<Ident>> idents;
+        const Range range;
+    };
+
+    class Constant final : public IASTNode
+    {
+    public:
+        using Type = std::variant<
+            int32_t,
+            float_t,
+            std::string,
+            char8_t,
+            bool>;
+
+    public:
+        Constant(std::optional<Type> value, Range&& range)
+            : value(std::move(value)),
+              range(range)
+        {
+        }
+
+        friend std::string to_string(const Constant& constant);
+
+        [[nodiscard]] Range get_range() const override { return range; }
+
+        // If not set signals unit '()'
+        const std::optional<Type> value;
         const Range range;
     };
 
@@ -487,16 +553,38 @@ namespace fsharpgrammar
 
         struct Constant : IExpressionType
         {
-            Constant(ast_ptr<fsharpgrammar::Constant>&& constant, const Range&& range)
-                : constant(std::move(constant)),
-                  range(range)
+            Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
+                : constant(std::move(constant))
             {}
 
             friend std::string to_string(const Expression::Constant& constant);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return constant->get_range(); }
 
             const ast_ptr<fsharpgrammar::Constant> constant;
-            const Range range;
+        };
+
+        struct Ident : IExpressionType
+        {
+            Ident(ast_ptr<fsharpgrammar::Ident>&& ident)
+                : ident(std::move(ident))
+            {}
+
+            friend std::string to_string(const Ident& ident) { return utils::to_string(*ident.ident); }
+            [[nodiscard]] Range get_range() const override { return ident->get_range(); }
+
+            const ast_ptr<fsharpgrammar::Ident> ident;
+        };
+
+        struct LongIdent : IExpressionType
+        {
+            LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& longIdent)
+                : longIdent(std::move(longIdent))
+            {}
+
+            friend std::string to_string(const LongIdent& ident) { return utils::to_string(*ident.longIdent); }
+            [[nodiscard]] Range get_range() const override { return longIdent->get_range(); }
+
+            const ast_ptr<fsharpgrammar::LongIdent> longIdent;
         };
 
 
@@ -511,6 +599,8 @@ namespace fsharpgrammar
             Unary,
             Paren,
             Constant,
+            Ident,
+            LongIdent,
             PlaceholderNodeAlternative>;
 
     public:
@@ -578,29 +668,4 @@ namespace fsharpgrammar
         const Range range;
     };
 
-    class Constant final : public IASTNode
-    {
-    public:
-        using Type = std::variant<
-            int32_t,
-            float_t,
-            std::string,
-            char8_t,
-            bool>;
-
-    public:
-        Constant(std::optional<Type> value, Range&& range)
-            : value(std::move(value)),
-              range(range)
-        {
-        }
-
-        friend std::string to_string(const Constant& constant);
-
-        [[nodiscard]] Range get_range() const override { return range; }
-
-        // If not set signals unit '()'
-        const std::optional<Type> value;
-        const Range range;
-    };
 } // fsharpmlir

@@ -35,7 +35,7 @@ namespace utils
 
 #endif
     // Function to add indentation to a multiline string
-    std::string indent_string(const std::string& input, const int32_t indent_count) {
+    std::string indent_string(const std::string& input, const int32_t indent_count, bool addParen, bool lastParenNewLine, bool trailingNewline) {
         std::istringstream stream(input);
         std::ostringstream result;
         std::string line;
@@ -44,10 +44,37 @@ namespace utils
         {
             indent_stream << '\t';
         }
+        auto indent_string = indent_stream.str();
+
+        bool first_line = true;
         while (std::getline(stream, line)) {
-            result << indent_stream.str() << line << '\n'; // Add indentation to each line
+            if (!line.empty())
+                if (first_line)
+                {
+                    first_line = false;
+                    result << indent_string;
+                    if (addParen)
+                        result << '(';
+                    result << line << '\n';
+                }
+                else
+                {
+                    result << indent_string << line << '\n'; // Add indentation to each line
+                }
         }
-        return result.str();
+
+        // Place the closing bracket
+        auto string = result.str();
+        if (addParen && !lastParenNewLine && string.back() == '\n')
+            string.pop_back();
+
+        if (addParen)
+            string += (lastParenNewLine ? indent_string : "") + ')';
+
+        if (trailingNewline)
+            string += '\n';
+
+        return string;
     }
 
 }

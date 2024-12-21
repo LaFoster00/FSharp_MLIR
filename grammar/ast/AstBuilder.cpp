@@ -535,19 +535,24 @@ namespace fsharpgrammar
     {
         return make_ast<Expression>(
             Expression::Constant(
-                ast::any_cast<Constant>(context->constant()->accept(this), context),
-                Range::create(context))
+                ast::any_cast<Constant>(context->constant()->accept(this), context))
         );
     }
 
     std::any AstBuilder::visitIdent_expr(FSharpParser::Ident_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Ident Expr"));
+        return make_ast<Expression>(
+            Expression::Ident(
+                ast::any_cast<Ident>(context->ident()->accept(this), context))
+        );
     }
 
     std::any AstBuilder::visitLong_ident_expr(FSharpParser::Long_ident_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Long Ident Expr"));
+        return make_ast<Expression>(
+            Expression::LongIdent(
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context))
+        );
     }
 
     std::any AstBuilder::visitNull_expr(FSharpParser::Null_exprContext* context)
@@ -625,5 +630,20 @@ namespace fsharpgrammar
             return make_ast<Constant>(context->BOOL()->getText() == "true", Range::create(context));
 
         return make_ast<Constant>(std::optional<Constant::Type>{}, Range::create(context));
+    }
+
+    std::any AstBuilder::visitIdent(FSharpParser::IdentContext* context)
+    {
+        return make_ast<Ident>(context->IDENT()->getText(), Range::create(context));
+    }
+
+    std::any AstBuilder::visitLong_ident(FSharpParser::Long_identContext* context)
+    {
+        std::vector<ast_ptr<Ident>> idents;
+        for (auto ident : context->ident())
+        {
+            idents.push_back(ast::any_cast<Ident>(ident->accept(this), context));
+        }
+        return make_ast<LongIdent>(std::move(idents), Range::create(context));
     }
 } // fsharpgrammar
