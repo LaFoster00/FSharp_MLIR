@@ -60,6 +60,9 @@ namespace fsharpgrammar
     {
     }
 
+    Pattern::Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
+    : type(type), patterns(std::move(patterns)), range(std::move(range)) {}
+
     Main::Main(
         std::vector<ast_ptr<ModuleOrNamespace>>&& modules_or_namespaces,
         Range&& range)
@@ -139,6 +142,24 @@ namespace fsharpgrammar
                 ss << ';';
         }
         ss << "\n)";
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern& pattern)
+    {
+        std::stringstream ss;
+        switch (pattern.type)
+        {
+            case Pattern::Type::TuplePattern:
+                ss << "TuplePattern(";
+            for (const auto& pat : pattern.patterns)
+            {
+                ss << to_string(*pat) << ", ";
+            }
+            ss << ")";
+            break;
+            // handle other pattern types...
+        }
         return ss.str();
     }
 } // fsharpgrammar

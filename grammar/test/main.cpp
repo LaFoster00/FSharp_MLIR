@@ -55,13 +55,12 @@ int main(int , const char **) {
   tree::ParseTree* tree = parser.main();
 
   std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
-
   std::cout << "Simplifying tree" << std::endl;
 
   AstBuilder builder;
-  ast_ptr<Main> ast = std::any_cast<ast_ptr<Main>>(builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree)));
+  auto ast = std::any_cast<ast_ptr<Main>>(builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree)));
 
-  fmt::print("AST Generation Result = \n{}", *(ast.get()));
+  fmt::print("AST Generation Result = \n{}", *(ast));
 
   return 0;
 }

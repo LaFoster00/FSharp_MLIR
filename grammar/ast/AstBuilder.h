@@ -28,6 +28,9 @@ namespace fsharpgrammar {
         // expression
         std::any visitSequential_stmt(FSharpParser::Sequential_stmtContext* context) override;
         std::any visitExpression(FSharpParser::ExpressionContext *ctx) override;
+
+        // pattern
+        std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
     };
 
 } // fsharpgrammar

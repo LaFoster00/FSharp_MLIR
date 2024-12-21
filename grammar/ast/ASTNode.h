@@ -268,17 +268,14 @@ namespace fsharpgrammar
 
     class Pattern : public IASTNode
     {
+    public:
         enum class Type
         {
-            TupelPattern,
-            AndPattern,
-            OrPattern,
-            AsPattern,
-            ConsPattern,
-            TypedPattern
+            TuplePattern,
+            AndPattern
         };
 
-        Pattern(Type type, std::optional<std::string> value, Range&& range);
+        Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range);
         ~Pattern() override = default;
 
         [[nodiscard]] Range get_range() const override
@@ -286,38 +283,10 @@ namespace fsharpgrammar
             return range;
         }
 
-        friend std::string to_string(const Pattern& pattern)
-        {
-            return "Pattern";
-        }
+        friend std::string to_string(const Pattern& pattern);
 
         const Type type;
-        const std::optional<std::string> value;
-        const Range range;
-    };
-
-    class AtomicPattern : public IASTNode {
-        enum class Type {
-            ParenPattern,
-            AnonymousExpression,
-            Constant,
-            NamedPattern,
-            RecordPattern,
-            ArrayPattern,
-            LongIdentifierPattern,
-            NullPattern
-        };
-
-        AtomicPattern(Type type, std::optional<std::string> value, Range&& range);
-        ~AtomicPattern() override = default;
-
-        [[nodiscard]] Range get_range() const override
-        {
-            return range;
-        }
-
-        const Type type;
-        const std::optional<std::string> value;
+        const std::vector<ast_ptr<Pattern>> patterns;
         const Range range;
     };
 } // fsharpmlir

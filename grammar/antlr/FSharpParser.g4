@@ -17,10 +17,10 @@ module_or_namespace
 
 /// Represents a definition within a module
 module_decl
-    : NEWLINE+ #emply_lines
-    | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
-    | sequential_stmt #expression_stmt
-    | OPEN long_ident #open_stmt
+    : NEWLINE+                                                      #emply_lines
+    | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT   #nested_module
+    | sequential_stmt                                               #expression_stmt
+    | OPEN long_ident                                               #open_stmt
     ;
 
 let_stmt
@@ -32,9 +32,9 @@ binding
     ;
 
 body
-    : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
-    | NEWLINE PIPE sequential_stmt+ #multiline_match_body
-    | inline_sequential_stmt #single_line_body
+    : NEWLINE INDENT sequential_stmt+ DEDENT    #multiline_body
+    | NEWLINE PIPE sequential_stmt+             #multiline_match_body
+    | inline_sequential_stmt                    #single_line_body
     ;
 
 inline_sequential_stmt

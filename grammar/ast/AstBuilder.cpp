@@ -27,7 +27,6 @@ namespace fsharpgrammar
         std::vector<FSharpParser::Module_declContext*> decls,
         antlr4::ParserRuleContext* context,
         FSharpParserVisitor* visitor)
-
     {
         std::vector<ast_ptr<ModuleDeclaration>> module_declarations;
         for (auto module_decl : decls)
@@ -129,5 +128,25 @@ namespace fsharpgrammar
     std::any AstBuilder::visitExpression(FSharpParser::ExpressionContext* ctx)
     {
         return make_ast<Expression>(Expression::Sequential(std::vector<ast_ptr<Expression>>{}, true, Range::create(ctx)));
+    }
+
+    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        if (context->and_pat().size() > 1) {
+            for (auto pat : context->and_pat())
+            {
+                auto result = pat->accept(this);
+                patterns.push_back(ast::any_cast<Pattern>(result, context));
+            }
+        }
+
+        return make_ast<Pattern>(
+            Pattern(
+                Pattern::Type::TuplePattern,
+                std::move(patterns),
+                Range::create(context)
+            )
+        );
     }
 } // fsharpgrammar
