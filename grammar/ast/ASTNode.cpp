@@ -23,7 +23,7 @@ namespace fsharpgrammar
     }
 
     ModuleDeclaration::NestedModule::NestedModule(
-        std::string  name,
+        std::string name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
         Range&& range):
         name(std::move(name)),
@@ -39,7 +39,6 @@ namespace fsharpgrammar
         expression(std::move(expression)),
         range(range)
     {
-
     }
 
     ModuleDeclaration::Open::Open(std::string module_name, Range&& range)
@@ -49,7 +48,7 @@ namespace fsharpgrammar
     {
     }
 
-    ModuleDeclaration::ModuleDeclaration(ModuleDeclarationType &&module_decl)
+    ModuleDeclaration::ModuleDeclaration(ModuleDeclarationType&& module_decl)
         :
         declaration(std::move(module_decl))
     {
@@ -57,8 +56,13 @@ namespace fsharpgrammar
 
     Expression::Expression(ExpressionType&& expression)
         :
-    expression(std::move(expression))
+        expression(std::move(expression))
     {
+    }
+
+    Range Expression::get_range() const
+    {
+        return INodeAlternative::get_range(expression);
     }
 
     std::string to_string(const Expression::Append& append)
@@ -67,7 +71,7 @@ namespace fsharpgrammar
         ss << fmt::format("Append {}\n", utils::to_string(append.range));
         for (const auto& expression : append.expressions)
         {
-            ss << utils::indent_string(fmt::format( "({}\n)\n", utils::to_string(*expression)));
+            ss << utils::indent_string(fmt::format("({}\n)\n", utils::to_string(*expression)));
         }
 
         return ss.str();
@@ -150,7 +154,7 @@ namespace fsharpgrammar
                 switch (a_op)
                 {
                 case Expression::OP::ArithmeticType::ADD:
-                   operators.push_back("+");
+                    operators.push_back("+");
                     break;
                 case Expression::OP::ArithmeticType::SUBTRACT:
                     operators.push_back("-");
@@ -183,6 +187,58 @@ namespace fsharpgrammar
             }
         }
 
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::DotGet& dot_get)
+    {
+        std::stringstream ss;
+        ss << ".Get\n";
+        ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*dot_get.expression)));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::DotIndexedGet& dot_get)
+    {
+        std::stringstream ss;
+        ss << ".[Get]\n";
+        ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*dot_get.base_expression)), 2);
+        ss << fmt::format(
+            "\t[\n{}\t]\n",
+            utils::indent_string(fmt::format(
+                "({})\n",
+                utils::to_string(*dot_get.index_expression)), 2)
+        );
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Typed& typed)
+    {
+        std::stringstream ss;
+        ss << "Typed\n";
+        ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*typed.expression)));
+        ss << ':';
+        ss <<  utils::indent_string(fmt::format("({})\n", utils::to_string(*typed.type)));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Unary& unary)
+    {
+        std::stringstream ss;
+        ss << "Unary\n";
+        switch (unary.type)
+        {
+        case Expression::Unary::Type::PLUS:
+            ss << "-";
+            break;
+        case Expression::Unary::Type::MINUS:
+            ss << "+";
+            break;
+        case Expression::Unary::Type::NOT:
+            ss << "!";
+            break;
+        }
+        ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*unary.expression)));
         return ss.str();
     }
 
@@ -219,13 +275,15 @@ namespace fsharpgrammar
         switch (moduleOrNamespace.type)
         {
         case ModuleOrNamespace::Type::NamedModule:
-            ss << fmt::format("Module {} {}\n", moduleOrNamespace.name.value(), utils::to_string(moduleOrNamespace.range));
+            ss << fmt::format("Module {} {}\n", moduleOrNamespace.name.value(),
+                              utils::to_string(moduleOrNamespace.range));
             break;
         case ModuleOrNamespace::Type::AnonymousModule:
             ss << fmt::format("AnonymousModule {}\n", utils::to_string(moduleOrNamespace.range));
             break;
         case ModuleOrNamespace::Type::Namespace:
-            ss << fmt::format("Namespace {} {}\n", moduleOrNamespace.name.value(), utils::to_string(moduleOrNamespace.range));
+            ss << fmt::format("Namespace {} {}\n", moduleOrNamespace.name.value(),
+                              utils::to_string(moduleOrNamespace.range));
             break;
         }
 
@@ -239,7 +297,8 @@ namespace fsharpgrammar
     std::string to_string(const ModuleDeclaration::NestedModule& nestedModuleDeclaration)
     {
         std::stringstream ss;
-        ss << fmt::format("[Nested Module {} {}\n", nestedModuleDeclaration.name, utils::to_string(nestedModuleDeclaration.range));
+        ss << fmt::format("[Nested Module {} {}\n", nestedModuleDeclaration.name,
+                          utils::to_string(nestedModuleDeclaration.range));
         for (const auto& module_decl : nestedModuleDeclaration.moduleDecls)
         {
             ss << utils::indent_string(utils::to_string(*module_decl));

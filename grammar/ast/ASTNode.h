@@ -14,7 +14,6 @@
 
 #include "ASTNode.h"
 
-
 namespace fsharpgrammar
 {
     class IASTNode;
@@ -113,6 +112,7 @@ namespace fsharpgrammar
     class ModuleOrNamespace;
     class ModuleDeclaration;
     class Expression;
+    class Type;
 
     class Main : public IASTNode
     {
@@ -354,7 +354,9 @@ namespace fsharpgrammar
                 std::vector<RelationType>,
                 std::vector<ArithmeticType>>;
 
-            OP(std::vector<ast_ptr<Expression>>&& expressions, Type type, Operators&& st,
+            OP(std::vector<ast_ptr<Expression>>&& expressions,
+               OP::Type type,
+               Operators&& st,
                Range&& range)
                 : expressions(std::move(expressions)),
                   type(type),
@@ -371,12 +373,109 @@ namespace fsharpgrammar
             }
 
             const std::vector<ast_ptr<Expression>> expressions;
-            const Type type;
+            const OP::Type type;
             const Operators ops;
             const Range range;
         };
 
-        using ExpressionType = std::variant<Sequential, Append, Tuple, OP, PlaceholderNodeAlternative>;
+        struct DotGet : IExpressionType
+        {
+            DotGet(
+                ast_ptr<Expression>&& expression,
+                const std::string& identifier,
+                const Range&& range)
+                : expression(std::move(expression)),
+                  identifier(identifier),
+                  range(range)
+            {}
+
+            friend std::string to_string(const DotGet& dot_get);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const ast_ptr<Expression> expression;
+            const std::string identifier;
+            const Range range;
+        };
+
+        struct DotIndexedGet : IExpressionType
+        {
+            DotIndexedGet(
+                ast_ptr<Expression>&& base_expression,
+                ast_ptr<Expression>&& index_expression,
+                const Range&& range)
+                : base_expression(std::move(base_expression)),
+                    index_expression(std::move(index_expression)),
+                  range(range)
+            {}
+
+            friend std::string to_string(const DotIndexedGet& dot_get);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const ast_ptr<Expression> base_expression;
+            const ast_ptr<Expression> index_expression;
+            const Range range;
+        };
+
+        struct Typed final : IExpressionType
+        {
+            Typed(const ast_ptr<Expression>& expression, const ast_ptr<Type>& type, const Range& range)
+                : expression(expression),
+                  type(type),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Typed& typed);
+            [[nodiscard]] Range get_range() const override { return range;}
+
+            const ast_ptr<Expression> expression;
+            const ast_ptr<Type> type;
+            const Range range;
+        };
+
+        struct Unary : IExpressionType
+        {
+            enum class Type
+            {
+                PLUS,
+                MINUS,
+                NOT
+            };
+
+            Unary(ast_ptr<Expression>&& expression, Type type, Range&& range)
+                : expression(std::move(expression)),
+                  type(type),
+                    range(range)
+            {}
+
+            friend std::string to_string(const Unary& unary);
+
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> expression;
+            const Type type;
+            const Range range;
+        };
+
+
+        using ExpressionType = std::variant<
+            Sequential,
+            Append,
+            Tuple,
+            OP,
+            DotGet,
+            DotIndexedGet,
+            Typed,
+            Unary,
+            PlaceholderNodeAlternative>;
 
     public:
         explicit Expression(ExpressionType&& expression);
@@ -386,10 +485,7 @@ namespace fsharpgrammar
             return utils::to_string(expression.expression);
         }
 
-        [[nodiscard]] Range get_range() const override
-        {
-            return INodeAlternative::get_range(expression);
-        }
+        [[nodiscard]] Range get_range() const override;
 
         const ExpressionType expression;
     };
@@ -425,6 +521,24 @@ namespace fsharpgrammar
 
         const Type type;
         const std::optional<std::string> value;
+        const Range range;
+    };
+
+    class Type final : public IASTNode
+    {
+    public:
+        explicit Type(const Range& range)
+            : range(range)
+        {
+        }
+
+        friend std::string to_string(const Type& type)
+        {
+            return "Type " + utils::to_string(type.range);
+        }
+
+        [[nodiscard]] Range get_range() const override {return range; }
+
         const Range range;
     };
 } // fsharpmlir

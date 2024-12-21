@@ -217,7 +217,7 @@ dot_get_expr
 
 dot_index_get_expr
     /// F# syntax: expr.[expr]
-    :  typed_expr (OPEN_BRACK typed_expr CLOSE_BRACK)?
+    :  typed_expr (DOT OPEN_BRACK typed_expr CLOSE_BRACK)?
     ;
 
 typed_expr

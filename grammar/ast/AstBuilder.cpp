@@ -443,7 +443,82 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitDot_get_expr(FSharpParser::Dot_get_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Dot Get Expr"));
+        if (context->long_ident())
+        {
+            if (auto result = context->dot_index_get_expr()->accept(this); result.has_value())
+                return make_ast<Expression>(
+                    Expression::DotGet(
+                        ast::any_cast<Expression>(result, context),
+                        ast::to_string(context->long_ident()),
+                        Range::create(context)
+                    )
+                );
+        }
+        return context->dot_index_get_expr()->accept(this);
+    }
+
+    std::any AstBuilder::visitDot_index_get_expr(FSharpParser::Dot_index_get_exprContext* context)
+    {
+        if (context->typed_expr().size() > 1)
+        {
+            auto base_result = context->typed_expr().front()->accept(this);
+            auto index_result = context->typed_expr().back()->accept(this);
+            return make_ast<Expression>(
+                Expression::DotIndexedGet(
+                    ast::any_cast<Expression>(base_result, context),
+                    ast::any_cast<Expression>(index_result, context),
+                    Range::create(context)
+                )
+            );
+        }
+        else
+            return context->typed_expr().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitTyped_expr(FSharpParser::Typed_exprContext* context)
+    {
+        auto result = context->unary_expression()->accept(this);
+
+        if (context->type())
+        {
+            auto type_result = context->type()->accept(this);
+            return make_ast<Expression>(
+                Expression::Typed(
+                    ast::any_cast<Expression>(result, context),
+                    ast::any_cast<Type>(type_result, context),
+                    Range::create(context))
+            );
+        }
+        return ast::any_cast<Expression>(result, context);
+    }
+
+    std::any AstBuilder::visitUnary_expression(FSharpParser::Unary_expressionContext* context)
+    {
+        if (context->unary_expression())
+        {
+            Expression::Unary::Type type;
+            if (context->MINUS())
+                type = Expression::Unary::Type::MINUS;
+            else if (context->PLUS())
+                type = Expression::Unary::Type::PLUS;
+            else
+                type = Expression::Unary::Type::NOT;
+
+            auto result = context->unary_expression()->accept(this);
+            return make_ast<Expression>(
+                Expression::Unary(
+                    ast::any_cast<Expression>(result, context),
+                    type,
+                    Range::create(context)
+                )
+            );
+        }
+        return context->atomic_expr()->accept(this);
+    }
+
+    std::any AstBuilder::visitAtomic_expr(FSharpParser::Atomic_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Atomic Expr"));
     }
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
@@ -455,5 +530,10 @@ namespace fsharpgrammar
         default:
             return make_ast<Expression>(PlaceholderNodeAlternative("Assignment Expr"));
         }
+    }
+
+    std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
+    {
+        return make_ast<Type>(Range::create(context));
     }
 } // fsharpgrammar

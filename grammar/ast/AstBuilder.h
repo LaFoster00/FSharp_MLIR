@@ -40,9 +40,17 @@ namespace fsharpgrammar {
         std::any visitAdditive_expr(FSharpParser::Additive_exprContext* context) override;
         std::any visitMultiplicative_expr(FSharpParser::Multiplicative_exprContext* context) override;
         std::any visitDot_get_expr(FSharpParser::Dot_get_exprContext* context) override;
+        std::any visitDot_index_get_expr(FSharpParser::Dot_index_get_exprContext* context) override;
+        std::any visitTyped_expr(FSharpParser::Typed_exprContext* context) override;
+        std::any visitUnary_expression(FSharpParser::Unary_expressionContext* context) override;
+
+        // atomic
+        std::any visitAtomic_expr(FSharpParser::Atomic_exprContext* context) override;
 
         // assignment expression
         std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;
+
+        std::any visitType(FSharpParser::TypeContext* context) override;
     };
 
 } // fsharpgrammar
