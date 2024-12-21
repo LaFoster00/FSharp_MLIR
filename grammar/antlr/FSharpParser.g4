@@ -182,7 +182,7 @@ tuple_expr
 
 or_expr
     /// F# syntax: expr | expr
-    : and_expr (OR_OP and_expr)*
+    : and_expr (PIPE and_expr)*
     ;
 
 and_expr

@@ -171,7 +171,7 @@ namespace fsharpgrammar
         struct NestedModule : INodeAlternative
         {
             NestedModule(
-                const std::string& name,
+                std::string name,
                 std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
                 Range&& range);
 
@@ -209,7 +209,7 @@ namespace fsharpgrammar
 
         struct Open : INodeAlternative
         {
-            Open(const std::string& module_name, Range&& range);
+            Open(std::string module_name, Range&& range);
 
             friend std::string to_string(const Open& open)
             {
@@ -273,7 +273,7 @@ namespace fsharpgrammar
 
         struct Append : IExpressionType
         {
-            Append(std::vector<ast_ptr<Expression>> &&expressions, const Range&& range)
+            Append(std::vector<ast_ptr<Expression>>&& expressions, const Range&& range)
                 : expressions(std::move(expressions)),
                   range(range)
             {
@@ -292,10 +292,11 @@ namespace fsharpgrammar
 
         struct Tuple : IExpressionType
         {
-            Tuple(std::vector<ast_ptr<Expression>> &&expressions, const Range&& range)
+            Tuple(std::vector<ast_ptr<Expression>>&& expressions, const Range&& range)
                 : expressions(std::move(expressions)),
-            range(range)
-            {}
+                  range(range)
+            {
+            }
 
             friend std::string to_string(const Tuple& tuple);
 
@@ -303,6 +304,7 @@ namespace fsharpgrammar
             {
                 return range;
             }
+
             const std::vector<ast_ptr<Expression>> expressions;
             const Range range;
         };
@@ -326,15 +328,15 @@ namespace fsharpgrammar
             enum class EqualityType
             {
                 EQUAL,
-                NON_EQUAL
+                NOT_EQUAL
             };
 
             enum class RelationType
             {
                 LESS,
                 GREATER,
-                LESS_THAN,
-                GREATE_THAN
+                LESS_EQUAL,
+                GREATER_EQUAL
             };
 
             enum class ArithmeticType
@@ -346,14 +348,20 @@ namespace fsharpgrammar
                 MODULO
             };
 
-            using SpecializedType = std::variant<LogicalType, EqualityType, RelationType, ArithmeticType>;
+            using Operators = std::variant<
+                std::vector<LogicalType>,
+                std::vector<EqualityType>,
+                std::vector<RelationType>,
+                std::vector<ArithmeticType>>;
 
-            OP(std::vector<ast_ptr<Expression>>&& expressions, Type type, SpecializedType st, Range&& range)
+            OP(std::vector<ast_ptr<Expression>>&& expressions, Type type, Operators&& st,
+               Range&& range)
                 : expressions(std::move(expressions)),
-                    type(type),
-                  st(st),
+                  type(type),
+                  ops(std::move(st)),
                   range(range)
-            {}
+            {
+            }
 
             friend std::string to_string(const OP& or_expr);
 
@@ -364,14 +372,14 @@ namespace fsharpgrammar
 
             const std::vector<ast_ptr<Expression>> expressions;
             const Type type;
-            const SpecializedType st;
+            const Operators ops;
             const Range range;
         };
 
-        using ExpressionType = std::variant<Sequential, Append, Tuple, PlaceholderNodeAlternative>;
+        using ExpressionType = std::variant<Sequential, Append, Tuple, OP, PlaceholderNodeAlternative>;
 
     public:
-        Expression(ExpressionType&& expression);
+        explicit Expression(ExpressionType&& expression);
 
         friend std::string to_string(const Expression& expression)
         {

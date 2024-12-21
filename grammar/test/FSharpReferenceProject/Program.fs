@@ -4,6 +4,8 @@ open FSharp.Compiler.Text
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Tokenization
 
+a | b & c = d != e < f <= g > h >= i + j - k * l / m % n
+
 let a: int = 10 * 10
 let b =
     let c =

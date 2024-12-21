@@ -24,10 +24,9 @@ namespace fsharpgrammar
     }
 
     std::vector<ast_ptr<ModuleDeclaration>> get_module_declarations(
-        std::vector<FSharpParser::Module_declContext*> decls,
+        const std::vector<FSharpParser::Module_declContext*>& decls,
         antlr4::ParserRuleContext* context,
         FSharpParserVisitor* visitor)
-
     {
         std::vector<ast_ptr<ModuleDeclaration>> module_declarations;
         for (auto module_decl : decls)
@@ -179,60 +178,265 @@ namespace fsharpgrammar
         }
         if (expressions.size() > 1)
             return make_ast<Expression>(
-                    Expression::Tuple(
-                        std::move(expressions),
-                        Range::create(context))
-                );
+                Expression::Tuple(
+                    std::move(expressions),
+                    Range::create(context))
+            );
         else if (expressions.size() == 1)
             return expressions[0];
         else
             return make_ast<Expression>(PlaceholderNodeAlternative("Implement Or Expr"));
     }
 
+
     std::any AstBuilder::visitOr_expr(FSharpParser::Or_exprContext* context)
     {
-        if (context->and_expr().size() > 2)
-            return make_ast<Expression>(PlaceholderNodeAlternative("Or Expr"));
+        std::vector<ast_ptr<Expression>> results;
+        results.reserve(context->children.size() / 2 + 1);
+
+        std::vector<Expression::OP::LogicalType> operators;
+        operators.reserve(context->children.size() / 2);
+
+        for (const auto child : context->children)
+        {
+            if (const auto and_expr = dynamic_cast<decltype(context->and_expr(0))>(child))
+            {
+                if (auto result = and_expr->accept(this);
+                    result.has_value())
+                    results.push_back(ast::any_cast<Expression>(result, context));
+                continue;
+            }
+
+            operators.push_back(Expression::OP::LogicalType::OR);
+        }
+
+
+        if (context->and_expr().size() > 1)
+            return make_ast<Expression>(
+                Expression::OP(
+                    std::move(results),
+                    Expression::OP::Type::LOGICAL,
+                    std::move(operators),
+                    Range::create(context))
+            );
         else
             return context->and_expr().front()->accept(this);
     }
 
     std::any AstBuilder::visitAnd_expr(FSharpParser::And_exprContext* context)
     {
-        if (context->equality_expr().size() > 2)
-            return make_ast<Expression>(PlaceholderNodeAlternative("And Expr"));
+        std::vector<ast_ptr<Expression>> results;
+        results.reserve(context->children.size() / 2 + 1);
+
+        std::vector<Expression::OP::LogicalType> operators;
+        operators.reserve(context->children.size() / 2);
+
+        for (const auto child : context->children)
+        {
+            if (const auto expression = dynamic_cast<decltype(context->equality_expr(0))>(child))
+            {
+                if (auto result = expression->accept(this);
+                    result.has_value())
+                    results.push_back(ast::any_cast<Expression>(result, context));
+                continue;
+            }
+
+            operators.push_back(Expression::OP::LogicalType::AND);
+        }
+
+        if (context->equality_expr().size() > 1)
+            return make_ast<Expression>(
+                Expression::OP(
+                    std::move(results),
+                    Expression::OP::Type::LOGICAL,
+                    std::move(operators),
+                    Range::create(context))
+            );
         else
             return context->equality_expr().front()->accept(this);
     }
 
     std::any AstBuilder::visitEquality_expr(FSharpParser::Equality_exprContext* context)
     {
-        if (context->relation_expr().size() > 2)
-            return make_ast<Expression>(PlaceholderNodeAlternative("Equality Expr"));
+        std::vector<ast_ptr<Expression>> results;
+        results.reserve(context->children.size() / 2 + 1);
+
+        std::vector<Expression::OP::EqualityType> operators;
+        operators.reserve(context->children.size() / 2);
+
+        for (const auto child : context->children)
+        {
+            if (const auto expression = dynamic_cast<decltype(context->relation_expr(0))>(child))
+            {
+                if (auto result = expression->accept(this);
+                    result.has_value())
+                    results.push_back(ast::any_cast<Expression>(result, context));
+            }
+            else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
+            {
+                switch (op->getSymbol()->getType())
+                {
+                case FSharpParser::EQUALS:
+                    operators.push_back(Expression::OP::EqualityType::EQUAL);
+                    break;
+                case FSharpParser::NOT_EQ:
+                    operators.push_back(Expression::OP::EqualityType::NOT_EQUAL);
+                    break;
+                default:
+                    throw std::runtime_error("Invalid Equality Expr");
+                }
+            }
+        }
+
+        if (context->relation_expr().size() > 1)
+            return make_ast<Expression>(
+                Expression::OP(
+                    std::move(results),
+                    Expression::OP::Type::EQUALITY,
+                    std::move(operators),
+                    Range::create(context))
+            );
         else
             return context->relation_expr().front()->accept(this);
     }
 
     std::any AstBuilder::visitRelation_expr(FSharpParser::Relation_exprContext* context)
     {
-        if (context->additive_expr().size() > 2)
-            return make_ast<Expression>(PlaceholderNodeAlternative("Relation Expr"));
+        std::vector<ast_ptr<Expression>> results;
+        results.reserve(context->children.size() / 2 + 1);
+
+        std::vector<Expression::OP::RelationType> operators;
+        operators.reserve(context->children.size() / 2);
+
+        for (const auto child : context->children)
+        {
+            if (const auto expression = dynamic_cast<decltype(context->additive_expr(0))>(child))
+            {
+                if (auto result = expression->accept(this);
+                    result.has_value())
+                    results.push_back(ast::any_cast<Expression>(result, context));
+            }
+            else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
+            {
+                switch (op->getSymbol()->getType())
+                {
+                case FSharpParser::LESS_THAN:
+                    operators.push_back(Expression::OP::RelationType::LESS);
+                    break;
+                case FSharpParser::GREATER_THAN:
+                    operators.push_back(Expression::OP::RelationType::GREATER);
+                    break;
+                case FSharpParser::LT_EQ:
+                    operators.push_back(Expression::OP::RelationType::LESS_EQUAL);
+                    break;
+                case FSharpParser::GT_EQ:
+                    operators.push_back(Expression::OP::RelationType::GREATER_EQUAL);
+                    break;
+                default:
+                    throw std::runtime_error("Invalid Relation Expr");
+                }
+            }
+        }
+
+        if (context->additive_expr().size() > 1)
+            return make_ast<Expression>(
+                Expression::OP(
+                    std::move(results),
+                    Expression::OP::Type::RELATION,
+                    std::move(operators),
+                    Range::create(context))
+            );
         else
             return context->additive_expr().front()->accept(this);
     }
 
     std::any AstBuilder::visitAdditive_expr(FSharpParser::Additive_exprContext* context)
     {
-        if (context->multiplicative_expr().size() > 2)
-            return make_ast<Expression>(PlaceholderNodeAlternative("Additive Expr"));
+        std::vector<ast_ptr<Expression>> results;
+        results.reserve(context->children.size() / 2 + 1);
+
+        std::vector<Expression::OP::ArithmeticType> operators;
+        operators.reserve(context->children.size() / 2);
+
+        for (const auto child : context->children)
+        {
+            if (const auto expression = dynamic_cast<decltype(context->multiplicative_expr(0))>(child))
+            {
+                if (auto result = expression->accept(this);
+                    result.has_value())
+                    results.push_back(ast::any_cast<Expression>(result, context));
+            }
+            else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
+            {
+                switch (op->getSymbol()->getType())
+                {
+                case FSharpParser::PLUS:
+                    operators.push_back(Expression::OP::ArithmeticType::ADD);
+                    break;
+                case FSharpParser::MINUS:
+                    operators.push_back(Expression::OP::ArithmeticType::SUBTRACT);
+                    break;
+                default:
+                    throw std::runtime_error("Invalid Additive Expr");
+                }
+            }
+        }
+
+        if (context->multiplicative_expr().size() > 1)
+            return make_ast<Expression>(
+                Expression::OP(
+                    std::move(results),
+                    Expression::OP::Type::ARITHMETIC,
+                    std::move(operators),
+                    Range::create(context))
+            );
         else
             return context->multiplicative_expr().front()->accept(this);
     }
 
     std::any AstBuilder::visitMultiplicative_expr(FSharpParser::Multiplicative_exprContext* context)
     {
-        if (context->dot_get_expr().size() > 2)
-            return make_ast<Expression>(PlaceholderNodeAlternative("Multiplicative Expr"));
+        std::vector<ast_ptr<Expression>> results;
+        results.reserve(context->children.size() / 2 + 1);
+
+        std::vector<Expression::OP::ArithmeticType> operators;
+        operators.reserve(context->children.size() / 2);
+
+        for (const auto child : context->children)
+        {
+            if (const auto expression = dynamic_cast<decltype(context->dot_get_expr(0))>(child))
+            {
+                if (auto result = expression->accept(this);
+                    result.has_value())
+                    results.push_back(ast::any_cast<Expression>(result, context));
+            }
+            else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
+            {
+                switch (op->getSymbol()->getType())
+                {
+                case FSharpParser::STAR:
+                    operators.push_back(Expression::OP::ArithmeticType::MULTIPLY);
+                    break;
+                case FSharpParser::DIV:
+                    operators.push_back(Expression::OP::ArithmeticType::DIVIDE);
+                    break;
+                case FSharpParser::MOD:
+                    operators.push_back(Expression::OP::ArithmeticType::MODULO);
+                    break;
+                default:
+                    throw std::runtime_error("Invalid Multiplicative Expr");
+                }
+            }
+        }
+
+        if (context->dot_get_expr().size() > 1)
+            return make_ast<Expression>(
+                Expression::OP(
+                    std::move(results),
+                    Expression::OP::Type::ARITHMETIC,
+                    std::move(operators),
+                    Range::create(context))
+            );
         else
             return context->dot_get_expr().front()->accept(this);
     }

@@ -5,6 +5,7 @@
 #include "ASTNode.h"
 
 #include <sstream>
+#include <utility>
 
 namespace fsharpgrammar
 {
@@ -22,10 +23,10 @@ namespace fsharpgrammar
     }
 
     ModuleDeclaration::NestedModule::NestedModule(
-        const std::string& name,
+        std::string  name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
         Range&& range):
-        name(name),
+        name(std::move(name)),
         moduleDecls(std::move(module_decls)),
         range(range)
     {
@@ -41,9 +42,9 @@ namespace fsharpgrammar
 
     }
 
-    ModuleDeclaration::Open::Open(const std::string& module_name, Range&& range)
+    ModuleDeclaration::Open::Open(std::string module_name, Range&& range)
         :
-        moduleName(module_name),
+        moduleName(std::move(module_name)),
         range(range)
     {
     }
@@ -64,9 +65,9 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Append {}\n", utils::to_string(append.range));
-        for (auto expression : append.expressions)
+        for (const auto& expression : append.expressions)
         {
-            ss << utils::indent_string(fmt::format( "({}\n)\n", utils::to_string(*expression.get())));
+            ss << utils::indent_string(fmt::format( "({}\n)\n", utils::to_string(*expression)));
         }
 
         return ss.str();
@@ -76,7 +77,7 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Tuple {}\n", utils::to_string(tuple.range));
-        for (int i = 0; i < tuple.expressions.size(); ++i)
+        for (size_t i = 0; i < tuple.expressions.size(); ++i)
         {
             ss << utils::indent_string(fmt::format("({}\n)\n", utils::to_string(*tuple.expressions[i].get())));
             if (i < tuple.expressions.size() - 1)
@@ -88,84 +89,97 @@ namespace fsharpgrammar
     std::string to_string(const Expression::OP& op)
     {
         std::string title;
-        std::string separator = "";
+        std::vector<std::string> operators;
         switch (op.type)
         {
         case Expression::OP::Type::LOGICAL:
             title = "Logical";
-            switch (std::get<Expression::OP::LogicalType>(op.st))
+            for (const auto l_op : std::get<std::vector<Expression::OP::LogicalType>>(op.ops))
             {
-            case Expression::OP::LogicalType::AND:
-                separator = "And";
-                break;
-            case Expression::OP::LogicalType::OR:
-                separator = "Or";
-                break;
+                switch (l_op)
+                {
+                case Expression::OP::LogicalType::AND:
+                    operators.push_back("&");
+                    break;
+                case Expression::OP::LogicalType::OR:
+                    operators.push_back("|");
+                    break;
+                }
             }
             break;
         case Expression::OP::Type::EQUALITY:
             title = "Equality";
-            switch (std::get<Expression::OP::EqualityType>(op.st))
+            for (const auto e_op : std::get<std::vector<Expression::OP::EqualityType>>(op.ops))
             {
-            case Expression::OP::EqualityType::EQUAL:
-                separator = "Equal";
-                break;
-            case Expression::OP::EqualityType::NON_EQUAL:
-                separator = "Not-Equal";
-                break;
+                switch (e_op)
+                {
+                case Expression::OP::EqualityType::EQUAL:
+                    operators.push_back("=");
+                    break;
+                case Expression::OP::EqualityType::NOT_EQUAL:
+                    operators.push_back("!=");
+                    break;
+                }
             }
             break;
         case Expression::OP::Type::RELATION:
             title = "Relation";
-            switch (std::get<Expression::OP::RelationType>(op.st))
+            for (const auto r_op : std::get<std::vector<Expression::OP::RelationType>>(op.ops))
             {
-            case Expression::OP::RelationType::LESS:
-                separator = "<";
-                break;
-            case Expression::OP::RelationType::GREATER:
-                separator = ">";
-                break;
-            case Expression::OP::RelationType::LESS_THAN:
-                separator = "<=";
-                break;
-            case Expression::OP::RelationType::GREATE_THAN:
-                separator = ">=";
-                break;
+                switch (r_op)
+                {
+                case Expression::OP::RelationType::LESS:
+                    operators.push_back("<");
+                    break;
+                case Expression::OP::RelationType::GREATER:
+                    operators.push_back(">");
+                    break;
+                case Expression::OP::RelationType::LESS_EQUAL:
+                    operators.push_back("<=");
+                    break;
+                case Expression::OP::RelationType::GREATER_EQUAL:
+                    operators.push_back(">=");
+                    break;
+                }
             }
             break;
         case Expression::OP::Type::ARITHMETIC:
             title = "Arithmetic";
-            switch (std::get<Expression::OP::ArithmeticType>(op.st))
+            for (const auto a_op : std::get<std::vector<Expression::OP::ArithmeticType>>(op.ops))
             {
-            case Expression::OP::ArithmeticType::ADD:
-                separator = "+";
-                break;
-            case Expression::OP::ArithmeticType::SUBTRACT:
-                separator = "-";
-                break;
-            case Expression::OP::ArithmeticType::MULTIPLY:
-                separator = "*";
-                break;
-            case Expression::OP::ArithmeticType::DIVIDE:
-                separator = "/";
-                break;
-            case Expression::OP::ArithmeticType::MODULO:
-                separator = "%";
-                break;
+                switch (a_op)
+                {
+                case Expression::OP::ArithmeticType::ADD:
+                   operators.push_back("+");
+                    break;
+                case Expression::OP::ArithmeticType::SUBTRACT:
+                    operators.push_back("-");
+                    break;
+                case Expression::OP::ArithmeticType::MULTIPLY:
+                    operators.push_back("*");
+                    break;
+                case Expression::OP::ArithmeticType::DIVIDE:
+                    operators.push_back("/");
+                    break;
+                case Expression::OP::ArithmeticType::MODULO:
+                    operators.push_back("%");
+                    break;
+                }
             }
-            break;
         }
 
         std::stringstream ss;
 
         ss << fmt::format("{} {}\n", title, utils::to_string(op.range));
 
-        for (int i = 0; i < op.expressions.size(); ++i)
+        for (size_t i = 0; i < op.expressions.size(); ++i)
         {
-            ss << utils::indent_string(fmt::format("({})\n", utils::to_string(*op.expressions[i].get())));
+            ss << utils::indent_string(
+                fmt::format("({})\n", utils::to_string(*op.expressions[i].get())),
+                2);
             if (i < op.expressions.size() - 1)
             {
-                ss << separator << '\n';
+                ss << '\t' << operators[i] << '\n';
             }
         }
 
@@ -184,13 +198,14 @@ namespace fsharpgrammar
     std::string to_string(const Main& main)
     {
         std::vector<std::string> child_strings;
-        for (auto modules_or_namespace : main.modules_or_namespaces)
+        child_strings.reserve(main.modules_or_namespaces.size());
+        for (const auto& modules_or_namespace : main.modules_or_namespaces)
         {
-            child_strings.push_back(utils::to_string(*modules_or_namespace.get()));
+            child_strings.push_back(utils::to_string(*modules_or_namespace));
         }
         std::stringstream ss;
         ss << "[Main\n";
-        for (auto child_string : child_strings)
+        for (const auto& child_string : child_strings)
         {
             ss << utils::indent_string(child_string);
         }
@@ -214,9 +229,9 @@ namespace fsharpgrammar
             break;
         }
 
-        for (auto module_decl : moduleOrNamespace.moduleDecls)
+        for (const auto& module_decl : moduleOrNamespace.moduleDecls)
         {
-            ss << utils::indent_string(utils::to_string(*module_decl.get()));
+            ss << utils::indent_string(utils::to_string(*module_decl));
         }
         return ss.str();
     }
@@ -225,9 +240,9 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("[Nested Module {} {}\n", nestedModuleDeclaration.name, utils::to_string(nestedModuleDeclaration.range));
-        for (auto module_decl : nestedModuleDeclaration.moduleDecls)
+        for (const auto& module_decl : nestedModuleDeclaration.moduleDecls)
         {
-            ss << utils::indent_string(utils::to_string(*module_decl.get()));
+            ss << utils::indent_string(utils::to_string(*module_decl));
         }
         return ss.str();
     }
