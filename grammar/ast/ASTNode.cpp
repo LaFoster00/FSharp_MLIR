@@ -69,8 +69,11 @@ namespace fsharpgrammar
     {
     }
 
-    Pattern::Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
-    : type(type), patterns(std::move(patterns)), range(std::move(range)) {}
+    Pattern::Pattern(PatternType&& pattern)
+        :
+        pattern(std::move(pattern))
+    {
+    }
 
     Range Expression::get_range() const
     {
@@ -402,21 +405,16 @@ namespace fsharpgrammar
         return "MatchClause\n";
     }
 
-    std::string to_string(const Pattern& pattern)
+    std::string to_string(const Pattern::TuplePattern& tuplePattern)
     {
-        std::stringstream ss;
-        switch (pattern.type)
+        std::stringstream strStr;
+        strStr << fmt::format("TuplePattern {}\n", utils::to_string(tuplePattern.range));
+        for(size_t i = 0; i < tuplePattern.patterns.size(); ++i)
         {
-            case Pattern::Type::TuplePattern:
-                ss << "TuplePattern(";
-            for (const auto& pat : pattern.patterns)
-            {
-                ss << to_string(*pat) << ", ";
-            }
-            ss << ")";
-            break;
-            // handle other pattern types...
+            strStr << utils::indent_string(utils::to_string(*tuplePattern.patterns[i]));
+            if(i < tuplePattern.patterns.size() - 1)
+                strStr << ",\n";
         }
-        return ss.str();
+        return strStr.str();
     }
 } // fsharpgrammar

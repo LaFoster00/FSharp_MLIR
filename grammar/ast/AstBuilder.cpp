@@ -688,22 +688,28 @@ namespace fsharpgrammar
         return make_ast<LongIdent>(std::move(idents), Range::create(context));
     }
 
+    std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)
+    {
+        return context->tuple_pat()->accept(this);
+    }
+
     std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
     {
         std::vector<ast_ptr<Pattern>> patterns;
-        if (context->and_pat().size() > 1)
+        for (auto pat : context->and_pat())
         {
-            for (auto pat : context->and_pat())
-            {
-                auto result = pat->accept(this);
+            std::any result = pat->accept(this);
+            if (result.has_value())
                 patterns.push_back(ast::any_cast<Pattern>(result, context));
-            }
         }
+        if (patterns.size() > 1)
+            return make_ast<Pattern>(
+                Pattern::TuplePattern(
+                    std::move(patterns),
+                    Range::create(context))
+            );
 
-        return make_ast<Pattern>(
-            Pattern::Type::TuplePattern,
-            std::move(patterns),
-            Range::create(context)
-        );
+        return patterns[0];
     }
+
 } // fsharpgrammar

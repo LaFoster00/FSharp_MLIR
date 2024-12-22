@@ -116,8 +116,8 @@ namespace fsharpgrammar
     class Constant;
     class Ident;
     class LongIdent;
-    class Pattern;
     class MatchClause;
+    class Pattern;
 
     class Main : public IASTNode
     {
@@ -664,25 +664,40 @@ namespace fsharpgrammar
     class Pattern : public IASTNode
     {
     public:
-        enum class Type
+        using IPatternType = INodeAlternative;
+
+        struct TuplePattern : IPatternType
         {
-            TuplePattern,
-            AndPattern
+            TuplePattern(std::vector<ast_ptr<Pattern>>&& patterns, const Range&& range)
+                : patterns(std::move(patterns)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const TuplePattern& tuplePattern);
+
+            [[nodiscard]] Range get_range() const override
+            {
+                return range;
+            }
+
+            const std::vector<ast_ptr<Pattern>> patterns;
+            const Range range;
         };
 
-        Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range);
-        ~Pattern() override = default;
+        using PatternType = std::variant<TuplePattern>;
 
-        [[nodiscard]] Range get_range() const override
+    public:
+        explicit Pattern(PatternType&& pattern);
+
+        friend std::string to_string(const Pattern& pattern)
         {
-            return range;
+            return utils::to_string(pattern.pattern);
         }
 
-        friend std::string to_string(const Pattern& pattern);
+        [[nodiscard]] Range get_range() const override;
 
-        const Type type;
-        const std::vector<ast_ptr<Pattern>> patterns;
-        const Range range;
+        const PatternType pattern;
     };
 
     class Type final : public IASTNode
