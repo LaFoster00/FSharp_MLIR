@@ -70,7 +70,7 @@ namespace fsharpgrammar
     }
 
     Pattern::Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
-    : type(type), patterns(std::move(patterns)), range(std::move(range)) {}
+    : type(type), patterns(std::move(patterns)), range(range) {}
 
     Range Expression::get_range() const
     {
@@ -240,10 +240,10 @@ namespace fsharpgrammar
                 switch (l_op)
                 {
                 case Expression::OP::LogicalType::AND:
-                    operators.push_back("&");
+                    operators.emplace_back("&");
                     break;
                 case Expression::OP::LogicalType::OR:
-                    operators.push_back("|");
+                    operators.emplace_back("|");
                     break;
                 }
             }
@@ -255,10 +255,10 @@ namespace fsharpgrammar
                 switch (e_op)
                 {
                 case Expression::OP::EqualityType::EQUAL:
-                    operators.push_back("=");
+                    operators.emplace_back("=");
                     break;
                 case Expression::OP::EqualityType::NOT_EQUAL:
-                    operators.push_back("!=");
+                    operators.emplace_back("!=");
                     break;
                 }
             }
@@ -270,16 +270,16 @@ namespace fsharpgrammar
                 switch (r_op)
                 {
                 case Expression::OP::RelationType::LESS:
-                    operators.push_back("<");
+                    operators.emplace_back("<");
                     break;
                 case Expression::OP::RelationType::GREATER:
-                    operators.push_back(">");
+                    operators.emplace_back(">");
                     break;
                 case Expression::OP::RelationType::LESS_EQUAL:
-                    operators.push_back("<=");
+                    operators.emplace_back("<=");
                     break;
                 case Expression::OP::RelationType::GREATER_EQUAL:
-                    operators.push_back(">=");
+                    operators.emplace_back(">=");
                     break;
                 }
             }
@@ -291,19 +291,19 @@ namespace fsharpgrammar
                 switch (a_op)
                 {
                 case Expression::OP::ArithmeticType::ADD:
-                    operators.push_back("+");
+                    operators.emplace_back("+");
                     break;
                 case Expression::OP::ArithmeticType::SUBTRACT:
-                    operators.push_back("-");
+                    operators.emplace_back("-");
                     break;
                 case Expression::OP::ArithmeticType::MULTIPLY:
-                    operators.push_back("*");
+                    operators.emplace_back("*");
                     break;
                 case Expression::OP::ArithmeticType::DIVIDE:
-                    operators.push_back("/");
+                    operators.emplace_back("/");
                     break;
                 case Expression::OP::ArithmeticType::MODULO:
-                    operators.push_back("%");
+                    operators.emplace_back("%");
                     break;
                 }
             }
