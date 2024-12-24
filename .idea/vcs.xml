@@ -2,9 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/fmt-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/magic_enum-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/antlr4_runtime/src/antlr4_runtime" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/cmake-build-releasewithdebuginfo-wsl/antlr4_runtime/src/antlr4_runtime" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/extern/llvm-project" vcs="Git" />
   </component>
 </project>

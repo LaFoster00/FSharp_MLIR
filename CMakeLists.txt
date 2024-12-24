@@ -63,10 +63,14 @@ build_antlr()
 include_directories(${ANTLR4_INCLUDE_DIRS})
 link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
 
+# cpptrace setup
+include(cmake/cpptrace.cmake)
+
 # Define global utility library resources
 set(FSHARP_MLIR_UTILITY_LIBS
         magic_enum::magic_enum
         fmt::fmt
+        cpptrace::cpptrace
         CACHE INTERNAL "")
 set(FSHARP_MLIR_UTILITY_INCLUDES CACHE INTERNAL "")
 

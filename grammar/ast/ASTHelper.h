@@ -10,6 +10,7 @@
 #include "fmt/format.h"
 
 #include "utils/Utils.h"
+#include "cpptrace/cpptrace.hpp"
 
 
 namespace fsharpgrammar::ast
@@ -29,6 +30,8 @@ namespace fsharpgrammar::ast
                 utils::to_string(Range::create(parserRuleContext)),
                 utils::type_name<T>(),
                 utils::demangle(obj.type().name()));
+            auto stacktrace = cpptrace::generate_trace();
+            stacktrace.print();
             throw antlr4::ParseCancellationException(error_message);
         }
     }
@@ -48,6 +51,8 @@ namespace fsharpgrammar::ast
                 utils::to_string(Range::create(parserRuleContext)),
                 utils::type_name<T>(),
                 utils::demangle(obj.type().name()));
+            auto stacktrace = cpptrace::generate_trace();
+            stacktrace.print();
             throw antlr4::ParseCancellationException(error_message);
         }
     }
