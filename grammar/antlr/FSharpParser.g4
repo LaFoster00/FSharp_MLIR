@@ -138,7 +138,7 @@ let_expr
     ;
 
 binding
-    : (MUTABLE? | REC?) pattern?
+    : (MUTABLE? | REC?) pattern
     ;
 
 body

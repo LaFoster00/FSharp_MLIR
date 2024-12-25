@@ -147,10 +147,12 @@ namespace fsharpgrammar
               range(range)
         {
         }
+
         Ident(const std::string& ident, const Range& range)
             : ident(ident),
               range(range)
-        {}
+        {
+        }
 
         friend std::string to_string(const Ident& ident);
         [[nodiscard]] Range get_range() const override { return range; }
@@ -557,7 +559,8 @@ namespace fsharpgrammar
         {
             Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
                 : constant(std::move(constant))
-            {}
+            {
+            }
 
             friend std::string to_string(const Expression::Constant& constant);
             [[nodiscard]] Range get_range() const override { return constant->get_range(); }
@@ -569,7 +572,8 @@ namespace fsharpgrammar
         {
             Ident(ast_ptr<fsharpgrammar::Ident>&& ident)
                 : ident(std::move(ident))
-            {}
+            {
+            }
 
             friend std::string to_string(const Ident& ident) { return utils::to_string(*ident.ident); }
             [[nodiscard]] Range get_range() const override { return ident->get_range(); }
@@ -581,7 +585,8 @@ namespace fsharpgrammar
         {
             LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& longIdent)
                 : longIdent(std::move(longIdent))
-            {}
+            {
+            }
 
             friend std::string to_string(const LongIdent& ident) { return utils::to_string(*ident.longIdent); }
             [[nodiscard]] Range get_range() const override { return longIdent->get_range(); }
@@ -591,7 +596,9 @@ namespace fsharpgrammar
 
         struct Null : IExpressionType
         {
-            explicit Null(Range&& range) : range(range) {}
+            explicit Null(Range&& range) : range(range)
+            {
+            }
 
             friend std::string to_string(const Null& null) { return "Null"; }
             [[nodiscard]] Range get_range() const override { return range; }
@@ -623,7 +630,9 @@ namespace fsharpgrammar
         struct Array final : IExpressionType
         {
             Array(std::vector<ast_ptr<Expression>>&& expressions, Range&& range)
-                : expressions(std::move(expressions)), range(range) {}
+                : expressions(std::move(expressions)), range(range)
+            {
+            }
 
             friend std::string to_string(const Array& array);
             [[nodiscard]] Range get_range() const override { return range; }
@@ -635,7 +644,9 @@ namespace fsharpgrammar
         struct List final : IExpressionType
         {
             List(std::vector<ast_ptr<Expression>>&& expressions, Range&& range)
-                : expressions(std::move(expressions)), range(range) {}
+                : expressions(std::move(expressions)), range(range)
+            {
+            }
 
             friend std::string to_string(const List& list);
             [[nodiscard]] Range get_range() const override { return range; }
@@ -649,7 +660,9 @@ namespace fsharpgrammar
             New(ast_ptr<fsharpgrammar::Type> type,
                 std::optional<ast_ptr<Expression>>&& expression,
                 Range&& range)
-                    : type(std::move(type)), expression(std::move(expression)), range(range) {}
+                : type(std::move(type)), expression(std::move(expression)), range(range)
+            {
+            }
 
             friend std::string to_string(const New& n);
             [[nodiscard]] Range get_range() const override { return range; }
@@ -669,7 +682,9 @@ namespace fsharpgrammar
                 : condition(std::move(condition)),
                   then(std::move(then)),
                   else_expr(std::move(else_expr)),
-                  range(range) {}
+                  range(range)
+            {
+            }
 
             friend std::string to_string(const IfThenElse& if_then_else);
             [[nodiscard]] Range get_range() const override { return range; }
@@ -689,7 +704,8 @@ namespace fsharpgrammar
                 : expression(std::move(expression)),
                   clauses(std::move(clauses)),
                   range(range)
-            {}
+            {
+            }
 
             friend std::string to_string(const Match& match);
             [[nodiscard]] Range get_range() const override { return range; }
@@ -707,13 +723,127 @@ namespace fsharpgrammar
                 Range&& range)
                 : previous_expression(std::move(previous_expression)),
                   expressions(std::move(expressions)),
-                  range(range) {}
+                  range(range)
+            {
+            }
 
             friend std::string to_string(const PipeRight& right);
             [[nodiscard]] Range get_range() const override { return range; }
 
             const ast_ptr<Expression> previous_expression;
             const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
+
+        struct Let final : IExpressionType
+        {
+            Let(const bool is_mutable,
+                const bool is_recursive,
+                ast_ptr<Pattern>&& args,
+                std::vector<ast_ptr<Expression>>&& expressions,
+                Range&& range)
+                : isMutable(is_mutable),
+                  isRecursive(is_recursive),
+                  args(std::move(args)),
+                  expressions(std::move(expressions)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Let& let);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const bool isMutable;
+            const bool isRecursive;
+            const ast_ptr<Pattern> args;
+            const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
+
+        /// F# syntax: ident.ident...ident <- expr
+        struct LongIdentSet final : IExpressionType
+        {
+            LongIdentSet(
+                ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
+                ast_ptr<Expression>&& expression,
+                Range&& range)
+                : long_ident(std::move(long_ident)),
+                  expression(std::move(expression)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const LongIdentSet& long_ident_set);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<fsharpgrammar::LongIdent> long_ident;
+            const ast_ptr<Expression> expression;
+            const Range range;
+        };
+
+        /// F# syntax: expr <- expr
+        struct Set final : IExpressionType
+        {
+            Set(ast_ptr<Expression>&& target_expression,
+                ast_ptr<Expression>&& expression,
+                Range&& range)
+                : target_expression(std::move(target_expression)),
+                  expression(std::move(expression)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Set& set);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> target_expression;
+            const ast_ptr<Expression> expression;
+            const Range range;
+        };
+
+        /// F# syntax: expr.ident...ident <- expr
+        struct DotSet final : IExpressionType
+        {
+            DotSet(ast_ptr<Expression>&& target_expression,
+                   ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
+                   ast_ptr<Expression>&& expression,
+                   Range&& range)
+                : target_expression(std::move(target_expression)),
+                  long_ident(std::move(long_ident)),
+                  expression(std::move(expression)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const DotSet& dot_set);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> target_expression;
+            const ast_ptr<fsharpgrammar::LongIdent> long_ident;
+            const ast_ptr<Expression> expression;
+            const Range range;
+        };
+
+        /// F# syntax: expr.[expr, ..., expr] <- expr
+        struct DotIndexSet final : IExpressionType
+        {
+            DotIndexSet(ast_ptr<Expression>&& pre_bracket_expression,
+                std::vector<ast_ptr<Expression>>&& bracket_expressions,
+                ast_ptr<Expression>&& expression,
+                Range&& range)
+                : pre_bracket_expression(std::move(pre_bracket_expression)),
+                  bracket_expressions(std::move(bracket_expressions)),
+                  expression(std::move(expression)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const DotIndexSet& dot_index_set);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> pre_bracket_expression;
+            const std::vector<ast_ptr<Expression>> bracket_expressions;
+            const ast_ptr<Expression> expression;
             const Range range;
         };
 
@@ -738,6 +868,10 @@ namespace fsharpgrammar
             IfThenElse,
             Match,
             PipeRight,
+            Let,
+            LongIdentSet,
+            Set,
+            DotSet,
             PlaceholderNodeAlternative>;
 
     public:
@@ -757,14 +891,15 @@ namespace fsharpgrammar
     {
     public:
         MatchClause(ast_ptr<Pattern>&& pattern,
-            std::optional<ast_ptr<Expression>>&& when_expression,
-            std::vector<ast_ptr<Expression>>&& expressions,
-            Range&& range)
+                    std::optional<ast_ptr<Expression>>&& when_expression,
+                    std::vector<ast_ptr<Expression>>&& expressions,
+                    Range&& range)
             : pattern(std::move(pattern)),
               when_expression(std::move(when_expression)),
               expressions(std::move(expressions)),
               range(range)
-        {}
+        {
+        }
 
         friend std::string to_string(const MatchClause& match_clause);
         [[nodiscard]] Range get_range() const override { return range; }
@@ -817,5 +952,4 @@ namespace fsharpgrammar
 
         const Range range;
     };
-
 } // fsharpmlir

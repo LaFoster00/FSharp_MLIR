@@ -515,6 +515,81 @@ namespace fsharpgrammar
         return ss.str();
     }
 
+    std::string to_string(const Expression::Let& let)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Let {}\n", utils::to_string(let.range));
+        auto prefix = let.isMutable ? "mutable" : (let.isRecursive ? "recursive" : "");
+        ss << utils::indent_string(
+            fmt::format("{} {}", prefix, utils::to_string(*let.args))
+        );
+        for (auto &expression : let.expressions)
+        {
+            ss << utils::indent_string(utils::to_string(*expression));
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::LongIdentSet& long_ident_set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Long Ident Set {}", utils::to_string(long_ident_set.range));
+        ss << utils::indent_string(utils::to_string(*long_ident_set.long_ident));
+        ss << "<-\n";
+        ss << utils::indent_string(utils::to_string(*long_ident_set.expression));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Set& set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Set {}", utils::to_string(set.range));
+        ss << utils::indent_string(utils::to_string(*set.target_expression));
+        ss << "<-\n";
+        ss << utils::indent_string(utils::to_string(*set.expression));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::DotSet& dot_set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Dot Set {}", utils::to_string(dot_set.range));
+
+        std::stringstream target;
+        target << utils::indent_string(utils::to_string(*dot_set.target_expression));
+        target << ".\n";
+        target << utils::indent_string(utils::to_string(*dot_set.long_ident));
+
+        ss << utils::indent_string("Target \n" + target.str());
+        ss << "<-";
+        ss << utils::indent_string(utils::to_string(*dot_set.expression));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::DotIndexSet& dot_index_set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Dot Index Set {}", utils::to_string(dot_index_set.range));
+
+        std::stringstream target;
+        target << utils::indent_string(utils::to_string(*dot_index_set.pre_bracket_expression));
+        target << ".\n";
+
+        std::stringstream bracket_expressions;
+        for (auto &bracket_expression : dot_index_set.bracket_expressions)
+        {
+            bracket_expressions << utils::indent_string(utils::to_string(*bracket_expression));
+        }
+        target << utils::indent_string(bracket_expressions.str(),
+            1, true, true, true,
+            "[", "]");
+
+        ss << utils::indent_string("Target \n" + target.str());
+        ss << "<-";
+        ss << utils::indent_string(utils::to_string(*dot_index_set.expression));
+        return ss.str();
+    }
+
     std::string to_string(const MatchClause& match_clause)
     {
         std::stringstream ss;
@@ -524,9 +599,9 @@ namespace fsharpgrammar
         if (match_clause.when_expression.has_value())
             ss << utils::indent_string(
                 fmt::format("when {}",
-                    utils::to_string(*match_clause.when_expression.value())));
+                            utils::to_string(*match_clause.when_expression.value())));
 
-        for (auto &expressions : match_clause.expressions)
+        for (auto& expressions : match_clause.expressions)
         {
             ss << utils::indent_string(utils::to_string(*expressions), 2);
         }
