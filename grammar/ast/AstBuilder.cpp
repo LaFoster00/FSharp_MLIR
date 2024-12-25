@@ -6,6 +6,7 @@
 
 #include "ASTNode.h"
 #include "ASTHelper.h"
+#include "utils/FunctionTimer.h"
 
 namespace fsharpgrammar
 {

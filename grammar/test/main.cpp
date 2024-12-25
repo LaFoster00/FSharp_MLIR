@@ -25,6 +25,7 @@
 #include "ast/Range.h"
 
 #include "fmt/format.h"
+#include "utils/FunctionTimer.h"
 
 using namespace antlr4;
 using namespace fsharpgrammar;
@@ -80,12 +81,14 @@ int main(int , const char **) {
     "\n\tAST Generation Time: {}ms"
     "\n\tAST Printing Time: {}ms"
     "\n\tLexing Time: {}ms"
-    "\n\tParser Time: {}ms",
+    "\n\tParser Time: {}ms\n",
     *ast,
     duration_ast.count(),
     duration_ast_print.count(),
     duration_lexer.count(),
     duration_parser.count());
+
+  FunctionTimer::PrintTimings();
 
   return 0;
 }
