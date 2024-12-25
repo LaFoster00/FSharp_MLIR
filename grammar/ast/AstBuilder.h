@@ -27,7 +27,6 @@ namespace fsharpgrammar {
 
         // Body
         std::any visitMultiline_body(FSharpParser::Multiline_bodyContext* context) override;
-        std::any visitMultiline_match_body(FSharpParser::Multiline_match_bodyContext* context) override;
         std::any visitSingle_line_body(FSharpParser::Single_line_bodyContext* context) override;
 
         // expression
@@ -68,8 +67,13 @@ namespace fsharpgrammar {
         // assignment expression
         std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;
         std::any visitLet_expr(FSharpParser::Let_exprContext* context) override;
+        std::any visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context) override;
+        std::any visitSet_expr(FSharpParser::Set_exprContext* context) override;
+        std::any visitDot_set_expr(FSharpParser::Dot_set_exprContext* context) override;
+        std::any visitDot_index_set_expr(FSharpParser::Dot_index_set_exprContext* context) override;
 
         // pattern
+        std::any visitPattern(FSharpParser::PatternContext* context) override;
         std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
 
         std::any visitType(FSharpParser::TypeContext* context) override;

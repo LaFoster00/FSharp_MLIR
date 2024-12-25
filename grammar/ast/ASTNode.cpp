@@ -491,15 +491,11 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Match {}\n", utils::to_string(match.range));
-        std::stringstream body;
-        body << fmt::format("{}\n", utils::to_string(*match.expression));
-        std::stringstream args;
+        ss << utils::indent_string(fmt::format("{}\n", utils::to_string(*match.expression)));
         for (auto& clause : match.clauses)
         {
-            args << utils::to_string(*clause);
+            ss << utils::indent_string(utils::to_string(*clause), 1, false);
         }
-        body << args.str();
-        ss << utils::indent_string(body.str());
         return ss.str();
     }
 
@@ -593,7 +589,7 @@ namespace fsharpgrammar
     std::string to_string(const MatchClause& match_clause)
     {
         std::stringstream ss;
-        ss << fmt::format("| {}\n", utils::to_string(match_clause.range));
+        ss << fmt::format("| Match Clause {}\n", utils::to_string(match_clause.range));
         ss << utils::indent_string(utils::to_string(*match_clause.pattern));
 
         if (match_clause.when_expression.has_value())
@@ -603,7 +599,7 @@ namespace fsharpgrammar
 
         for (auto& expressions : match_clause.expressions)
         {
-            ss << utils::indent_string(utils::to_string(*expressions), 2);
+            ss << utils::indent_string(utils::to_string(*expressions), 1);
         }
 
         return ss.str();
@@ -622,6 +618,8 @@ namespace fsharpgrammar
             }
             ss << ")";
             break;
+            default:
+                ss << "Pattern";
         // handle other pattern types...
         }
         return ss.str();

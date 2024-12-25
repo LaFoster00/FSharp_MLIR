@@ -28,7 +28,7 @@ namespace fsharpgrammar::ast
                 "AST Building exception at \"{}\" {} expected {} but got {} instead",
                 parserRuleContext->start->getText(),
                 utils::to_string(Range::create(parserRuleContext)),
-                utils::type_name<T>(),
+                utils::type_name<std::shared_ptr<T>>(),
                 utils::demangle(obj.type().name()));
             auto stacktrace = cpptrace::generate_trace();
             stacktrace.print();

@@ -110,17 +110,20 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitMultiline_body(FSharpParser::Multiline_bodyContext* context)
     {
-        return std::vector<ast_ptr<Expression>>();
-    }
-
-    std::any AstBuilder::visitMultiline_match_body(FSharpParser::Multiline_match_bodyContext* context)
-    {
-        return std::vector<ast_ptr<Expression>>();
+        std::vector<ast_ptr<Expression>> expressions;
+        for (auto sequential_stmt : context->sequential_stmt())
+        {
+            if (sequential_stmt->expression().size() > 0)
+                expressions.push_back(ast::any_cast<Expression>(sequential_stmt->accept(this), context));
+        }
+        return expressions;
     }
 
     std::any AstBuilder::visitSingle_line_body(FSharpParser::Single_line_bodyContext* context)
     {
-        return std::vector<ast_ptr<Expression>>();
+        std::vector<ast_ptr<Expression>> expressions;
+        expressions.push_back(ast::any_cast<Expression>(context->inline_sequential_stmt()->accept(this), context));
+        return expressions;
     }
 
     std::any AstBuilder::visitSequential_stmt(FSharpParser::Sequential_stmtContext* context)
@@ -638,18 +641,68 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
     {
-        switch (context->getRuleIndex())
-        {
-        case 0:
-            return context->let_expr()->accept(this);
-        default:
-            return make_ast<Expression>(PlaceholderNodeAlternative("Assignment Expr"));
-        }
+        return context->children[0]->accept(this);
     }
 
     std::any AstBuilder::visitLet_expr(FSharpParser::Let_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Let Expr"));
+        auto binding = ast::any_cast<Pattern>(context->binding()->accept(this), context);
+        auto expressions = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body()->accept(this));
+        return make_ast<Expression>(
+            Expression::Let(
+                context->binding()->MUTABLE() != nullptr,
+                context->binding()->REC() != nullptr,
+                std::move(binding),
+                std::move(expressions),
+                Range::create(context))
+            );
+    }
+
+    std::any AstBuilder::visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Long Ident Set Expr"));
+    }
+
+    std::any AstBuilder::visitSet_expr(FSharpParser::Set_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Set Expr"));
+    }
+
+    std::any AstBuilder::visitDot_set_expr(FSharpParser::Dot_set_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Dot Set Expr Expr"));
+    }
+
+    std::any AstBuilder::visitDot_index_set_expr(FSharpParser::Dot_index_set_exprContext* context)
+    {
+        return make_ast<Expression>(PlaceholderNodeAlternative("Dot Index Set Expr"));
+    }
+
+    std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)
+    {
+        return make_ast<Pattern>(
+            Pattern::Type::AndPattern,
+            std::vector<ast_ptr<Pattern>>{},
+            Range::create(context));
+    }
+
+    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        if (context->and_pat().size() > 1)
+        {
+            for (auto pat : context->and_pat())
+            {
+                auto result = pat->accept(this);
+                patterns.push_back(ast::any_cast<Pattern>(result, context));
+            }
+        }
+
+        return make_ast<Pattern>(
+            Pattern::Type::TuplePattern,
+            std::move(patterns),
+            Range::create(context)
+        );
     }
 
     std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
@@ -686,24 +739,5 @@ namespace fsharpgrammar
             idents.push_back(ast::any_cast<Ident>(ident->accept(this), context));
         }
         return make_ast<LongIdent>(std::move(idents), Range::create(context));
-    }
-
-    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
-    {
-        std::vector<ast_ptr<Pattern>> patterns;
-        if (context->and_pat().size() > 1)
-        {
-            for (auto pat : context->and_pat())
-            {
-                auto result = pat->accept(this);
-                patterns.push_back(ast::any_cast<Pattern>(result, context));
-            }
-        }
-
-        return make_ast<Pattern>(
-            Pattern::Type::TuplePattern,
-            std::move(patterns),
-            Range::create(context)
-        );
     }
 } // fsharpgrammar

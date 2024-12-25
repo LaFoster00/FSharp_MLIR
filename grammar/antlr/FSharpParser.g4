@@ -143,7 +143,6 @@ binding
 
 body
     : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
-    | NEWLINE PIPE sequential_stmt+ #multiline_match_body
     | inline_sequential_stmt #single_line_body
     ;
 
