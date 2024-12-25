@@ -294,7 +294,7 @@ list_expr
 
 new_expr
     /// F# syntax: new C(...)
-    : NEW type OPEN_PAREN expression CLOSE_PAREN
+    : NEW type OPEN_PAREN expression? CLOSE_PAREN
     ;
 
 if_then_else_expr

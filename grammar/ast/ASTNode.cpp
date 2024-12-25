@@ -70,7 +70,9 @@ namespace fsharpgrammar
     }
 
     Pattern::Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
-    : type(type), patterns(std::move(patterns)), range(range) {}
+        : type(type), patterns(std::move(patterns)), range(range)
+    {
+    }
 
     Range Expression::get_range() const
     {
@@ -149,12 +151,12 @@ namespace fsharpgrammar
         if (constant.value.has_value())
         {
             auto value = std::visit(utils::overloaded{
-                           [](const int32_t i) { return std::to_string(i); },
-                           [](const float_t f) { return std::to_string(f); },
-                           [](const std::string& s) { return s; },
-                           [](const char8_t c) { return std::to_string(c); },
-                           [](const bool b) { return std::to_string(b); },
-                       }, constant.value.value());
+                                        [](const int32_t i) { return std::to_string(i); },
+                                        [](const float_t f) { return std::to_string(f); },
+                                        [](const std::string& s) { return s; },
+                                        [](const char8_t c) { return std::to_string(c); },
+                                        [](const bool b) { return std::to_string(b); },
+                                    }, constant.value.value());
             ss << utils::indent_string(value + '\n', 1, false);
         }
         else
@@ -168,8 +170,8 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Ident {}\n{}",
-            utils::to_string(ident.range.start()),
-            utils::indent_string(ident.ident, 1, false));
+                          utils::to_string(ident.range.start()),
+                          utils::indent_string(ident.ident, 1, false));
         return ss.str();
     }
 
@@ -392,14 +394,144 @@ namespace fsharpgrammar
         return utils::to_string(*constant.constant);
     }
 
+    std::string to_string(const Expression::Record& record)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Record {}\n", utils::to_string(record.range));
+
+        std::stringstream args;
+        for (auto& [ident, expression] : record.fields)
+        {
+            args << fmt::format("{}={}",
+                                utils::to_string(*ident),
+                                utils::to_string(*expression));
+        }
+        ss << utils::indent_string(
+            args.str(),
+            1,
+            true,
+            true,
+            true,
+            "{",
+            "}");
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Array& array)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Array {}\n", utils::to_string(array.range));
+
+        std::stringstream args;
+        for (const auto& expression : array.expressions)
+        {
+            ss << utils::to_string(*expression) << '\n';
+        }
+        ss << utils::indent_string(
+            args.str(),
+            1,
+            true,
+            true,
+            true,
+            "[",
+            "]");
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::List& list)
+    {
+        std::stringstream ss;
+        ss << fmt::format("List {}\n", utils::to_string(list.range));
+
+        std::stringstream args;
+        for (const auto& expression : list.expressions)
+        {
+            ss << utils::to_string(*expression) << '\n';
+        }
+        ss << utils::indent_string(
+            args.str(),
+            1,
+            true,
+            true,
+            true,
+            "[|",
+            "|]");
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::New& n)
+    {
+        std::stringstream ss;
+        ss << fmt::format("New {}\n", utils::to_string(n.range));
+        ss << utils::indent_string(
+            fmt::format("new \n{}",
+                        utils::to_string(*n.type)));
+        if (n.expression.has_value())
+            ss << utils::indent_string(utils::to_string(*n.expression.value()));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::IfThenElse& if_then_else)
+    {
+        std::stringstream ss;
+        ss << fmt::format("New {}\n", utils::to_string(if_then_else.range));
+        std::stringstream args;
+        args << fmt::format("if\n{}then\n{}",
+                            utils::to_string(*if_then_else.condition),
+                            utils::to_string(*if_then_else.then));
+        if (if_then_else.else_expr.has_value())
+        {
+            args << utils::to_string(*if_then_else.else_expr.value());
+        }
+        ss << utils::indent_string(args.str());
+        return ss.str();
+    }
+
     std::string to_string(const Expression::Match& match)
     {
-        return "Match";
+        std::stringstream ss;
+        ss << fmt::format("Match {}\n", utils::to_string(match.range));
+        std::stringstream body;
+        body << fmt::format("{}\n", utils::to_string(*match.expression));
+        std::stringstream args;
+        for (auto& clause : match.clauses)
+        {
+            args << utils::to_string(*clause);
+        }
+        body << args.str();
+        ss << utils::indent_string(body.str());
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::PipeRight& right)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Pipe Right {}^\n", utils::to_string(right.range));
+        for (auto& expression : right.expressions)
+        {
+            ss << utils::indent_string(utils::to_string(*expression));
+        }
+
+        return ss.str();
     }
 
     std::string to_string(const MatchClause& match_clause)
     {
-        return "MatchClause\n";
+        std::stringstream ss;
+        ss << fmt::format("| {}\n", utils::to_string(match_clause.range));
+        ss << utils::indent_string(utils::to_string(*match_clause.pattern));
+
+        if (match_clause.when_expression.has_value())
+            ss << utils::indent_string(
+                fmt::format("when {}",
+                    utils::to_string(*match_clause.when_expression.value())));
+
+        for (auto &expressions : match_clause.expressions)
+        {
+            ss << utils::indent_string(utils::to_string(*expressions), 2);
+        }
+
+        return ss.str();
     }
 
     std::string to_string(const Pattern& pattern)
@@ -407,15 +539,15 @@ namespace fsharpgrammar
         std::stringstream ss;
         switch (pattern.type)
         {
-            case Pattern::Type::TuplePattern:
-                ss << "TuplePattern(";
+        case Pattern::Type::TuplePattern:
+            ss << "TuplePattern(";
             for (const auto& pat : pattern.patterns)
             {
                 ss << to_string(*pat) << ", ";
             }
             ss << ")";
             break;
-            // handle other pattern types...
+        // handle other pattern types...
         }
         return ss.str();
     }

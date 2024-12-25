@@ -589,6 +589,97 @@ namespace fsharpgrammar
             const ast_ptr<fsharpgrammar::LongIdent> longIdent;
         };
 
+        struct Null : IExpressionType
+        {
+            explicit Null(Range&& range) : range(range) {}
+
+            friend std::string to_string(const Null& null) { return "Null"; }
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const Range range;
+        };
+
+        struct Record final : IExpressionType
+        {
+            struct Field
+            {
+                ast_ptr<fsharpgrammar::Ident> ident;
+                ast_ptr<Expression> expression;
+            };
+
+            Record(std::vector<Field>&& fields, Range&& range)
+                : fields(std::move(fields)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Record& record);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<Field> fields;
+            const Range range;
+        };
+
+        struct Array final : IExpressionType
+        {
+            Array(std::vector<ast_ptr<Expression>>&& expressions, Range&& range)
+                : expressions(std::move(expressions)), range(range) {}
+
+            friend std::string to_string(const Array& array);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
+
+        struct List final : IExpressionType
+        {
+            List(std::vector<ast_ptr<Expression>>&& expressions, Range&& range)
+                : expressions(std::move(expressions)), range(range) {}
+
+            friend std::string to_string(const List& list);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
+
+        struct New final : IExpressionType
+        {
+            New(ast_ptr<fsharpgrammar::Type> type,
+                std::optional<ast_ptr<Expression>>&& expression,
+                Range&& range)
+                    : type(std::move(type)), expression(std::move(expression)), range(range) {}
+
+            friend std::string to_string(const New& n);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<fsharpgrammar::Type> type;
+            const std::optional<ast_ptr<Expression>> expression;
+            const Range range;
+        };
+
+        struct IfThenElse final : IExpressionType
+        {
+            IfThenElse(
+                ast_ptr<Expression>&& condition,
+                ast_ptr<Expression>&& then,
+                std::optional<ast_ptr<Expression>>&& else_expr,
+                Range&& range)
+                : condition(std::move(condition)),
+                  then(std::move(then)),
+                  else_expr(std::move(else_expr)),
+                  range(range) {}
+
+            friend std::string to_string(const IfThenElse& if_then_else);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> condition;
+            const ast_ptr<Expression> then;
+            const std::optional<ast_ptr<Expression>> else_expr;
+            const Range range;
+        };
+
         struct Match : IExpressionType
         {
             Match(
@@ -608,6 +699,23 @@ namespace fsharpgrammar
             const Range range;
         };
 
+        struct PipeRight final : IExpressionType
+        {
+            PipeRight(
+                ast_ptr<Expression>&& previous_expression,
+                std::vector<ast_ptr<Expression>>&& expressions,
+                Range&& range)
+                : previous_expression(std::move(previous_expression)),
+                  expressions(std::move(expressions)),
+                  range(range) {}
+
+            friend std::string to_string(const PipeRight& right);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Expression> previous_expression;
+            const std::vector<ast_ptr<Expression>> expressions;
+            const Range range;
+        };
 
         using ExpressionType = std::variant<
             Sequential,
@@ -622,7 +730,14 @@ namespace fsharpgrammar
             Constant,
             Ident,
             LongIdent,
+            Null,
+            Record,
+            Array,
+            List,
+            New,
+            IfThenElse,
             Match,
+            PipeRight,
             PlaceholderNodeAlternative>;
 
     public:
