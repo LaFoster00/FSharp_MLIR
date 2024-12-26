@@ -20,7 +20,7 @@ namespace fsharpgrammar
 
     ModuleOrNamespace::ModuleOrNamespace(
         const Type type,
-        std::optional<std::string> name,
+        std::optional<ast_ptr<LongIdent>> name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
         Range&& range)
         :
@@ -32,7 +32,7 @@ namespace fsharpgrammar
     }
 
     ModuleDeclaration::NestedModule::NestedModule(
-        std::string name,
+        ast_ptr<LongIdent> name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
         Range&& range):
         name(std::move(name)),
@@ -50,7 +50,7 @@ namespace fsharpgrammar
     {
     }
 
-    ModuleDeclaration::Open::Open(std::string module_name, Range&& range)
+    ModuleDeclaration::Open::Open(ast_ptr<LongIdent> module_name, Range&& range)
         :
         moduleName(std::move(module_name)),
         range(range)
@@ -104,14 +104,14 @@ namespace fsharpgrammar
         switch (moduleOrNamespace.type)
         {
         case ModuleOrNamespace::Type::NamedModule:
-            ss << fmt::format("Module {} {}\n", moduleOrNamespace.name.value(),
+            ss << fmt::format("Module {} {}\n", utils::to_string(*moduleOrNamespace.name.value()),
                               utils::to_string(moduleOrNamespace.range));
             break;
         case ModuleOrNamespace::Type::AnonymousModule:
             ss << fmt::format("AnonymousModule {}\n", utils::to_string(moduleOrNamespace.range));
             break;
         case ModuleOrNamespace::Type::Namespace:
-            ss << fmt::format("Namespace {} {}\n", moduleOrNamespace.name.value(),
+            ss << fmt::format("Namespace {} {}\n", utils::to_string(*moduleOrNamespace.name.value()),
                               utils::to_string(moduleOrNamespace.range));
             break;
         }
@@ -126,7 +126,7 @@ namespace fsharpgrammar
     std::string to_string(const ModuleDeclaration::NestedModule& nestedModuleDeclaration)
     {
         std::stringstream ss;
-        ss << fmt::format("[Nested Module {} {}\n", nestedModuleDeclaration.name,
+        ss << fmt::format("[Nested Module {} {}\n", utils::to_string(*nestedModuleDeclaration.name),
                           utils::to_string(nestedModuleDeclaration.range));
         for (const auto& module_decl : nestedModuleDeclaration.moduleDecls)
         {
@@ -334,8 +334,9 @@ namespace fsharpgrammar
     std::string to_string(const Expression::DotGet& dot_get)
     {
         std::stringstream ss;
-        ss << ".Get\n";
+        ss << "Dot Get\n";
         ss << utils::indent_string(utils::to_string(*dot_get.expression));
+        ss << utils::indent_string(utils::to_string(*dot_get.identifier));
         return ss.str();
     }
 
@@ -502,10 +503,10 @@ namespace fsharpgrammar
     std::string to_string(const Expression::PipeRight& right)
     {
         std::stringstream ss;
-        ss << fmt::format("Pipe Right {}^\n", utils::to_string(right.range));
+        ss << fmt::format("Pipe Right {}\n", utils::to_string(right.range));
         for (auto& expression : right.expressions)
         {
-            ss << utils::indent_string(utils::to_string(*expression));
+            ss << utils::indent_string("|>" + utils::to_string(*expression));
         }
 
         return ss.str();

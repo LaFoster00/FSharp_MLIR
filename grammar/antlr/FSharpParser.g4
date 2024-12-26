@@ -167,16 +167,16 @@ dot_index_set_expr
     ;
 
 non_assigment_expr
-    : app_expr
-    ;
-
-app_expr
-    : tuple_expr tuple_expr*
+    : tuple_expr
     ;
 
 tuple_expr
     /// F# syntax: e1, ..., eN
-    : or_expr (COMMA or_expr)*
+    : app_expr (COMMA app_expr)*
+    ;
+
+app_expr
+    : or_expr or_expr*
     ;
 
 or_expr

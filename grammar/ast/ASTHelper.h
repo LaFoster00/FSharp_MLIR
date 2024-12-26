@@ -56,8 +56,5 @@ namespace fsharpgrammar::ast
             throw antlr4::ParseCancellationException(error_message);
         }
     }
-
-    std::string to_string(FSharpParser::Long_identContext* context);
-    std::string to_string(FSharpParser::IdentContext* context);
 }
 

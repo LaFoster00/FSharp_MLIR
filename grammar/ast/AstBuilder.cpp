@@ -45,7 +45,7 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::AnonymousModule,
-            std::optional<std::string>{},
+            std::optional<ast_ptr<LongIdent>>{},
             get_module_declarations(context->module_decl(), context, this),
             Range::create(context));
     }
@@ -54,7 +54,7 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::NamedModule,
-            ast::to_string(context->long_ident()),
+            ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
             get_module_declarations(context->module_decl(), context, this),
             Range::create(context));
     }
@@ -63,7 +63,7 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::Namespace,
-            ast::to_string(ctx->long_ident()),
+            ast::any_cast<LongIdent>(ctx->long_ident()->accept(this), ctx),
             get_module_declarations(ctx->module_decl(), ctx, this),
             Range::create(ctx));
     }
@@ -78,7 +78,7 @@ namespace fsharpgrammar
         }
 
         ModuleDeclaration::NestedModule nested_module(
-            ast::to_string(context->long_ident()),
+            ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
             std::move(module_declarations),
             Range::create(context));
 
@@ -105,7 +105,7 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleDeclaration>(
             ModuleDeclaration::Open(
-                ast::to_string(context->long_ident()),
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
                 Range::create(context)));
     }
 
@@ -114,7 +114,7 @@ namespace fsharpgrammar
         std::vector<ast_ptr<Expression>> expressions;
         for (auto sequential_stmt : context->sequential_stmt())
         {
-            if (sequential_stmt->expression().size() > 0)
+            if (!sequential_stmt->expression().empty())
                 expressions.push_back(ast::any_cast<Expression>(sequential_stmt->accept(this), context));
         }
         return expressions;
@@ -160,13 +160,13 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context)
     {
-        return context->app_expr()->accept(this);
+        return context->tuple_expr()->accept(this);
     }
 
     std::any AstBuilder::visitApp_expr(FSharpParser::App_exprContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto tuple_expr : context->tuple_expr())
+        for (auto tuple_expr : context->or_expr())
         {
             auto result = tuple_expr->accept(this);
             if (result.has_value())
@@ -185,7 +185,7 @@ namespace fsharpgrammar
     std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto expr : context->or_expr())
+        for (auto expr : context->app_expr())
         {
             std::any result = expr->accept(this);
             if (result.has_value())
@@ -462,7 +462,7 @@ namespace fsharpgrammar
                 return make_ast<Expression>(
                     Expression::DotGet(
                         ast::any_cast<Expression>(result, context),
-                        ast::to_string(context->long_ident()),
+                        ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
                         Range::create(context)
                     )
                 );
@@ -637,7 +637,12 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitPipe_right_expr(FSharpParser::Pipe_right_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Pipe Right Expr"));
+        auto previous_expression = std::shared_ptr<Expression>(nullptr);
+        return make_ast<Expression>(Expression::PipeRight(
+                std::move(previous_expression),
+                std::any_cast<std::vector<ast_ptr<Expression>>>(context->body()->accept(this)),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
@@ -656,27 +661,62 @@ namespace fsharpgrammar
                 std::move(binding),
                 std::move(expressions),
                 Range::create(context))
-            );
+        );
     }
 
     std::any AstBuilder::visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Long Ident Set Expr"));
+        auto long_ident = ast::any_cast<LongIdent>(context->long_ident()->accept(this), context);
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        return make_ast<Expression>(Expression::LongIdentSet(
+                std::move(long_ident),
+                std::move(expression),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitSet_expr(FSharpParser::Set_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Set Expr"));
+        auto target_expression = ast::any_cast<Expression>(context->atomic_expr()->accept(this), context);
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        return make_ast<Expression>(Expression::Set(
+                std::move(target_expression),
+                std::move(expression),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitDot_set_expr(FSharpParser::Dot_set_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Dot Set Expr Expr"));
+        auto target_expression = ast::any_cast<Expression>(context->atomic_expr()->accept(this), context);
+        auto long_ident = ast::any_cast<LongIdent>(context->long_ident()->accept(this), context);
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        return make_ast<Expression>(Expression::DotSet(
+                std::move(target_expression),
+                std::move(long_ident),
+                std::move(expression),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitDot_index_set_expr(FSharpParser::Dot_index_set_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Dot Index Set Expr"));
+        auto pre_bracket_expressions = ast::any_cast<Expression>(context->atomic_expr()->accept(this), context);
+        std::vector<ast_ptr<Expression>> bracket_expressions;
+        for (auto expression : context->expression())
+        {
+            if (expression == context->expression().back())
+                continue;
+            bracket_expressions.push_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        auto expression = ast::any_cast<Expression>(context->expression().back()->accept(this), context);
+
+        return make_ast<Expression>(Expression::DotIndexSet(
+                std::move(pre_bracket_expressions),
+                std::move(bracket_expressions),
+                std::move(expression),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)

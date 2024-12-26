@@ -218,7 +218,7 @@ namespace fsharpgrammar
     public:
         ModuleOrNamespace(
             Type type,
-            std::optional<std::string> name,
+            std::optional<ast_ptr<LongIdent>> name,
             std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
             Range&& range);
         ~ModuleOrNamespace() override = default;
@@ -231,7 +231,7 @@ namespace fsharpgrammar
         friend std::string to_string(const ModuleOrNamespace& moduleOrNamespace);
 
         const Type type;
-        const std::optional<std::string> name;
+        const std::optional<ast_ptr<LongIdent>> name;
         const std::vector<ast_ptr<ModuleDeclaration>> moduleDecls;
         const Range range;
     };
@@ -242,7 +242,7 @@ namespace fsharpgrammar
         struct NestedModule : INodeAlternative
         {
             NestedModule(
-                std::string name,
+                ast_ptr<LongIdent> name,
                 std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
                 Range&& range);
 
@@ -253,7 +253,7 @@ namespace fsharpgrammar
                 return range;
             }
 
-            const std::string name;
+            const ast_ptr<LongIdent> name;
             const std::vector<ast_ptr<ModuleDeclaration>> moduleDecls;
             const Range range;
         };
@@ -280,11 +280,11 @@ namespace fsharpgrammar
 
         struct Open : INodeAlternative
         {
-            Open(std::string module_name, Range&& range);
+            Open(ast_ptr<LongIdent> module_name, Range&& range);
 
             friend std::string to_string(const Open& open)
             {
-                return "Open " + open.moduleName;
+                return "Open " + utils::to_string(*open.moduleName);
             }
 
             [[nodiscard]] Range get_range() const override
@@ -292,14 +292,14 @@ namespace fsharpgrammar
                 return range;
             }
 
-            const std::string moduleName;
+            const ast_ptr<LongIdent> moduleName;
             const Range range;
         };
 
         using ModuleDeclarationType = std::variant<NestedModule, Expression, Open>;
 
     public:
-        ModuleDeclaration(ModuleDeclarationType&& declaration);
+        explicit ModuleDeclaration(ModuleDeclarationType&& declaration);
 
         [[nodiscard]] Range get_range() const override
         {
@@ -453,7 +453,7 @@ namespace fsharpgrammar
         {
             DotGet(
                 ast_ptr<Expression>&& expression,
-                const std::string& identifier,
+                ast_ptr<LongIdent>&& identifier,
                 const Range&& range)
                 : expression(std::move(expression)),
                   identifier(identifier),
@@ -469,7 +469,7 @@ namespace fsharpgrammar
             }
 
             const ast_ptr<Expression> expression;
-            const std::string identifier;
+            const ast_ptr<LongIdent> identifier;
             const Range range;
         };
 
@@ -872,6 +872,7 @@ namespace fsharpgrammar
             LongIdentSet,
             Set,
             DotSet,
+            DotIndexSet,
             PlaceholderNodeAlternative>;
 
     public:
