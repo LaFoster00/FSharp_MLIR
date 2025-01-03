@@ -4,27 +4,6 @@ open FSharp.Compiler.Text
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Tokenization
 
-a | b & 10 = d != e < f <= g > h >= i + j - k * l / m % n
-a.[10]
-
-let a: int = 10 * 10
-let b =
-    let c =
-        10 + 10
-    c + 10
-let c: float = float(10 + 20 * 30 - 50)
-
-let d = if 10 > 20 then 30 else 40
-let e =
-    if 10 > 20 then
-        30
-    else
-        40
-
-let f x y z = x + y + z
-let g = f 10 e 30
-
-
 let getSourceTokenizer (file, input) =
     let sourceTok = FSharpSourceTokenizer([], file, None, Some true)
     let tokenizer = sourceTok.CreateLineTokenizer(input)
@@ -97,31 +76,3 @@ lines
 // Inspect the syntax tree
 getUntypedTree (filePath, fileContents)
 |> printAst
-
-//Pattern matching
-let tuple_pat = (1, "hello", true)
-match tuple_pat with
-| (1, "hello", true) -> printfn "Matched tuple (1, \"hello\", true)"
-| _ -> printfn "No match"
-
-let and_pat = (1, "hello", 3)
-match and_pat with
-| (1, "hello", 3) & (1, _, _) -> printfn "Matched first part and second part"
-| _ -> printfn "No match"
-
-let or_pat = "apple"
-match or_pat with
-| "apple" | "banana" -> printfn "Matched apple or banana"
-| _ -> printfn "No match"
-
-let as_pat = Some(10)
-match as_pat with
-| Some x as value -> printfn "Matched Some with value: %d, full match: %A" x value
-| None -> printfn "Matched None"
-
-let cons_pat = [1; 2; 3]
-match cons_pat with
-| 1 :: tail -> printfn "Matched 1 as head, and tail is: %A" tail
-| _ -> printfn "No match"
-
-if 10 < 20 then printfn "Hello World"
