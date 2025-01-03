@@ -57,7 +57,7 @@ namespace utils
         bool first_line = true;
         while (std::getline(stream, line))
         {
-            if (!line.empty())
+            if (!line.empty() || first_line)
             {
                 if (first_line)
                 {

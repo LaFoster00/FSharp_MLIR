@@ -2,6 +2,7 @@
 cmake-build-debug-wsl/
 cmake-build-releasewithdebuginfo-wsl/
 cmake-build-debug/
+cmake-build*/
 gen/
 *.tokens
 

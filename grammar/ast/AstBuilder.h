@@ -56,6 +56,7 @@ namespace fsharpgrammar {
         std::any visitLong_ident_expr(FSharpParser::Long_ident_exprContext* context) override;
         std::any visitNull_expr(FSharpParser::Null_exprContext* context) override;
         std::any visitRecord_expr(FSharpParser::Record_exprContext* context) override;
+        std::any visitRecord_expr_field(FSharpParser::Record_expr_fieldContext* context) override;
         std::any visitArray_expr(FSharpParser::Array_exprContext* context) override;
         std::any visitList_expr(FSharpParser::List_exprContext* context) override;
         std::any visitNew_expr(FSharpParser::New_exprContext* context) override;

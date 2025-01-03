@@ -311,12 +311,12 @@ namespace fsharpgrammar
         const ModuleDeclarationType declaration;
     };
 
-    class Expression : public IASTNode
+    class Expression final : public IASTNode
     {
     public:
         using IExpressionType = INodeAlternative;
 
-        struct Sequential : IExpressionType
+        struct Sequential final : IExpressionType
         {
             Sequential(
                 std::vector<ast_ptr<Expression>>&& expressions,
@@ -342,7 +342,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct Append : IExpressionType
+        struct Append final : IExpressionType
         {
             Append(std::vector<ast_ptr<Expression>>&& expressions, const Range&& range)
                 : expressions(std::move(expressions)),
@@ -361,7 +361,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct Tuple : IExpressionType
+        struct Tuple final : IExpressionType
         {
             Tuple(std::vector<ast_ptr<Expression>>&& expressions, const Range&& range)
                 : expressions(std::move(expressions)),
@@ -380,7 +380,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct OP : IExpressionType
+        struct OP final : IExpressionType
         {
             enum class Type
             {
@@ -449,7 +449,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct DotGet : IExpressionType
+        struct DotGet final : IExpressionType
         {
             DotGet(
                 ast_ptr<Expression>&& expression,
@@ -473,7 +473,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct DotIndexedGet : IExpressionType
+        struct DotIndexedGet final : IExpressionType
         {
             DotIndexedGet(
                 ast_ptr<Expression>&& base_expression,
@@ -539,7 +539,7 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct Paren : IExpressionType
+        struct Paren final : IExpressionType
         {
             Paren(ast_ptr<Expression>&& expression, const Range&& range)
                 : expression(std::move(expression)),
@@ -555,9 +555,9 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        struct Constant : IExpressionType
+        struct Constant final : IExpressionType
         {
-            Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
+            explicit Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
                 : constant(std::move(constant))
             {
             }
@@ -568,9 +568,9 @@ namespace fsharpgrammar
             const ast_ptr<fsharpgrammar::Constant> constant;
         };
 
-        struct Ident : IExpressionType
+        struct Ident final : IExpressionType
         {
-            Ident(ast_ptr<fsharpgrammar::Ident>&& ident)
+            explicit Ident(ast_ptr<fsharpgrammar::Ident>&& ident)
                 : ident(std::move(ident))
             {
             }
@@ -581,9 +581,9 @@ namespace fsharpgrammar
             const ast_ptr<fsharpgrammar::Ident> ident;
         };
 
-        struct LongIdent : IExpressionType
+        struct LongIdent final : IExpressionType
         {
-            LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& longIdent)
+            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& longIdent)
                 : longIdent(std::move(longIdent))
             {
             }
@@ -594,7 +594,7 @@ namespace fsharpgrammar
             const ast_ptr<fsharpgrammar::LongIdent> longIdent;
         };
 
-        struct Null : IExpressionType
+        struct Null final : IExpressionType
         {
             explicit Null(Range&& range) : range(range)
             {
@@ -657,7 +657,7 @@ namespace fsharpgrammar
 
         struct New final : IExpressionType
         {
-            New(ast_ptr<fsharpgrammar::Type> type,
+            New(ast_ptr<fsharpgrammar::Type>&& type,
                 std::optional<ast_ptr<Expression>>&& expression,
                 Range&& range)
                 : type(std::move(type)), expression(std::move(expression)), range(range)
@@ -676,8 +676,8 @@ namespace fsharpgrammar
         {
             IfThenElse(
                 ast_ptr<Expression>&& condition,
-                ast_ptr<Expression>&& then,
-                std::optional<ast_ptr<Expression>>&& else_expr,
+                std::vector<ast_ptr<Expression>>&& then,
+                std::optional<std::vector<ast_ptr<Expression>>>&& else_expr,
                 Range&& range)
                 : condition(std::move(condition)),
                   then(std::move(then)),
@@ -690,12 +690,12 @@ namespace fsharpgrammar
             [[nodiscard]] Range get_range() const override { return range; }
 
             const ast_ptr<Expression> condition;
-            const ast_ptr<Expression> then;
-            const std::optional<ast_ptr<Expression>> else_expr;
+            const std::vector<ast_ptr<Expression>> then;
+            const std::optional<std::vector<ast_ptr<Expression>>> else_expr;
             const Range range;
         };
 
-        struct Match : IExpressionType
+        struct Match final : IExpressionType
         {
             Match(
                 ast_ptr<Expression>&& expression,

@@ -570,32 +570,86 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNull_expr(FSharpParser::Null_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Null Expr"));
+        return make_ast<Expression>(Expression::Null(Range::create(context)));
     }
 
     std::any AstBuilder::visitRecord_expr(FSharpParser::Record_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Record Expr"));
+        std::vector<Expression::Record::Field> fields;
+        for (const auto& record_expr_field : context->record_expr_field())
+        {
+            fields.push_back(std::any_cast<Expression::Record::Field>(record_expr_field->accept(this)));
+        }
+
+        return make_ast<Expression>(Expression::Record(
+                std::move(fields),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitRecord_expr_field(FSharpParser::Record_expr_fieldContext* context)
+    {
+        return Expression::Record::Field(
+            ast::any_cast<Ident>(context->ident()->accept(this), context),
+            ast::any_cast<Expression>(context->expression()->accept(this), context)
+        );
     }
 
     std::any AstBuilder::visitArray_expr(FSharpParser::Array_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Array Expr"));
+        std::vector<ast_ptr<Expression>> expressions;
+        for (const auto expression : context->expression())
+        {
+            expressions.emplace_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        return make_ast<Expression>(Expression::Array(
+                std::move(expressions), Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitList_expr(FSharpParser::List_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("List Expr"));
+        std::vector<ast_ptr<Expression>> expressions;
+        for (const auto expression : context->expression())
+        {
+            expressions.emplace_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        return make_ast<Expression>(Expression::List(
+                std::move(expressions), Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitNew_expr(FSharpParser::New_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("New Expr"));
+        auto type = ast::any_cast<fsharpgrammar::Type>(context->type()->accept(this), context);
+        std::optional<ast_ptr<Expression>> expression{};
+        if (context->expression())
+        {
+            expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        }
+        return make_ast<Expression>(Expression::New(
+                std::move(type),
+                std::move(expression),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitIf_then_else_expr(FSharpParser::If_then_else_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("IfThenElse Expr"));
+        auto condition = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        auto then_body = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body(0)->accept(this));
+        std::optional<std::vector<ast_ptr<Expression>>> else_body{};
+        if (context->ELSE())
+        {
+            else_body = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body(1)->accept(this));
+        }
+        return make_ast<Expression>(
+            Expression::IfThenElse(
+                std::move(condition),
+                std::move(then_body),
+                std::move(else_body),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitMatch_expr(FSharpParser::Match_exprContext* context)

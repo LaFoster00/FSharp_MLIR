@@ -123,3 +123,5 @@ let cons_pat = [1; 2; 3]
 match cons_pat with
 | 1 :: tail -> printfn "Matched 1 as head, and tail is: %A" tail
 | _ -> printfn "No match"
+
+if 10 < 20 then printfn "Hello World"

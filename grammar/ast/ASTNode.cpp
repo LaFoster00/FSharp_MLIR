@@ -426,8 +426,11 @@ namespace fsharpgrammar
         std::stringstream args;
         for (const auto& expression : array.expressions)
         {
-            ss << utils::to_string(*expression) << '\n';
+            args << utils::to_string(*expression) << '\n';
         }
+        if (args.str().empty())
+            args << ' ';
+
         ss << utils::indent_string(
             args.str(),
             1,
@@ -447,8 +450,10 @@ namespace fsharpgrammar
         std::stringstream args;
         for (const auto& expression : list.expressions)
         {
-            ss << utils::to_string(*expression) << '\n';
+            args << utils::to_string(*expression) << '\n';
         }
+        if (args.str().empty())
+            args << ' ';
         ss << utils::indent_string(
             args.str(),
             1,
@@ -475,14 +480,21 @@ namespace fsharpgrammar
     std::string to_string(const Expression::IfThenElse& if_then_else)
     {
         std::stringstream ss;
-        ss << fmt::format("New {}\n", utils::to_string(if_then_else.range));
+        ss << fmt::format("Condition {}\n", utils::to_string(if_then_else.range));
         std::stringstream args;
-        args << fmt::format("if\n{}then\n{}",
-                            utils::to_string(*if_then_else.condition),
-                            utils::to_string(*if_then_else.then));
+        args << fmt::format("if\n{}then\n",
+                            utils::indent_string(utils::to_string(*if_then_else.condition)));
+        for (auto &expression : if_then_else.then)
+        {
+            args << utils::indent_string(utils::to_string(*expression));
+        }
         if (if_then_else.else_expr.has_value())
         {
-            args << utils::to_string(*if_then_else.else_expr.value());
+            args << "else\n";
+            for (auto &expression : if_then_else.else_expr.value())
+            {
+                args << utils::indent_string(utils::to_string(*expression));
+            }
         }
         ss << utils::indent_string(args.str());
         return ss.str();
