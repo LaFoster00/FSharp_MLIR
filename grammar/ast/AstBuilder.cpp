@@ -69,19 +69,17 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNested_module(FSharpParser::Nested_moduleContext* context)
     {
-        std::vector<ast_ptr<ModuleDeclaration>> module_declarations;
-        for (const auto module_decl : context->module_decl())
-        {
-            module_declarations.push_back(ast::any_cast<ModuleDeclaration>(module_decl->accept(this), context));
-        }
-
         ModuleDeclaration::NestedModule nested_module(
             ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
-            std::move(module_declarations),
+            get_module_declarations(context->module_decl(), context, this),
             Range::create(context));
 
         return make_ast<ModuleDeclaration>(
-            std::move(nested_module));
+            ModuleDeclaration::NestedModule(
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
+                get_module_declarations(context->module_decl(), context, this),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitExpression_stmt(FSharpParser::Expression_stmtContext* context)
