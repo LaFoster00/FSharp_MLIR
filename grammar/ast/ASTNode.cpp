@@ -484,14 +484,14 @@ namespace fsharpgrammar
         std::stringstream args;
         args << fmt::format("if\n{}then\n",
                             utils::indent_string(utils::to_string(*if_then_else.condition)));
-        for (auto &expression : if_then_else.then)
+        for (auto& expression : if_then_else.then)
         {
             args << utils::indent_string(utils::to_string(*expression));
         }
         if (if_then_else.else_expr.has_value())
         {
             args << "else\n";
-            for (auto &expression : if_then_else.else_expr.value())
+            for (auto& expression : if_then_else.else_expr.value())
             {
                 args << utils::indent_string(utils::to_string(*expression));
             }
@@ -532,7 +532,7 @@ namespace fsharpgrammar
         ss << utils::indent_string(
             fmt::format("{} {}", prefix, utils::to_string(*let.args))
         );
-        for (auto &expression : let.expressions)
+        for (auto& expression : let.expressions)
         {
             ss << utils::indent_string(utils::to_string(*expression));
         }
@@ -585,13 +585,13 @@ namespace fsharpgrammar
         target << ".\n";
 
         std::stringstream bracket_expressions;
-        for (auto &bracket_expression : dot_index_set.bracket_expressions)
+        for (auto& bracket_expression : dot_index_set.bracket_expressions)
         {
             bracket_expressions << utils::indent_string(utils::to_string(*bracket_expression));
         }
         target << utils::indent_string(bracket_expressions.str(),
-            1, true, true, true,
-            "[", "]");
+                                       1, true, true, true,
+                                       "[", "]");
 
         ss << utils::indent_string("Target \n" + target.str());
         ss << "<-";
@@ -627,14 +627,94 @@ namespace fsharpgrammar
             ss << "TuplePattern(";
             for (const auto& pat : pattern.patterns)
             {
-                ss << to_string(*pat) << ", ";
+                ss << utils::to_string(*pat) << ", ";
             }
             ss << ")";
             break;
-            default:
-                ss << "Pattern";
+        default:
+            ss << "Pattern";
         // handle other pattern types...
         }
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Fun& type)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Function {}\n", utils::to_string(type.get_range()));
+
+        for (const auto& fun_type : type.fun_types)
+        {
+            ss << utils::indent_string(fmt::format("->{}\n", utils::to_string(*fun_type)));
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Tuple& tuple)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Tuple {}\n", utils::to_string(tuple.range));
+        for (const auto& tuple_type : tuple.types)
+        {
+            ss << utils::indent_string(utils::to_string(*tuple_type));
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Postfix& postfix)
+    {
+        std::stringstream ss;
+        ss << fmt::format("{} Postfix {}\n",
+                          postfix.is_paren ? "Paren" : "",
+                          utils::to_string(postfix.range)
+        );
+        ss << utils::indent_string(utils::to_string(*postfix.left));
+        ss << utils::indent_string(utils::to_string(*postfix.right));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Array& array)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Array {}\n", utils::to_string(array.range));
+        ss << utils::indent_string(utils::to_string(*array.type));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Paren& parent)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Paren {}\n", utils::to_string(parent.range));
+        ss << utils::indent_string(utils::to_string(*parent.type));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Var& var)
+    {
+        return utils::to_string(*var.ident);
+    }
+
+    std::string to_string(const Type::LongIdent& ident)
+    {
+        return utils::to_string(*ident.longIdent);
+    }
+
+    std::string to_string(const Type::Anon& anon)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Anon {}", utils::to_string(anon.range));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::StaticConstant& constant)
+    {
+        return utils::to_string(*constant.constant);
+    }
+
+    std::string to_string(const Type::StaticNull& null)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Null {}", utils::to_string(null.range));
         return ss.str();
     }
 } // fsharpgrammar

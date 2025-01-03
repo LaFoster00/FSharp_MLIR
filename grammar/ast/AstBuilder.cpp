@@ -30,7 +30,7 @@ namespace fsharpgrammar
         for (const auto module_decl : decls)
         {
             if (auto result = module_decl->accept(visitor); result.has_value())
-            module_declarations.push_back(ast::any_cast<ModuleDeclaration>(std::move(result), context));
+                module_declarations.push_back(ast::any_cast<ModuleDeclaration>(std::move(result), context));
         }
         return module_declarations;
     }
@@ -765,7 +765,83 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
     {
-        return make_ast<Type>(Range::create(context));
+        return context->fun_type()->accept(this);
+    }
+
+    std::any AstBuilder::visitFun_type(FSharpParser::Fun_typeContext* context)
+    {
+        if (context->type().empty())
+            return context->type().front()->accept(this);
+
+        std::vector<ast_ptr<Type>> types;
+        for (const auto type : context->type())
+        {
+            types.push_back(ast::any_cast<Type>(type->accept(this), context));
+        }
+
+        return make_ast<Type>(Type::Fun(
+                ast::any_cast<Type>(context->tuple_type()->accept(this), context),
+                std::move(types),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitTuple_type(FSharpParser::Tuple_typeContext* context)
+    {
+        if (context->type().empty())
+        {
+            return context->append_type()->accept(this);
+        }
+
+        std::vector<ast_ptr<Type>> types;
+        types.push_back(ast::any_cast<Type>(context->append_type()->accept(this), context));
+        for (const auto type : context->type())
+        {
+            types.push_back(ast::any_cast<Type>(type->accept(this), context));
+        }
+
+        return make_ast<Type>(Type::Tuple(
+                std::move(types),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitPostfix_type(FSharpParser::Postfix_typeContext* context)
+    {
+        if (context->array_type().size() > 1)
+            return make_ast<Type>(Type::Postfix(
+                    ast::any_cast<Type>(context->array_type().front()->accept(this), context),
+                    ast::any_cast<Type>(context->array_type().back()->accept(this), context),
+                    false,
+                    Range::create(context))
+            );
+        return context->array_type().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitParen_postfix_type(FSharpParser::Paren_postfix_typeContext* context)
+    {
+        return make_ast<Type>(Type::Postfix(
+                ast::any_cast<Type>(context->paren_type()->accept(this), context),
+                ast::any_cast<Type>(context->array_type()->accept(this), context),
+                true,
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitArray_type(FSharpParser::Array_typeContext* context)
+    {
+        if (context->OPEN_BRACK())
+            return make_ast<Type>(Type::Array(
+                    ast::any_cast<Type>(context->atomic_type()->accept(this), context),
+                    Range::create(context))
+            );
+
+        return context->atomic_type()->accept(this);
+    }
+
+    std::any AstBuilder::visitAtomic_type(FSharpParser::Atomic_typeContext* context)
+    {
+        return make_ast<Type>(PlaceholderNodeAlternative("Atomic Type"));
     }
 
     std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)

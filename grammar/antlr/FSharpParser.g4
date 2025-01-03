@@ -361,7 +361,7 @@ tuple_type
     ;
 
 append_type
-    /// F# syntax: type<type, ..., type> or type type or (type, ..., type) type
+    /// F# syntax: type type or (type, ..., type) type
     : array_type array_type? #postfix_type
     | paren_type array_type #paren_postfix_type
     ;
@@ -387,7 +387,7 @@ paren_type
 
 var_type
     /// F# syntax: var
-    : IDENT
+    : ident
     ;
 
 anon_type
@@ -400,8 +400,7 @@ static_constant_type
     ;
 
 static_constant_null_type
-    : constant
-    | NULL
+    : NULL
     ;
 
 

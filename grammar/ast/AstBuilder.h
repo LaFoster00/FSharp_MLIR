@@ -78,7 +78,15 @@ namespace fsharpgrammar {
         std::any visitPattern(FSharpParser::PatternContext* context) override;
         std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
 
+        // type
         std::any visitType(FSharpParser::TypeContext* context) override;
+        std::any visitFun_type(FSharpParser::Fun_typeContext* context) override;
+        std::any visitTuple_type(FSharpParser::Tuple_typeContext* context) override;
+        // append type
+        std::any visitPostfix_type(FSharpParser::Postfix_typeContext* context) override;
+        std::any visitParen_postfix_type(FSharpParser::Paren_postfix_typeContext* context) override;
+        std::any visitArray_type(FSharpParser::Array_typeContext* context) override;
+        std::any visitAtomic_type(FSharpParser::Atomic_typeContext* context) override;
 
         // universally used
         std::any visitConstant(FSharpParser::ConstantContext* context) override;

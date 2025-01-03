@@ -828,9 +828,9 @@ namespace fsharpgrammar
         struct DotIndexSet final : IExpressionType
         {
             DotIndexSet(ast_ptr<Expression>&& pre_bracket_expression,
-                std::vector<ast_ptr<Expression>>&& bracket_expressions,
-                ast_ptr<Expression>&& expression,
-                Range&& range)
+                        std::vector<ast_ptr<Expression>>&& bracket_expressions,
+                        ast_ptr<Expression>&& expression,
+                        Range&& range)
                 : pre_bracket_expression(std::move(pre_bracket_expression)),
                   bracket_expressions(std::move(bracket_expressions)),
                   expression(std::move(expression)),
@@ -939,18 +939,196 @@ namespace fsharpgrammar
     class Type final : public IASTNode
     {
     public:
-        explicit Type(const Range& range)
-            : range(range)
+        using ITypeType = INodeAlternative;
+
+        struct Fun final : ITypeType
+        {
+            Fun(ast_ptr<Type>&& left,
+                std::vector<ast_ptr<Type>>&& fun_types,
+                Range&& range)
+                : left(std::move(left)),
+                  fun_types(std::move(fun_types)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Type::Fun& type);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Type> left;
+            const std::vector<ast_ptr<Type>> fun_types;
+            const Range range;
+        };
+
+        struct Tuple final : ITypeType
+        {
+            Tuple(std::vector<ast_ptr<Type>>&& types,
+                  Range&& range)
+                : types(std::move(types)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Tuple& tuple);
+            [[nodiscard]] Range get_range() const override { return range; };
+
+            const std::vector<ast_ptr<Type>>& types;
+            const Range range;
+        };
+
+        struct Postfix final : ITypeType
+        {
+            Postfix(ast_ptr<Type>&& left,
+                    ast_ptr<Type>&& right,
+                    bool is_paren,
+                    Range&& range)
+                : left(std::move(left)),
+                  right(std::move(right)),
+                  is_paren(is_paren),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Postfix& postfix);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Type> left;
+            const ast_ptr<Type> right;
+            const bool is_paren;
+            const Range range;
+        };
+
+        struct Array final : ITypeType
+        {
+            Array(ast_ptr<Type>&& type, Range&& range)
+                : type(std::move(type)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Array& array);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Type> type;
+            const Range range;
+        };
+
+        struct Paren final : ITypeType
+        {
+            Paren(ast_ptr<Type>&& type,
+                  Range&& range)
+                : type(std::move(type)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Paren& parent);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Type> type;
+            const Range range;
+        };
+
+        struct Var final : ITypeType
+        {
+            Var(ast_ptr<Ident>&& ident,
+                Range&& range)
+                : ident(std::move(ident)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Var& var);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Ident> ident;
+            const Range range;
+        };
+
+        struct LongIdent final : ITypeType
+        {
+            LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
+                      Range&& range)
+                : longIdent(std::move(long_ident)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const LongIdent& ident);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<fsharpgrammar::LongIdent> longIdent;
+            const Range range;
+        };
+
+        struct Anon final : ITypeType
+        {
+            explicit Anon(Range&& range)
+                : range(range)
+            {
+            }
+
+            friend std::string to_string(const Anon& anon);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const Range range;
+        };
+
+        struct StaticConstant final : ITypeType
+        {
+            StaticConstant(ast_ptr<Constant>&& constant,
+                           Range&& range)
+                : constant(std::move(constant)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const StaticConstant& constant);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            ast_ptr<Constant> constant;
+            const Range range;
+        };
+
+        struct StaticNull final : ITypeType
+        {
+            explicit StaticNull(Range&& range)
+                : range(range)
+            {
+            }
+
+            friend std::string to_string(const StaticNull& null);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const Range range;
+        };
+
+        using TypeVariant = std::variant<
+            Fun,
+            Tuple,
+            Postfix,
+            Array,
+            Paren,
+            Var,
+            LongIdent,
+            Anon,
+            StaticConstant,
+            StaticNull,
+            PlaceholderNodeAlternative
+        >;
+
+    public:
+        explicit Type(TypeVariant&& type)
+            : type(std::move(type))
         {
         }
 
         friend std::string to_string(const Type& type)
         {
-            return "Type " + utils::to_string(type.range);
+            return utils::to_string(type.type);
         }
 
-        [[nodiscard]] Range get_range() const override { return range; }
-
-        const Range range;
+        [[nodiscard]] Range get_range() const override { return INodeAlternative::get_range(type); }
+        const TypeVariant type;
     };
 } // fsharpmlir
