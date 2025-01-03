@@ -21,6 +21,7 @@ namespace fsharpgrammar {
         std::any visitNamespace(FSharpParser::NamespaceContext *ctx) override;
 
         // module_decl
+        std::any visitEmply_lines(FSharpParser::Emply_linesContext* context) override;
         std::any visitNested_module(FSharpParser::Nested_moduleContext* context) override;
         std::any visitExpression_stmt(FSharpParser::Expression_stmtContext* context) override;
         std::any visitOpen_stmt(FSharpParser::Open_stmtContext* context) override;
