@@ -11,6 +11,7 @@
 //
 
 #include <iostream>
+#include <chrono>
 
 #include "antlr4-runtime.h"
 #include "FSharpLexer.h"
@@ -24,6 +25,7 @@
 #include "ast/Range.h"
 
 #include "fmt/format.h"
+#include "utils/FunctionTimer.h"
 
 using namespace antlr4;
 using namespace fsharpgrammar;
@@ -35,11 +37,14 @@ int main(int , const char **) {
   buffer << file.rdbuf();
   std::string fileContent = buffer.str();
 
+  auto start_lexer = std::chrono::high_resolution_clock::now();
   ANTLRInputStream input(fileContent);
   FSharpLexer lexer(&input);
   CommonTokenStream tokens(&lexer);
 
   tokens.fill();
+  auto stop_lexer = std::chrono::high_resolution_clock::now();
+  auto duration_lexer = std::chrono::duration_cast<std::chrono::milliseconds>(stop_lexer - start_lexer);
   size_t lastLine = 0;
   for (auto token : tokens.getTokens()) {
     auto type = static_cast<decltype(FSharpLexer::UNKNOWN_CHAR)>(token->getType());
@@ -51,16 +56,39 @@ int main(int , const char **) {
 
   std::cout << "Finished Lexing." << std::endl;
 
+  auto start_parser = std::chrono::high_resolution_clock::now();
   FSharpParser parser(&tokens);
   tree::ParseTree* tree = parser.main();
+  auto stop_parser = std::chrono::high_resolution_clock::now();
+  auto duration_parser = std::chrono::duration_cast<std::chrono::milliseconds>(stop_parser - start_parser);
 
   std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
-
   std::cout << "Simplifying tree" << std::endl;
 
   AstBuilder builder;
-  std::any simplified_tree = builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree));
-  std::cout << tree->toStringTree(&parser, true) << std::endl;
+  auto start_ast = std::chrono::high_resolution_clock::now();
+  auto ast = std::any_cast<ast_ptr<Main>>(builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree)));
+  auto stop_ast = std::chrono::high_resolution_clock::now();
+  auto duration_ast = std::chrono::duration_cast<std::chrono::milliseconds>(stop_ast - start_ast);
+
+  auto start_ast_print = std::chrono::high_resolution_clock::now();
+  std::string ast_string = utils::to_string(*ast);
+  auto stop_ast_print = std::chrono::high_resolution_clock::now();
+  auto duration_ast_print = std::chrono::duration_cast<std::chrono::milliseconds>(stop_ast_print - start_ast_print);
+
+  fmt::print(
+    "AST Generation Result = \n{}\n"
+    "\n\tAST Generation Time: {}ms"
+    "\n\tAST Printing Time: {}ms"
+    "\n\tLexing Time: {}ms"
+    "\n\tParser Time: {}ms\n",
+    *ast,
+    duration_ast.count(),
+    duration_ast_print.count(),
+    duration_lexer.count(),
+    duration_parser.count());
+
+  FunctionTimer::PrintTimings();
 
   return 0;
 }

@@ -83,8 +83,6 @@ SEMI_COLON          : ';';
 OPEN_BRACK          : '[' {this->openBrace();};
 CLOSE_BRACK         : ']' {this->closeBrace();};
 PIPE                : '|';
-OR_OP               : '||';
-AND_OP              : '&&';
 AMPERCENT           : '&';
 COMPO_LEFT          : '<<';
 COMPO_RIGHT         : '>>';

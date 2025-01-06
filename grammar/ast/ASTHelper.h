@@ -10,6 +10,7 @@
 #include "fmt/format.h"
 
 #include "utils/Utils.h"
+#include "cpptrace/cpptrace.hpp"
 
 
 namespace fsharpgrammar::ast
@@ -27,13 +28,33 @@ namespace fsharpgrammar::ast
                 "AST Building exception at \"{}\" {} expected {} but got {} instead",
                 parserRuleContext->start->getText(),
                 utils::to_string(Range::create(parserRuleContext)),
-                utils::type_name<T>(),
+                utils::type_name<std::shared_ptr<T>>(),
                 utils::demangle(obj.type().name()));
+            auto stacktrace = cpptrace::generate_trace();
+            stacktrace.print();
             throw antlr4::ParseCancellationException(error_message);
         }
     }
 
-    std::string to_string(FSharpParser::Long_identContext* context);
-    std::string to_string(FSharpParser::IdentContext* context);
+    template<typename T>
+    ast_ptr<T> any_cast(std::any&& obj, antlr4::ParserRuleContext *parserRuleContext)
+    {
+        try
+        {
+            return std::any_cast<ast_ptr<T>>(std::move(obj));
+        }
+        catch(std::bad_any_cast&)
+        {
+            std::string error_message = fmt::format(
+                "AST Building exception at \"{}\" {} expected {} but got {} instead",
+                parserRuleContext->start->getText(),
+                utils::to_string(Range::create(parserRuleContext)),
+                utils::type_name<T>(),
+                utils::demangle(obj.type().name()));
+            auto stacktrace = cpptrace::generate_trace();
+            stacktrace.print();
+            throw antlr4::ParseCancellationException(error_message);
+        }
+    }
 }
 

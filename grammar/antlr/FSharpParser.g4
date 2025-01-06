@@ -17,23 +17,10 @@ module_or_namespace
 
 /// Represents a definition within a module
 module_decl
-    : NEWLINE+ #emply_lines
-    | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT #nested_module
-    | sequential_stmt #expression_stmt
-    ;
-
-let_stmt
-    : LET binding EQUALS body
-    ;
-
-binding
-    : (MUTABLE? | REC?) pattern?
-    ;
-
-body
-    : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
-    | NEWLINE PIPE sequential_stmt+ #multiline_match_body
-    | inline_sequential_stmt #single_line_body
+    : NEWLINE+                                                      #emply_lines
+    | MODULE long_ident EQUALS NEWLINE INDENT module_decl* DEDENT   #nested_module
+    | sequential_stmt                                               #expression_stmt
+    | OPEN long_ident                                               #open_stmt
     ;
 
 inline_sequential_stmt
@@ -139,11 +126,24 @@ expression
     ;
 
 assignment_expr
-    : let_stmt
+    : let_expr
     | long_ident_set_expr
     | set_expr
     | dot_set_expr
     | dot_index_set_expr
+    ;
+
+let_expr
+    : LET binding EQUALS body
+    ;
+
+binding
+    : (MUTABLE? | REC?) pattern
+    ;
+
+body
+    : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
+    | inline_sequential_stmt #single_line_body
     ;
 
 long_ident_set_expr
@@ -167,17 +167,21 @@ dot_index_set_expr
     ;
 
 non_assigment_expr
-    : tuple_expr tuple_expr*
+    : tuple_expr
     ;
 
 tuple_expr
     /// F# syntax: e1, ..., eN
-    : or_expr (COMMA or_expr)*
+    : app_expr (COMMA app_expr)*
+    ;
+
+app_expr
+    : or_expr or_expr*
     ;
 
 or_expr
     /// F# syntax: expr | expr
-    : and_expr (OR_OP and_expr)*
+    : and_expr (PIPE and_expr)*
     ;
 
 and_expr
@@ -212,7 +216,7 @@ dot_get_expr
 
 dot_index_get_expr
     /// F# syntax: expr.[expr]
-    :  typed_expr (OPEN_BRACK typed_expr CLOSE_BRACK)?
+    :  typed_expr (DOT OPEN_BRACK typed_expr CLOSE_BRACK)?
     ;
 
 typed_expr
@@ -231,19 +235,29 @@ unary_expression
 atomic_expr
     :
     paren_expr
-    | constant
-    | ident
-    | long_ident
-    | let_stmt
+    | constant_expr
+    | ident_expr
+    | long_ident_expr
     | null_expr
     | record_expr
     | array_expr
     | list_expr
     | new_expr
-    | open_expr
     | if_then_else_expr
     | match_expr
     | pipe_right_expr
+    ;
+
+constant_expr
+     : constant
+     ;
+
+ident_expr
+    : ident
+    ;
+
+long_ident_expr
+    : long_ident
     ;
 
 null_expr
@@ -279,12 +293,7 @@ list_expr
 
 new_expr
     /// F# syntax: new C(...)
-    : NEW type OPEN_PAREN expression CLOSE_PAREN
-    ;
-
-open_expr
-    /// F# syntax: open long_ident
-    : OPEN long_ident
+    : NEW type OPEN_PAREN expression? CLOSE_PAREN
     ;
 
 if_then_else_expr
@@ -352,29 +361,15 @@ tuple_type
     ;
 
 append_type
-    /// F# syntax: type<type, ..., type> or type type or (type, ..., type) type
-    : long_ident_append_type generic_args? #generic_type
-    | long_ident_append_type long_ident_append_type? #postfix_type
-    | paren_type long_ident_append_type #paren_postfix_type
-    ;
-
-long_ident_append_type
-    /// F# syntax: type.A.B.C<type, ..., type>
-    :
-    array_type ((DOT long_ident)+ generic_args)?
-    ;
-
-generic_args
-    /// F# syntax: <type, ..., type>
-    : LESS_THAN type (COMMA type)* GREATER_THAN
+    /// F# syntax: type type or (type, ..., type) type
+    : array_type array_type? #postfix_type
+    | paren_type array_type #paren_postfix_type
     ;
 
 array_type
     /// F# syntax: type[]
     : atomic_type (OPEN_BRACK CLOSE_BRACK)?
     ;
-
-
 
 atomic_type
     : paren_type
@@ -383,7 +378,6 @@ atomic_type
     | anon_type
     | static_constant_type
     | static_constant_null_type
-    | generic_args
     ;
 
 paren_type
@@ -393,7 +387,7 @@ paren_type
 
 var_type
     /// F# syntax: var
-    : IDENT
+    : ident
     ;
 
 anon_type
@@ -406,8 +400,7 @@ static_constant_type
     ;
 
 static_constant_null_type
-    : constant
-    | NULL
+    : NULL
     ;
 
 

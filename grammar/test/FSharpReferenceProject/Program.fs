@@ -4,24 +4,6 @@ open FSharp.Compiler.Text
 open FSharp.Compiler.Syntax
 open FSharp.Compiler.Tokenization
 
-let a: int = 10 * 10
-let b =
-    let c =
-        10 + 10
-    c + 10
-let c: float = float(10 + 20 * 30 - 50)
-
-let d = if 10 > 20 then 30 else 40
-let e =
-    if 10 > 20 then
-        30
-    else
-        40
-
-let f x y z = x + y + z
-let g = f 10 e 30
-
-
 let getSourceTokenizer (file, input) =
     let sourceTok = FSharpSourceTokenizer([], file, None, Some true)
     let tokenizer = sourceTok.CreateLineTokenizer(input)
@@ -38,7 +20,7 @@ let rec tokenizeLine (tokenizer:FSharpLineTokenizer) state =
     | None, state -> state
   
 /// Print token names for multiple lines of code
-let rec tokenizeLines (sourceTok: FSharpSourceTokenizer) state count lines = 
+let rec tokenizeLines (sourceTok: FSharpSourceTokenizer) state count lines  =
     match lines with
     | line::lines ->
         // Create tokenizer & tokenize single line
@@ -94,4 +76,3 @@ lines
 // Inspect the syntax tree
 getUntypedTree (filePath, fileContents)
 |> printAst
-
