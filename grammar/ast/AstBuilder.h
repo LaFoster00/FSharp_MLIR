@@ -74,10 +74,6 @@ namespace fsharpgrammar {
         std::any visitDot_set_expr(FSharpParser::Dot_set_exprContext* context) override;
         std::any visitDot_index_set_expr(FSharpParser::Dot_index_set_exprContext* context) override;
 
-        // pattern
-        std::any visitPattern(FSharpParser::PatternContext* context) override;
-        std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
-
         // type
         std::any visitType(FSharpParser::TypeContext* context) override;
         std::any visitFun_type(FSharpParser::Fun_typeContext* context) override;
@@ -92,6 +88,12 @@ namespace fsharpgrammar {
         std::any visitConstant(FSharpParser::ConstantContext* context) override;
         std::any visitIdent(FSharpParser::IdentContext* context) override;
         std::any visitLong_ident(FSharpParser::Long_identContext* context) override;
+
+        // pattern
+        std::any visitPattern(FSharpParser::PatternContext* context) override;
+        std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
+        std::any visitAnd_pat(FSharpParser::And_patContext* context) override;
+
     };
 } // fsharpgrammar
 

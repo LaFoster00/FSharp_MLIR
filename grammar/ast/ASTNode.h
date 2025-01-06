@@ -936,7 +936,10 @@ namespace fsharpgrammar
             const Range range;
         };
 
-        using PatternType = std::variant<TuplePattern>;
+        using PatternType = std::variant<
+            TuplePattern,
+            PlaceholderNodeAlternative
+        >;
 
     public:
         explicit Pattern(PatternType&& pattern);
@@ -946,7 +949,7 @@ namespace fsharpgrammar
             return utils::to_string(pattern.pattern);
         }
 
-        [[nodiscard]] Range get_range() const override;
+        [[nodiscard]] Range get_range() const override { return INodeAlternative::get_range(pattern); }
 
         const PatternType pattern;
     };

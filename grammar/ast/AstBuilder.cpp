@@ -735,32 +735,6 @@ namespace fsharpgrammar
         );
     }
 
-    std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)
-    {
-        return make_ast<Pattern>(
-            Pattern::Type::AndPattern,
-            std::vector<ast_ptr<Pattern>>{},
-            Range::create(context));
-    }
-
-    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
-    {
-        std::vector<ast_ptr<Pattern>> patterns;
-        if (context->and_pat().size() > 1)
-        {
-            for (const auto pat : context->and_pat())
-            {
-                patterns.emplace_back(ast::any_cast<Pattern>(pat->accept(this), context));
-            }
-        }
-
-        return make_ast<Pattern>(
-            Pattern::Type::TuplePattern,
-            std::move(patterns),
-            Range::create(context)
-        );
-    }
-
     std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
     {
         return context->fun_type()->accept(this);
@@ -897,4 +871,8 @@ namespace fsharpgrammar
         return patterns[0];
     }
 
+    std::any AstBuilder::visitAnd_pat(FSharpParser::And_patContext* context)
+    {
+        return make_ast<Pattern>(PlaceholderNodeAlternative("And Pat"));
+    }
 } // fsharpgrammar
