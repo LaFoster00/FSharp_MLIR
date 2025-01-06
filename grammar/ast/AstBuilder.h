@@ -93,7 +93,19 @@ namespace fsharpgrammar {
         std::any visitPattern(FSharpParser::PatternContext* context) override;
         std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
         std::any visitAnd_pat(FSharpParser::And_patContext* context) override;
-
+        std::any visitOr_pat(FSharpParser::Or_patContext* context) override;
+        std::any visitAs_pat(FSharpParser::As_patContext* context) override;
+        std::any visitCons_pat(FSharpParser::Cons_patContext* context) override;
+        std::any visitTyped_pat(FSharpParser::Typed_patContext* context) override;
+        std::any visitAtomic_pat(FSharpParser::Atomic_patContext* context) override;
+        std::any visitParen_pat(FSharpParser::Paren_patContext* context) override;
+        std::any visitAnon_pat(FSharpParser::Anon_patContext* context) override;
+        std::any visitConstant_pat(FSharpParser::Constant_patContext* context) override;
+        std::any visitNamed_pat(FSharpParser::Named_patContext* context) override;
+        std::any visitRecord_pat(FSharpParser::Record_patContext* context) override;
+        std::any visitArray_pat(FSharpParser::Array_patContext* context) override;
+        std::any visitLong_ident_pat(FSharpParser::Long_ident_patContext* context) override;
+        std::any visitNull_pat(FSharpParser::Null_patContext* context) override;
     };
 } // fsharpgrammar
 

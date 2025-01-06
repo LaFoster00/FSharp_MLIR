@@ -1044,38 +1044,37 @@ namespace fsharpgrammar
 
         struct Constant final : INodeAlternative
         {
-            Constant(ast_ptr<fsharpgrammar::Constant>&& constant, Range&& range)
-                : constant(std::move(constant)),
-                  range(range)
+            Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
+                : constant(std::move(constant))
             {
             }
 
             friend std::string to_string(const Constant& constant);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return constant->get_range(); }
 
             const ast_ptr<fsharpgrammar::Constant> constant;
-            const Range range;
         };
 
         struct Named final : INodeAlternative
         {
-            Named(ast_ptr<fsharpgrammar::Ident>&& ident, Range&& range)
-                : ident(std::move(ident)),
-                  range(range)
+            explicit Named(ast_ptr<fsharpgrammar::Ident>&& ident)
+                : ident(std::move(ident))
             {
             }
 
             friend std::string to_string(const Named& named);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return ident->get_range(); }
 
             const ast_ptr<fsharpgrammar::Ident> ident;
-            const Range range;
         };
 
         struct LongIdent final : INodeAlternative
         {
-            LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& ident, Range&& range)
+            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& ident,
+                               std::vector<ast_ptr<Pattern>>&& patterns,
+                               Range&& range)
                 : ident(std::move(ident)),
+                  patterns(std::move(patterns)),
                   range(range)
             {
             }
@@ -1084,6 +1083,7 @@ namespace fsharpgrammar
             [[nodiscard]] Range get_range() const override { return range; }
 
             const ast_ptr<fsharpgrammar::LongIdent> ident;
+            const std::vector<ast_ptr<Pattern>> patterns;
             const Range range;
         };
 
@@ -1095,7 +1095,7 @@ namespace fsharpgrammar
                 ast_ptr<Pattern> pattern;
             };
 
-            Record(std::vector<ast_ptr<Field>>&& fields, Range&& range)
+            Record(std::vector<Field>&& fields, Range&& range)
                 : fields(std::move(fields)),
                   range(range)
             {
@@ -1104,7 +1104,7 @@ namespace fsharpgrammar
             friend std::string to_string(const Record& record);
             [[nodiscard]] Range get_range() const override { return range; }
 
-            const std::vector<ast_ptr<Field>> fields;
+            const std::vector<Field> fields;
             const Range range;
         };
 
