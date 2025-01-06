@@ -4,17 +4,21 @@
 
 #pragma once
 
-#include "ASTNode.h"
-#include "FSharpParser.h"
-#include "Range.h"
-#include "fmt/format.h"
+#include <any>
+#include <memory>
+
+#include <antlr4-runtime.h>
+#include <fmt/format.h>
+#include <cpptrace/cpptrace.hpp>
 
 #include "utils/Utils.h"
-#include "cpptrace/cpptrace.hpp"
-
+#include "Range.h"
 
 namespace fsharpgrammar::ast
 {
+    template <typename T>
+        using ast_ptr = std::shared_ptr<T>;
+
     template<typename T>
     ast_ptr<T> any_cast(std::any& obj, antlr4::ParserRuleContext *parserRuleContext)
     {

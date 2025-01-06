@@ -11,7 +11,7 @@
     std::stringstream ss; \
     ss << fmt::format("{} {}\n", Name, utils::to_string(Object.get_range()))
 
-namespace fsharpgrammar
+namespace fsharpgrammar::ast
 {
     Main::Main(
         std::vector<ast_ptr<ModuleOrNamespace>>&& modules_or_namespaces,
@@ -46,7 +46,7 @@ namespace fsharpgrammar
     }
 
     ModuleDeclaration::Expression::Expression(
-        ast_ptr<fsharpgrammar::Expression>&& expression,
+        ast_ptr<ast::Expression>&& expression,
         Range&& range)
         :
         expression(std::move(expression)),

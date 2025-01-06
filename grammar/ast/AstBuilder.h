@@ -6,19 +6,29 @@
 #include "FSharpParser.h"
 #include "FSharpParserBaseVisitor.h"
 
-namespace fsharpgrammar {
+namespace fsharpgrammar::ast
+{
+    class Main;
+}
 
+namespace fsharpgrammar::ast
+{
     using namespace antlr4;
 
-    class AstBuilder final : FSharpParserBaseVisitor {
+    class AstBuilder final : FSharpParserBaseVisitor
+    {
     public:
+        std::unique_ptr<Main> BuildAst(FSharpParser::MainContext* ctx);
+
+    protected:
         // main
-        std::any visitMain(FSharpParser::MainContext *ctx) override;
+        // Returns a raw pointer. Should be converted to a unique_ptr immediately.
+        std::any visitMain(FSharpParser::MainContext* ctx) override;
 
         // module_or_namespace
         std::any visitAnonmodule(FSharpParser::AnonmoduleContext* context) override;
         std::any visitNamedmodule(FSharpParser::NamedmoduleContext* context) override;
-        std::any visitNamespace(FSharpParser::NamespaceContext *ctx) override;
+        std::any visitNamespace(FSharpParser::NamespaceContext* ctx) override;
 
         // module_decl
         std::any visitEmply_lines(FSharpParser::Emply_linesContext* context) override;
@@ -33,7 +43,7 @@ namespace fsharpgrammar {
         // expression
         std::any visitInline_sequential_stmt(FSharpParser::Inline_sequential_stmtContext* context) override;
         std::any visitSequential_stmt(FSharpParser::Sequential_stmtContext* context) override;
-        std::any visitExpression(FSharpParser::ExpressionContext *ctx) override;
+        std::any visitExpression(FSharpParser::ExpressionContext* ctx) override;
 
         // non assignment expression
         std::any visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context) override;
@@ -116,4 +126,3 @@ namespace fsharpgrammar {
         std::any visitNull_pat(FSharpParser::Null_patContext* context) override;
     };
 } // fsharpgrammar
-
