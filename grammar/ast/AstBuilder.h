@@ -10,7 +10,7 @@ namespace fsharpgrammar {
 
     using namespace antlr4;
 
-    class AstBuilder : FSharpParserBaseVisitor {
+    class AstBuilder final : FSharpParserBaseVisitor {
     public:
         // main
         std::any visitMain(FSharpParser::MainContext *ctx) override;
@@ -31,6 +31,7 @@ namespace fsharpgrammar {
         std::any visitSingle_line_body(FSharpParser::Single_line_bodyContext* context) override;
 
         // expression
+        std::any visitInline_sequential_stmt(FSharpParser::Inline_sequential_stmtContext* context) override;
         std::any visitSequential_stmt(FSharpParser::Sequential_stmtContext* context) override;
         std::any visitExpression(FSharpParser::ExpressionContext *ctx) override;
 
@@ -69,6 +70,7 @@ namespace fsharpgrammar {
         // assignment expression
         std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;
         std::any visitLet_expr(FSharpParser::Let_exprContext* context) override;
+        std::any visitBinding(FSharpParser::BindingContext* context) override;
         std::any visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context) override;
         std::any visitSet_expr(FSharpParser::Set_exprContext* context) override;
         std::any visitDot_set_expr(FSharpParser::Dot_set_exprContext* context) override;
@@ -83,6 +85,12 @@ namespace fsharpgrammar {
         std::any visitParen_postfix_type(FSharpParser::Paren_postfix_typeContext* context) override;
         std::any visitArray_type(FSharpParser::Array_typeContext* context) override;
         std::any visitAtomic_type(FSharpParser::Atomic_typeContext* context) override;
+        std::any visitParen_type(FSharpParser::Paren_typeContext* context) override;
+        std::any visitVar_type(FSharpParser::Var_typeContext* context) override;
+        std::any visitLong_ident_type(FSharpParser::Long_ident_typeContext* context) override;
+        std::any visitAnon_type(FSharpParser::Anon_typeContext* context) override;
+        std::any visitStatic_constant_type(FSharpParser::Static_constant_typeContext* context) override;
+        std::any visitStatic_constant_null_type(FSharpParser::Static_constant_null_typeContext* context) override;
 
         // universally used
         std::any visitConstant(FSharpParser::ConstantContext* context) override;

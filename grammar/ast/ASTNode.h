@@ -1262,34 +1262,28 @@ namespace fsharpgrammar
 
         struct Var final : ITypeType
         {
-            Var(ast_ptr<Ident>&& ident,
-                Range&& range)
-                : ident(std::move(ident)),
-                  range(range)
+            explicit Var(ast_ptr<Ident>&& ident)
+                : ident(std::move(ident))
             {
             }
 
             friend std::string to_string(const Var& var);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return ident->get_range(); }
 
             const ast_ptr<Ident> ident;
-            const Range range;
         };
 
         struct LongIdent final : ITypeType
         {
-            LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
-                      Range&& range)
-                : longIdent(std::move(long_ident)),
-                  range(range)
+            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& long_ident)
+                : longIdent(std::move(long_ident))
             {
             }
 
             friend std::string to_string(const LongIdent& ident);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return longIdent->get_range(); }
 
             const ast_ptr<fsharpgrammar::LongIdent> longIdent;
-            const Range range;
         };
 
         struct Anon final : ITypeType
@@ -1307,18 +1301,15 @@ namespace fsharpgrammar
 
         struct StaticConstant final : ITypeType
         {
-            StaticConstant(ast_ptr<Constant>&& constant,
-                           Range&& range)
-                : constant(std::move(constant)),
-                  range(range)
+            explicit StaticConstant(ast_ptr<Constant>&& constant)
+                : constant(std::move(constant))
             {
             }
 
             friend std::string to_string(const StaticConstant& constant);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return constant->get_range(); }
 
             ast_ptr<Constant> constant;
-            const Range range;
         };
 
         struct StaticNull final : ITypeType

@@ -111,11 +111,6 @@ named_pat
     : ident
     ;
 
-anon_expr
-    /// F# syntax: _
-    : UNDERSCORE
-    ;
-
 null_pat
     /// F# syntax: null
     : NULL
@@ -326,30 +321,6 @@ match_clause_stmt
     : PIPE pattern (WHEN expression)? RIGHT_ARROW body
     ;
 
-
-operators
-    : PLUS
-    | MINUS
-    | STAR
-    | DIV
-    | MOD
-    ;
-
-comp_ops
-    : EQUALS
-    | GREATER_THAN
-    | LESS_THAN
-    | GT_EQ
-    | LT_EQ
-    | NOT_EQ
-    | EXCLAMATION
-    ;
-
-sign
-    : PLUS
-    | MINUS
-    ;
-
 long_ident
     : ident (DOT ident)*;
 
@@ -382,7 +353,7 @@ array_type
 atomic_type
     : paren_type
     | var_type
-    | long_ident
+    | long_ident_type
     | anon_type
     | static_constant_type
     | static_constant_null_type
@@ -396,6 +367,10 @@ paren_type
 var_type
     /// F# syntax: var
     : ident
+    ;
+
+long_ident_type
+    : long_ident
     ;
 
 anon_type

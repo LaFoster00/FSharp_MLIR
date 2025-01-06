@@ -118,6 +118,24 @@ namespace fsharpgrammar
         return expressions;
     }
 
+    std::any AstBuilder::visitInline_sequential_stmt(FSharpParser::Inline_sequential_stmtContext* context)
+    {
+        std::vector<ast_ptr<Expression>> expressions;
+        for (auto expression : context->expression())
+        {
+            expressions.emplace_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        if (expressions.size() > 1)
+        {
+            return make_ast<Expression>(Expression::Sequential(
+                    std::move(expressions),
+                    true,
+                    Range::create(context))
+            );
+        }
+        return expressions.front();
+    }
+
     std::any AstBuilder::visitSequential_stmt(FSharpParser::Sequential_stmtContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
@@ -680,6 +698,11 @@ namespace fsharpgrammar
         );
     }
 
+    std::any AstBuilder::visitBinding(FSharpParser::BindingContext* context)
+    {
+        return context->pattern()->accept(this);
+    }
+
     std::any AstBuilder::visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context)
     {
         auto long_ident = ast::any_cast<LongIdent>(context->long_ident()->accept(this), context);
@@ -813,7 +836,48 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitAtomic_type(FSharpParser::Atomic_typeContext* context)
     {
-        return make_ast<Type>(PlaceholderNodeAlternative("Atomic Type"));
+        return context->children[0]->accept(this);
+    }
+
+    std::any AstBuilder::visitParen_type(FSharpParser::Paren_typeContext* context)
+    {
+        return make_ast<Type>(Type::Paren(
+                ast::any_cast<Type>(context->type()->accept(this), context),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitVar_type(FSharpParser::Var_typeContext* context)
+    {
+        return make_ast<Type>(Type::Var(
+                ast::any_cast<Ident>(context->ident()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitLong_ident_type(FSharpParser::Long_ident_typeContext* context)
+    {
+        return make_ast<Type>(Type::LongIdent(
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitAnon_type(FSharpParser::Anon_typeContext* context)
+    {
+        return make_ast<Type>(Type::Anon(
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitStatic_constant_type(FSharpParser::Static_constant_typeContext* context)
+    {
+        return make_ast<Type>(Type::StaticConstant(
+                ast::any_cast<Constant>(context->constant()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitStatic_constant_null_type(FSharpParser::Static_constant_null_typeContext* context)
+    {
+        return make_ast<Type>(Type::StaticNull(Range::create(context)));
     }
 
     std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)
