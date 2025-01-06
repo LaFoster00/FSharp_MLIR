@@ -21,13 +21,13 @@ namespace fsharpgrammar {
         std::any visitNamespace(FSharpParser::NamespaceContext *ctx) override;
 
         // module_decl
+        std::any visitEmply_lines(FSharpParser::Emply_linesContext* context) override;
         std::any visitNested_module(FSharpParser::Nested_moduleContext* context) override;
         std::any visitExpression_stmt(FSharpParser::Expression_stmtContext* context) override;
         std::any visitOpen_stmt(FSharpParser::Open_stmtContext* context) override;
 
         // Body
         std::any visitMultiline_body(FSharpParser::Multiline_bodyContext* context) override;
-        std::any visitMultiline_match_body(FSharpParser::Multiline_match_bodyContext* context) override;
         std::any visitSingle_line_body(FSharpParser::Single_line_bodyContext* context) override;
 
         // expression
@@ -57,6 +57,7 @@ namespace fsharpgrammar {
         std::any visitLong_ident_expr(FSharpParser::Long_ident_exprContext* context) override;
         std::any visitNull_expr(FSharpParser::Null_exprContext* context) override;
         std::any visitRecord_expr(FSharpParser::Record_exprContext* context) override;
+        std::any visitRecord_expr_field(FSharpParser::Record_expr_fieldContext* context) override;
         std::any visitArray_expr(FSharpParser::Array_exprContext* context) override;
         std::any visitList_expr(FSharpParser::List_exprContext* context) override;
         std::any visitNew_expr(FSharpParser::New_exprContext* context) override;
@@ -68,17 +69,29 @@ namespace fsharpgrammar {
         // assignment expression
         std::any visitAssignment_expr(FSharpParser::Assignment_exprContext* context) override;
         std::any visitLet_expr(FSharpParser::Let_exprContext* context) override;
+        std::any visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context) override;
+        std::any visitSet_expr(FSharpParser::Set_exprContext* context) override;
+        std::any visitDot_set_expr(FSharpParser::Dot_set_exprContext* context) override;
+        std::any visitDot_index_set_expr(FSharpParser::Dot_index_set_exprContext* context) override;
 
+        // pattern
+        std::any visitPattern(FSharpParser::PatternContext* context) override;
+        std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
+
+        // type
         std::any visitType(FSharpParser::TypeContext* context) override;
+        std::any visitFun_type(FSharpParser::Fun_typeContext* context) override;
+        std::any visitTuple_type(FSharpParser::Tuple_typeContext* context) override;
+        // append type
+        std::any visitPostfix_type(FSharpParser::Postfix_typeContext* context) override;
+        std::any visitParen_postfix_type(FSharpParser::Paren_postfix_typeContext* context) override;
+        std::any visitArray_type(FSharpParser::Array_typeContext* context) override;
+        std::any visitAtomic_type(FSharpParser::Atomic_typeContext* context) override;
 
         // universally used
         std::any visitConstant(FSharpParser::ConstantContext* context) override;
         std::any visitIdent(FSharpParser::IdentContext* context) override;
         std::any visitLong_ident(FSharpParser::Long_identContext* context) override;
-
-        // pattern
-        std::any visitPattern(FSharpParser::PatternContext* context) override;
-        std::any visitTuple_pat(FSharpParser::Tuple_patContext* context) override;
     };
 } // fsharpgrammar
 

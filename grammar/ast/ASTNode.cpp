@@ -20,7 +20,7 @@ namespace fsharpgrammar
 
     ModuleOrNamespace::ModuleOrNamespace(
         const Type type,
-        std::optional<std::string> name,
+        std::optional<ast_ptr<LongIdent>> name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
         Range&& range)
         :
@@ -32,7 +32,7 @@ namespace fsharpgrammar
     }
 
     ModuleDeclaration::NestedModule::NestedModule(
-        std::string name,
+        ast_ptr<LongIdent> name,
         std::vector<ast_ptr<ModuleDeclaration>>&& module_decls,
         Range&& range):
         name(std::move(name)),
@@ -50,7 +50,7 @@ namespace fsharpgrammar
     {
     }
 
-    ModuleDeclaration::Open::Open(std::string module_name, Range&& range)
+    ModuleDeclaration::Open::Open(ast_ptr<LongIdent> module_name, Range&& range)
         :
         moduleName(std::move(module_name)),
         range(range)
@@ -105,14 +105,14 @@ namespace fsharpgrammar
         switch (moduleOrNamespace.type)
         {
         case ModuleOrNamespace::Type::NamedModule:
-            ss << fmt::format("Module {} {}\n", moduleOrNamespace.name.value(),
+            ss << fmt::format("Module {} {}\n", utils::to_string(*moduleOrNamespace.name.value()),
                               utils::to_string(moduleOrNamespace.range));
             break;
         case ModuleOrNamespace::Type::AnonymousModule:
             ss << fmt::format("AnonymousModule {}\n", utils::to_string(moduleOrNamespace.range));
             break;
         case ModuleOrNamespace::Type::Namespace:
-            ss << fmt::format("Namespace {} {}\n", moduleOrNamespace.name.value(),
+            ss << fmt::format("Namespace {} {}\n", utils::to_string(*moduleOrNamespace.name.value()),
                               utils::to_string(moduleOrNamespace.range));
             break;
         }
@@ -127,7 +127,7 @@ namespace fsharpgrammar
     std::string to_string(const ModuleDeclaration::NestedModule& nestedModuleDeclaration)
     {
         std::stringstream ss;
-        ss << fmt::format("[Nested Module {} {}\n", nestedModuleDeclaration.name,
+        ss << fmt::format("[Nested Module {} {}\n", utils::to_string(*nestedModuleDeclaration.name),
                           utils::to_string(nestedModuleDeclaration.range));
         for (const auto& module_decl : nestedModuleDeclaration.moduleDecls)
         {
@@ -152,12 +152,12 @@ namespace fsharpgrammar
         if (constant.value.has_value())
         {
             auto value = std::visit(utils::overloaded{
-                           [](const int32_t i) { return std::to_string(i); },
-                           [](const float_t f) { return std::to_string(f); },
-                           [](const std::string& s) { return s; },
-                           [](const char8_t c) { return std::to_string(c); },
-                           [](const bool b) { return std::to_string(b); },
-                       }, constant.value.value());
+                                        [](const int32_t i) { return std::to_string(i); },
+                                        [](const float_t f) { return std::to_string(f); },
+                                        [](const std::string& s) { return s; },
+                                        [](const char8_t c) { return std::to_string(c); },
+                                        [](const bool b) { return std::to_string(b); },
+                                    }, constant.value.value());
             ss << utils::indent_string(value + '\n', 1, false);
         }
         else
@@ -171,8 +171,8 @@ namespace fsharpgrammar
     {
         std::stringstream ss;
         ss << fmt::format("Ident {}\n{}",
-            utils::to_string(ident.range.start()),
-            utils::indent_string(ident.ident, 1, false));
+                          utils::to_string(ident.range.start()),
+                          utils::indent_string(ident.ident, 1, false));
         return ss.str();
     }
 
@@ -243,10 +243,10 @@ namespace fsharpgrammar
                 switch (l_op)
                 {
                 case Expression::OP::LogicalType::AND:
-                    operators.push_back("&");
+                    operators.emplace_back("&");
                     break;
                 case Expression::OP::LogicalType::OR:
-                    operators.push_back("|");
+                    operators.emplace_back("|");
                     break;
                 }
             }
@@ -258,10 +258,10 @@ namespace fsharpgrammar
                 switch (e_op)
                 {
                 case Expression::OP::EqualityType::EQUAL:
-                    operators.push_back("=");
+                    operators.emplace_back("=");
                     break;
                 case Expression::OP::EqualityType::NOT_EQUAL:
-                    operators.push_back("!=");
+                    operators.emplace_back("!=");
                     break;
                 }
             }
@@ -273,16 +273,16 @@ namespace fsharpgrammar
                 switch (r_op)
                 {
                 case Expression::OP::RelationType::LESS:
-                    operators.push_back("<");
+                    operators.emplace_back("<");
                     break;
                 case Expression::OP::RelationType::GREATER:
-                    operators.push_back(">");
+                    operators.emplace_back(">");
                     break;
                 case Expression::OP::RelationType::LESS_EQUAL:
-                    operators.push_back("<=");
+                    operators.emplace_back("<=");
                     break;
                 case Expression::OP::RelationType::GREATER_EQUAL:
-                    operators.push_back(">=");
+                    operators.emplace_back(">=");
                     break;
                 }
             }
@@ -294,19 +294,19 @@ namespace fsharpgrammar
                 switch (a_op)
                 {
                 case Expression::OP::ArithmeticType::ADD:
-                    operators.push_back("+");
+                    operators.emplace_back("+");
                     break;
                 case Expression::OP::ArithmeticType::SUBTRACT:
-                    operators.push_back("-");
+                    operators.emplace_back("-");
                     break;
                 case Expression::OP::ArithmeticType::MULTIPLY:
-                    operators.push_back("*");
+                    operators.emplace_back("*");
                     break;
                 case Expression::OP::ArithmeticType::DIVIDE:
-                    operators.push_back("/");
+                    operators.emplace_back("/");
                     break;
                 case Expression::OP::ArithmeticType::MODULO:
-                    operators.push_back("%");
+                    operators.emplace_back("%");
                     break;
                 }
             }
@@ -335,8 +335,9 @@ namespace fsharpgrammar
     std::string to_string(const Expression::DotGet& dot_get)
     {
         std::stringstream ss;
-        ss << ".Get\n";
+        ss << "Dot Get\n";
         ss << utils::indent_string(utils::to_string(*dot_get.expression));
+        ss << utils::indent_string(utils::to_string(*dot_get.identifier));
         return ss.str();
     }
 
@@ -395,14 +396,227 @@ namespace fsharpgrammar
         return utils::to_string(*constant.constant);
     }
 
+    std::string to_string(const Expression::Record& record)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Record {}\n", utils::to_string(record.range));
+
+        std::stringstream args;
+        for (auto& [ident, expression] : record.fields)
+        {
+            args << fmt::format("{}={}",
+                                utils::to_string(*ident),
+                                utils::to_string(*expression));
+        }
+        ss << utils::indent_string(
+            args.str(),
+            1,
+            true,
+            true,
+            true,
+            "{",
+            "}");
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Array& array)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Array {}\n", utils::to_string(array.range));
+
+        std::stringstream args;
+        for (const auto& expression : array.expressions)
+        {
+            args << utils::to_string(*expression) << '\n';
+        }
+        if (args.str().empty())
+            args << ' ';
+
+        ss << utils::indent_string(
+            args.str(),
+            1,
+            true,
+            true,
+            true,
+            "[",
+            "]");
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::List& list)
+    {
+        std::stringstream ss;
+        ss << fmt::format("List {}\n", utils::to_string(list.range));
+
+        std::stringstream args;
+        for (const auto& expression : list.expressions)
+        {
+            args << utils::to_string(*expression) << '\n';
+        }
+        if (args.str().empty())
+            args << ' ';
+        ss << utils::indent_string(
+            args.str(),
+            1,
+            true,
+            true,
+            true,
+            "[|",
+            "|]");
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::New& n)
+    {
+        std::stringstream ss;
+        ss << fmt::format("New {}\n", utils::to_string(n.range));
+        ss << utils::indent_string(
+            fmt::format("new \n{}",
+                        utils::to_string(*n.type)));
+        if (n.expression.has_value())
+            ss << utils::indent_string(utils::to_string(*n.expression.value()));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::IfThenElse& if_then_else)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Condition {}\n", utils::to_string(if_then_else.range));
+        std::stringstream args;
+        args << fmt::format("if\n{}then\n",
+                            utils::indent_string(utils::to_string(*if_then_else.condition)));
+        for (auto& expression : if_then_else.then)
+        {
+            args << utils::indent_string(utils::to_string(*expression));
+        }
+        if (if_then_else.else_expr.has_value())
+        {
+            args << "else\n";
+            for (auto& expression : if_then_else.else_expr.value())
+            {
+                args << utils::indent_string(utils::to_string(*expression));
+            }
+        }
+        ss << utils::indent_string(args.str());
+        return ss.str();
+    }
+
     std::string to_string(const Expression::Match& match)
     {
-        return "Match";
+        std::stringstream ss;
+        ss << fmt::format("Match {}\n", utils::to_string(match.range));
+        ss << utils::indent_string(fmt::format("{}\n", utils::to_string(*match.expression)));
+        for (auto& clause : match.clauses)
+        {
+            ss << utils::indent_string(utils::to_string(*clause), 1, false);
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::PipeRight& right)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Pipe Right {}\n", utils::to_string(right.range));
+        for (auto& expression : right.expressions)
+        {
+            ss << utils::indent_string("|>" + utils::to_string(*expression));
+        }
+
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Let& let)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Let {}\n", utils::to_string(let.range));
+        auto prefix = let.isMutable ? "mutable" : (let.isRecursive ? "recursive" : "");
+        ss << utils::indent_string(
+            fmt::format("{} {}", prefix, utils::to_string(*let.args))
+        );
+        for (auto& expression : let.expressions)
+        {
+            ss << utils::indent_string(utils::to_string(*expression));
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::LongIdentSet& long_ident_set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Long Ident Set {}", utils::to_string(long_ident_set.range));
+        ss << utils::indent_string(utils::to_string(*long_ident_set.long_ident));
+        ss << "<-\n";
+        ss << utils::indent_string(utils::to_string(*long_ident_set.expression));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::Set& set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Set {}", utils::to_string(set.range));
+        ss << utils::indent_string(utils::to_string(*set.target_expression));
+        ss << "<-\n";
+        ss << utils::indent_string(utils::to_string(*set.expression));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::DotSet& dot_set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Dot Set {}", utils::to_string(dot_set.range));
+
+        std::stringstream target;
+        target << utils::indent_string(utils::to_string(*dot_set.target_expression));
+        target << ".\n";
+        target << utils::indent_string(utils::to_string(*dot_set.long_ident));
+
+        ss << utils::indent_string("Target \n" + target.str());
+        ss << "<-";
+        ss << utils::indent_string(utils::to_string(*dot_set.expression));
+        return ss.str();
+    }
+
+    std::string to_string(const Expression::DotIndexSet& dot_index_set)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Dot Index Set {}", utils::to_string(dot_index_set.range));
+
+        std::stringstream target;
+        target << utils::indent_string(utils::to_string(*dot_index_set.pre_bracket_expression));
+        target << ".\n";
+
+        std::stringstream bracket_expressions;
+        for (auto& bracket_expression : dot_index_set.bracket_expressions)
+        {
+            bracket_expressions << utils::indent_string(utils::to_string(*bracket_expression));
+        }
+        target << utils::indent_string(bracket_expressions.str(),
+                                       1, true, true, true,
+                                       "[", "]");
+
+        ss << utils::indent_string("Target \n" + target.str());
+        ss << "<-";
+        ss << utils::indent_string(utils::to_string(*dot_index_set.expression));
+        return ss.str();
     }
 
     std::string to_string(const MatchClause& match_clause)
     {
-        return "MatchClause\n";
+        std::stringstream ss;
+        ss << fmt::format("| Match Clause {}\n", utils::to_string(match_clause.range));
+        ss << utils::indent_string(utils::to_string(*match_clause.pattern));
+
+        if (match_clause.when_expression.has_value())
+            ss << utils::indent_string(
+                fmt::format("when {}",
+                            utils::to_string(*match_clause.when_expression.value())));
+
+        for (auto& expressions : match_clause.expressions)
+        {
+            ss << utils::indent_string(utils::to_string(*expressions), 1);
+        }
+
+        return ss.str();
     }
 
     std::string to_string(const Pattern::TuplePattern& tuplePattern)
@@ -416,5 +630,85 @@ namespace fsharpgrammar
                 strStr << ",\n";
         }
         return strStr.str();
+    }
+
+    std::string to_string(const Type::Fun& type)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Function {}\n", utils::to_string(type.get_range()));
+
+        for (const auto& fun_type : type.fun_types)
+        {
+            ss << utils::indent_string(fmt::format("->{}\n", utils::to_string(*fun_type)));
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Tuple& tuple)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Tuple {}\n", utils::to_string(tuple.range));
+        for (const auto& tuple_type : tuple.types)
+        {
+            ss << utils::indent_string(utils::to_string(*tuple_type));
+        }
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Postfix& postfix)
+    {
+        std::stringstream ss;
+        ss << fmt::format("{} Postfix {}\n",
+                          postfix.is_paren ? "Paren" : "",
+                          utils::to_string(postfix.range)
+        );
+        ss << utils::indent_string(utils::to_string(*postfix.left));
+        ss << utils::indent_string(utils::to_string(*postfix.right));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Array& array)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Array {}\n", utils::to_string(array.range));
+        ss << utils::indent_string(utils::to_string(*array.type));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Paren& parent)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Paren {}\n", utils::to_string(parent.range));
+        ss << utils::indent_string(utils::to_string(*parent.type));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::Var& var)
+    {
+        return utils::to_string(*var.ident);
+    }
+
+    std::string to_string(const Type::LongIdent& ident)
+    {
+        return utils::to_string(*ident.longIdent);
+    }
+
+    std::string to_string(const Type::Anon& anon)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Anon {}", utils::to_string(anon.range));
+        return ss.str();
+    }
+
+    std::string to_string(const Type::StaticConstant& constant)
+    {
+        return utils::to_string(*constant.constant);
+    }
+
+    std::string to_string(const Type::StaticNull& null)
+    {
+        std::stringstream ss;
+        ss << fmt::format("Null {}", utils::to_string(null.range));
+        return ss.str();
     }
 } // fsharpgrammar

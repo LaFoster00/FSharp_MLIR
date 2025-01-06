@@ -138,12 +138,11 @@ let_expr
     ;
 
 binding
-    : (MUTABLE? | REC?) pattern?
+    : (MUTABLE? | REC?) pattern
     ;
 
 body
     : NEWLINE INDENT sequential_stmt+ DEDENT #multiline_body
-    | NEWLINE PIPE sequential_stmt+ #multiline_match_body
     | inline_sequential_stmt #single_line_body
     ;
 
@@ -168,16 +167,16 @@ dot_index_set_expr
     ;
 
 non_assigment_expr
-    : app_expr
-    ;
-
-app_expr
-    : tuple_expr tuple_expr*
+    : tuple_expr
     ;
 
 tuple_expr
     /// F# syntax: e1, ..., eN
-    : or_expr (COMMA or_expr)*
+    : app_expr (COMMA app_expr)*
+    ;
+
+app_expr
+    : or_expr or_expr*
     ;
 
 or_expr
@@ -294,7 +293,7 @@ list_expr
 
 new_expr
     /// F# syntax: new C(...)
-    : NEW type OPEN_PAREN expression CLOSE_PAREN
+    : NEW type OPEN_PAREN expression? CLOSE_PAREN
     ;
 
 if_then_else_expr
@@ -362,7 +361,7 @@ tuple_type
     ;
 
 append_type
-    /// F# syntax: type<type, ..., type> or type type or (type, ..., type) type
+    /// F# syntax: type type or (type, ..., type) type
     : array_type array_type? #postfix_type
     | paren_type array_type #paren_postfix_type
     ;
@@ -388,7 +387,7 @@ paren_type
 
 var_type
     /// F# syntax: var
-    : IDENT
+    : ident
     ;
 
 anon_type
@@ -401,8 +400,7 @@ static_constant_type
     ;
 
 static_constant_null_type
-    : constant
-    | NULL
+    : NULL
     ;
 
 

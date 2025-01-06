@@ -59,14 +59,18 @@ include(cmake/fmt.cmake)
 # ANTLR4 SETUP
 include(cmake/antlr4.cmake)
 build_antlr()
-# add antlr4cpp artifacts to project environment
-include_directories(${ANTLR4_INCLUDE_DIRS})
-link_libraries(${ANTLR4_RUNTIME_LIBRARIES})
+
+# cpptrace setup
+include(cmake/cpptrace.cmake)
+
+# gtest setup
+include(cmake/GTest.cmake)
 
 # Define global utility library resources
 set(FSHARP_MLIR_UTILITY_LIBS
         magic_enum::magic_enum
         fmt::fmt
+        cpptrace::cpptrace
         CACHE INTERNAL "")
 set(FSHARP_MLIR_UTILITY_INCLUDES CACHE INTERNAL "")
 

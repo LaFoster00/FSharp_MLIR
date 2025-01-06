@@ -6,6 +6,7 @@
 
 #include "ASTNode.h"
 #include "ASTHelper.h"
+#include "utils/FunctionTimer.h"
 
 namespace fsharpgrammar
 {
@@ -14,11 +15,7 @@ namespace fsharpgrammar
         std::vector<ast_ptr<ModuleOrNamespace>> anon_modules;
         for (auto module_or_namespace : ctx->module_or_namespace())
         {
-            std::any module_result = module_or_namespace->accept(this);
-            if (module_result.has_value())
-            {
-                anon_modules.push_back(ast::any_cast<ModuleOrNamespace>(module_result, ctx));
-            }
+            anon_modules.push_back(ast::any_cast<ModuleOrNamespace>(module_or_namespace->accept(this), ctx));
         }
         return make_ast<Main>(std::move(anon_modules), Range::create(ctx));
     }
@@ -29,13 +26,11 @@ namespace fsharpgrammar
         FSharpParserVisitor* visitor)
     {
         std::vector<ast_ptr<ModuleDeclaration>> module_declarations;
-        for (auto module_decl : decls)
+        module_declarations.reserve(decls.size());
+        for (const auto module_decl : decls)
         {
-            std::any module_result = module_decl->accept(visitor);
-            if (module_result.has_value())
-            {
-                module_declarations.push_back(ast::any_cast<ModuleDeclaration>(module_result, context));
-            }
+            if (auto result = module_decl->accept(visitor); result.has_value())
+                module_declarations.push_back(ast::any_cast<ModuleDeclaration>(std::move(result), context));
         }
         return module_declarations;
     }
@@ -44,7 +39,7 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::AnonymousModule,
-            std::optional<std::string>{},
+            std::optional<ast_ptr<LongIdent>>{},
             get_module_declarations(context->module_decl(), context, this),
             Range::create(context));
     }
@@ -53,7 +48,7 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::NamedModule,
-            ast::to_string(context->long_ident()),
+            ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
             get_module_declarations(context->module_decl(), context, this),
             Range::create(context));
     }
@@ -62,39 +57,36 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleOrNamespace>(
             ModuleOrNamespace::Type::Namespace,
-            ast::to_string(ctx->long_ident()),
+            ast::any_cast<LongIdent>(ctx->long_ident()->accept(this), ctx),
             get_module_declarations(ctx->module_decl(), ctx, this),
             Range::create(ctx));
     }
 
+    std::any AstBuilder::visitEmply_lines(FSharpParser::Emply_linesContext* context)
+    {
+        return {};
+    }
+
     std::any AstBuilder::visitNested_module(FSharpParser::Nested_moduleContext* context)
     {
-        std::vector<ast_ptr<ModuleDeclaration>> module_declarations;
-        for (auto module_decl : context->module_decl())
-        {
-            auto result = module_decl->accept(this);
-            module_declarations.push_back(ast::any_cast<ModuleDeclaration>(result, context));
-        }
-
         ModuleDeclaration::NestedModule nested_module(
-            ast::to_string(context->long_ident()),
-            std::move(module_declarations),
+            ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
+            get_module_declarations(context->module_decl(), context, this),
             Range::create(context));
 
         return make_ast<ModuleDeclaration>(
-            std::move(nested_module));
+            ModuleDeclaration::NestedModule(
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
+                get_module_declarations(context->module_decl(), context, this),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitExpression_stmt(FSharpParser::Expression_stmtContext* context)
     {
-        auto expression = context->sequential_stmt()->accept(this);
-        ast_ptr<Expression> result;
-        if (expression.has_value())
-            result = ast::any_cast<Expression>(expression, context);
-
         return make_ast<ModuleDeclaration>(
             ModuleDeclaration::Expression(
-                std::move(result),
+                ast::any_cast<Expression>(context->sequential_stmt()->accept(this), context),
                 Range::create(context)
             )
         );
@@ -104,33 +96,34 @@ namespace fsharpgrammar
     {
         return make_ast<ModuleDeclaration>(
             ModuleDeclaration::Open(
-                ast::to_string(context->long_ident()),
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
                 Range::create(context)));
     }
 
     std::any AstBuilder::visitMultiline_body(FSharpParser::Multiline_bodyContext* context)
     {
-        return std::vector<ast_ptr<Expression>>();
-    }
-
-    std::any AstBuilder::visitMultiline_match_body(FSharpParser::Multiline_match_bodyContext* context)
-    {
-        return std::vector<ast_ptr<Expression>>();
+        std::vector<ast_ptr<Expression>> expressions;
+        for (const auto sequential_stmt : context->sequential_stmt())
+        {
+            if (!sequential_stmt->expression().empty())
+                expressions.push_back(ast::any_cast<Expression>(sequential_stmt->accept(this), context));
+        }
+        return expressions;
     }
 
     std::any AstBuilder::visitSingle_line_body(FSharpParser::Single_line_bodyContext* context)
     {
-        return std::vector<ast_ptr<Expression>>();
+        std::vector<ast_ptr<Expression>> expressions;
+        expressions.push_back(ast::any_cast<Expression>(context->inline_sequential_stmt()->accept(this), context));
+        return expressions;
     }
 
     std::any AstBuilder::visitSequential_stmt(FSharpParser::Sequential_stmtContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto expr : context->expression())
+        for (const auto expr : context->expression())
         {
-            auto result = expr->accept(this);
-            if (result.has_value())
-                expressions.push_back(ast::any_cast<Expression>(result, context));
+            expressions.push_back(ast::any_cast<Expression>(expr->accept(this), context));
         }
 
         if (expressions.size() > 1)
@@ -156,17 +149,15 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNon_assigment_expr(FSharpParser::Non_assigment_exprContext* context)
     {
-        return context->app_expr()->accept(this);
+        return context->tuple_expr()->accept(this);
     }
 
     std::any AstBuilder::visitApp_expr(FSharpParser::App_exprContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto tuple_expr : context->tuple_expr())
+        for (const auto tuple_expr : context->or_expr())
         {
-            auto result = tuple_expr->accept(this);
-            if (result.has_value())
-                expressions.push_back(ast::any_cast<Expression>(result, context));
+            expressions.push_back(ast::any_cast<Expression>(tuple_expr->accept(this), context));
         }
         if (expressions.size() > 1)
             return make_ast<Expression>(
@@ -181,11 +172,9 @@ namespace fsharpgrammar
     std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
-        for (auto expr : context->or_expr())
+        for (const auto expr : context->app_expr())
         {
-            std::any result = expr->accept(this);
-            if (result.has_value())
-                expressions.push_back(ast::any_cast<Expression>(result, context));
+            expressions.push_back(ast::any_cast<Expression>(expr->accept(this), context));
         }
         if (expressions.size() > 1)
             return make_ast<Expression>(
@@ -210,9 +199,7 @@ namespace fsharpgrammar
         {
             if (const auto and_expr = dynamic_cast<decltype(context->and_expr(0))>(child))
             {
-                if (auto result = and_expr->accept(this);
-                    result.has_value())
-                    results.push_back(ast::any_cast<Expression>(result, context));
+                results.push_back(ast::any_cast<Expression>(and_expr->accept(this), context));
                 continue;
             }
 
@@ -244,9 +231,7 @@ namespace fsharpgrammar
         {
             if (const auto expression = dynamic_cast<decltype(context->equality_expr(0))>(child))
             {
-                if (auto result = expression->accept(this);
-                    result.has_value())
-                    results.push_back(ast::any_cast<Expression>(result, context));
+                results.push_back(ast::any_cast<Expression>(expression->accept(this), context));
                 continue;
             }
 
@@ -277,9 +262,7 @@ namespace fsharpgrammar
         {
             if (const auto expression = dynamic_cast<decltype(context->relation_expr(0))>(child))
             {
-                if (auto result = expression->accept(this);
-                    result.has_value())
-                    results.push_back(ast::any_cast<Expression>(result, context));
+                results.push_back(ast::any_cast<Expression>(expression->accept(this), context));
             }
             else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
             {
@@ -321,9 +304,7 @@ namespace fsharpgrammar
         {
             if (const auto expression = dynamic_cast<decltype(context->additive_expr(0))>(child))
             {
-                if (auto result = expression->accept(this);
-                    result.has_value())
-                    results.push_back(ast::any_cast<Expression>(result, context));
+                results.push_back(ast::any_cast<Expression>(expression->accept(this), context));
             }
             else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
             {
@@ -371,9 +352,7 @@ namespace fsharpgrammar
         {
             if (const auto expression = dynamic_cast<decltype(context->multiplicative_expr(0))>(child))
             {
-                if (auto result = expression->accept(this);
-                    result.has_value())
-                    results.push_back(ast::any_cast<Expression>(result, context));
+                results.push_back(ast::any_cast<Expression>(expression->accept(this), context));
             }
             else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
             {
@@ -406,18 +385,13 @@ namespace fsharpgrammar
     std::any AstBuilder::visitMultiplicative_expr(FSharpParser::Multiplicative_exprContext* context)
     {
         std::vector<ast_ptr<Expression>> results;
-        results.reserve(context->children.size() / 2 + 1);
-
         std::vector<Expression::OP::ArithmeticType> operators;
-        operators.reserve(context->children.size() / 2);
 
         for (const auto child : context->children)
         {
             if (const auto expression = dynamic_cast<decltype(context->dot_get_expr(0))>(child))
             {
-                if (auto result = expression->accept(this);
-                    result.has_value())
-                    results.push_back(ast::any_cast<Expression>(result, context));
+                results.push_back(ast::any_cast<Expression>(expression->accept(this), context));
             }
             else if (const auto op = dynamic_cast<tree::TerminalNode*>(child))
             {
@@ -454,14 +428,13 @@ namespace fsharpgrammar
     {
         if (context->long_ident())
         {
-            if (auto result = context->dot_index_get_expr()->accept(this); result.has_value())
-                return make_ast<Expression>(
-                    Expression::DotGet(
-                        ast::any_cast<Expression>(result, context),
-                        ast::to_string(context->long_ident()),
-                        Range::create(context)
-                    )
-                );
+            return make_ast<Expression>(
+                Expression::DotGet(
+                    ast::any_cast<Expression>(context->dot_index_get_expr()->accept(this), context),
+                    ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
+                    Range::create(context)
+                )
+            );
         }
         return context->dot_index_get_expr()->accept(this);
     }
@@ -470,12 +443,10 @@ namespace fsharpgrammar
     {
         if (context->typed_expr().size() > 1)
         {
-            auto base_result = context->typed_expr().front()->accept(this);
-            auto index_result = context->typed_expr().back()->accept(this);
             return make_ast<Expression>(
                 Expression::DotIndexedGet(
-                    ast::any_cast<Expression>(base_result, context),
-                    ast::any_cast<Expression>(index_result, context),
+                    ast::any_cast<Expression>(context->typed_expr().front()->accept(this), context),
+                    ast::any_cast<Expression>(context->typed_expr().back()->accept(this), context),
                     Range::create(context)
                 )
             );
@@ -486,19 +457,16 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitTyped_expr(FSharpParser::Typed_exprContext* context)
     {
-        auto result = context->unary_expression()->accept(this);
-
         if (context->type())
         {
-            auto type_result = context->type()->accept(this);
             return make_ast<Expression>(
                 Expression::Typed(
-                    ast::any_cast<Expression>(result, context),
-                    ast::any_cast<Type>(type_result, context),
+                    ast::any_cast<Expression>(context->unary_expression()->accept(this), context),
+                    ast::any_cast<Type>(context->type()->accept(this), context),
                     Range::create(context))
             );
         }
-        return ast::any_cast<Expression>(result, context);
+        return ast::any_cast<Expression>(context->unary_expression()->accept(this), context);
     }
 
     std::any AstBuilder::visitUnary_expression(FSharpParser::Unary_expressionContext* context)
@@ -513,10 +481,9 @@ namespace fsharpgrammar
             else
                 type = Expression::Unary::Type::NOT;
 
-            auto result = context->unary_expression()->accept(this);
             return make_ast<Expression>(
                 Expression::Unary(
-                    ast::any_cast<Expression>(result, context),
+                    ast::any_cast<Expression>(context->unary_expression()->accept(this), context),
                     type,
                     Range::create(context)
                 )
@@ -532,10 +499,9 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitParen_expr(FSharpParser::Paren_exprContext* context)
     {
-        auto result = context->expression()->accept(this);
         return make_ast<Expression>(
             Expression::Paren(
-                ast::any_cast<Expression>(result, context),
+                ast::any_cast<Expression>(context->expression()->accept(this), context),
                 Range::create(context))
         );
     }
@@ -566,32 +532,86 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNull_expr(FSharpParser::Null_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Null Expr"));
+        return make_ast<Expression>(Expression::Null(Range::create(context)));
     }
 
     std::any AstBuilder::visitRecord_expr(FSharpParser::Record_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Record Expr"));
+        std::vector<Expression::Record::Field> fields;
+        for (const auto& record_expr_field : context->record_expr_field())
+        {
+            fields.push_back(std::any_cast<Expression::Record::Field>(record_expr_field->accept(this)));
+        }
+
+        return make_ast<Expression>(Expression::Record(
+                std::move(fields),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitRecord_expr_field(FSharpParser::Record_expr_fieldContext* context)
+    {
+        return Expression::Record::Field(
+            ast::any_cast<Ident>(context->ident()->accept(this), context),
+            ast::any_cast<Expression>(context->expression()->accept(this), context)
+        );
     }
 
     std::any AstBuilder::visitArray_expr(FSharpParser::Array_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Array Expr"));
+        std::vector<ast_ptr<Expression>> expressions;
+        for (const auto expression : context->expression())
+        {
+            expressions.emplace_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        return make_ast<Expression>(Expression::Array(
+                std::move(expressions), Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitList_expr(FSharpParser::List_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("List Expr"));
+        std::vector<ast_ptr<Expression>> expressions;
+        for (const auto expression : context->expression())
+        {
+            expressions.emplace_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        return make_ast<Expression>(Expression::List(
+                std::move(expressions), Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitNew_expr(FSharpParser::New_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("New Expr"));
+        auto type = ast::any_cast<fsharpgrammar::Type>(context->type()->accept(this), context);
+        std::optional<ast_ptr<Expression>> expression{};
+        if (context->expression())
+        {
+            expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        }
+        return make_ast<Expression>(Expression::New(
+                std::move(type),
+                std::move(expression),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitIf_then_else_expr(FSharpParser::If_then_else_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("IfThenElse Expr"));
+        auto condition = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        auto then_body = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body(0)->accept(this));
+        std::optional<std::vector<ast_ptr<Expression>>> else_body{};
+        if (context->ELSE())
+        {
+            else_body = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body(1)->accept(this));
+        }
+        return make_ast<Expression>(
+            Expression::IfThenElse(
+                std::move(condition),
+                std::move(then_body),
+                std::move(else_body),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitMatch_expr(FSharpParser::Match_exprContext* context)
@@ -633,28 +653,193 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitPipe_right_expr(FSharpParser::Pipe_right_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Pipe Right Expr"));
+        auto previous_expression = std::shared_ptr<Expression>(nullptr);
+        return make_ast<Expression>(Expression::PipeRight(
+                std::move(previous_expression),
+                std::any_cast<std::vector<ast_ptr<Expression>>>(context->body()->accept(this)),
+                Range::create(context))
+        );
     }
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
     {
-        switch (context->getRuleIndex())
-        {
-        case 0:
-            return context->let_expr()->accept(this);
-        default:
-            return make_ast<Expression>(PlaceholderNodeAlternative("Assignment Expr"));
-        }
+        return context->children[0]->accept(this);
     }
 
     std::any AstBuilder::visitLet_expr(FSharpParser::Let_exprContext* context)
     {
-        return make_ast<Expression>(PlaceholderNodeAlternative("Let Expr"));
+        auto binding = ast::any_cast<Pattern>(context->binding()->accept(this), context);
+        auto expressions = std::any_cast<std::vector<ast_ptr<Expression>>>(context->body()->accept(this));
+        return make_ast<Expression>(
+            Expression::Let(
+                context->binding()->MUTABLE() != nullptr,
+                context->binding()->REC() != nullptr,
+                std::move(binding),
+                std::move(expressions),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context)
+    {
+        auto long_ident = ast::any_cast<LongIdent>(context->long_ident()->accept(this), context);
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        return make_ast<Expression>(Expression::LongIdentSet(
+                std::move(long_ident),
+                std::move(expression),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitSet_expr(FSharpParser::Set_exprContext* context)
+    {
+        auto target_expression = ast::any_cast<Expression>(context->atomic_expr()->accept(this), context);
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        return make_ast<Expression>(Expression::Set(
+                std::move(target_expression),
+                std::move(expression),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitDot_set_expr(FSharpParser::Dot_set_exprContext* context)
+    {
+        auto target_expression = ast::any_cast<Expression>(context->atomic_expr()->accept(this), context);
+        auto long_ident = ast::any_cast<LongIdent>(context->long_ident()->accept(this), context);
+        auto expression = ast::any_cast<Expression>(context->expression()->accept(this), context);
+        return make_ast<Expression>(Expression::DotSet(
+                std::move(target_expression),
+                std::move(long_ident),
+                std::move(expression),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitDot_index_set_expr(FSharpParser::Dot_index_set_exprContext* context)
+    {
+        auto pre_bracket_expressions = ast::any_cast<Expression>(context->atomic_expr()->accept(this), context);
+        std::vector<ast_ptr<Expression>> bracket_expressions;
+        for (auto expression : context->expression())
+        {
+            if (expression == context->expression().back())
+                continue;
+            bracket_expressions.push_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        auto expression = ast::any_cast<Expression>(context->expression().back()->accept(this), context);
+
+        return make_ast<Expression>(Expression::DotIndexSet(
+                std::move(pre_bracket_expressions),
+                std::move(bracket_expressions),
+                std::move(expression),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)
+    {
+        return make_ast<Pattern>(
+            Pattern::Type::AndPattern,
+            std::vector<ast_ptr<Pattern>>{},
+            Range::create(context));
+    }
+
+    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        if (context->and_pat().size() > 1)
+        {
+            for (const auto pat : context->and_pat())
+            {
+                patterns.emplace_back(ast::any_cast<Pattern>(pat->accept(this), context));
+            }
+        }
+
+        return make_ast<Pattern>(
+            Pattern::Type::TuplePattern,
+            std::move(patterns),
+            Range::create(context)
+        );
     }
 
     std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
     {
-        return make_ast<Type>(Range::create(context));
+        return context->fun_type()->accept(this);
+    }
+
+    std::any AstBuilder::visitFun_type(FSharpParser::Fun_typeContext* context)
+    {
+        if (context->type().empty())
+            return context->type().front()->accept(this);
+
+        std::vector<ast_ptr<Type>> types;
+        for (const auto type : context->type())
+        {
+            types.push_back(ast::any_cast<Type>(type->accept(this), context));
+        }
+
+        return make_ast<Type>(Type::Fun(
+                ast::any_cast<Type>(context->tuple_type()->accept(this), context),
+                std::move(types),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitTuple_type(FSharpParser::Tuple_typeContext* context)
+    {
+        if (context->type().empty())
+        {
+            return context->append_type()->accept(this);
+        }
+
+        std::vector<ast_ptr<Type>> types;
+        types.push_back(ast::any_cast<Type>(context->append_type()->accept(this), context));
+        for (const auto type : context->type())
+        {
+            types.push_back(ast::any_cast<Type>(type->accept(this), context));
+        }
+
+        return make_ast<Type>(Type::Tuple(
+                std::move(types),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitPostfix_type(FSharpParser::Postfix_typeContext* context)
+    {
+        if (context->array_type().size() > 1)
+            return make_ast<Type>(Type::Postfix(
+                    ast::any_cast<Type>(context->array_type().front()->accept(this), context),
+                    ast::any_cast<Type>(context->array_type().back()->accept(this), context),
+                    false,
+                    Range::create(context))
+            );
+        return context->array_type().front()->accept(this);
+    }
+
+    std::any AstBuilder::visitParen_postfix_type(FSharpParser::Paren_postfix_typeContext* context)
+    {
+        return make_ast<Type>(Type::Postfix(
+                ast::any_cast<Type>(context->paren_type()->accept(this), context),
+                ast::any_cast<Type>(context->array_type()->accept(this), context),
+                true,
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitArray_type(FSharpParser::Array_typeContext* context)
+    {
+        if (context->OPEN_BRACK())
+            return make_ast<Type>(Type::Array(
+                    ast::any_cast<Type>(context->atomic_type()->accept(this), context),
+                    Range::create(context))
+            );
+
+        return context->atomic_type()->accept(this);
+    }
+
+    std::any AstBuilder::visitAtomic_type(FSharpParser::Atomic_typeContext* context)
+    {
+        return make_ast<Type>(PlaceholderNodeAlternative("Atomic Type"));
     }
 
     std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)
