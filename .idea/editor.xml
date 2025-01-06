@@ -240,6 +240,8 @@
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=StringLiteralTypo/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CommentTypo/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=IdentifierTypo/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Avariant_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003Fusr_003Finclude_003Fc_002B_002B_003F13_003Fvariant/@EntryIndexedValue" value="ForceIncluded" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ashared_005Fptr_005Fbase_002Eh_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003Fusr_003Finclude_003Fc_002B_002B_003F13_003Fbits_003Fshared_005Fptr_005Fbase_002Eh/@EntryIndexedValue" value="ForceIncluded" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppSmartPointerVsMakeFunction/@EntryIndexRemoved" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppCStyleCast/@EntryIndexRemoved" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppFunctionalStyleCast/@EntryIndexRemoved" />
@@ -479,9 +481,14 @@
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=StringLiteralTypo/@EntryIndexRemoved" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CommentTypo/@EntryIndexRemoved" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=IdentifierTypo/@EntryIndexRemoved" />
-    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Avariant_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003Fusr_003Finclude_003Fc_002B_002B_003F13_003Fvariant/@EntryIndexedValue" value="ForceIncluded" type="string" />
-    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Avariant_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003Fusr_003Finclude_003Fc_002B_002B_003F13_003Fvariant/@EntryIndexRemoved" />
-    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ashared_005Fptr_005Fbase_002Eh_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003Fusr_003Finclude_003Fc_002B_002B_003F13_003Fbits_003Fshared_005Fptr_005Fbase_002Eh/@EntryIndexedValue" value="ForceIncluded" type="string" />
-    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ashared_005Fptr_005Fbase_002Eh_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003Fusr_003Finclude_003Fc_002B_002B_003F13_003Fbits_003Fshared_005Fptr_005Fbase_002Eh/@EntryIndexRemoved" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=AccessRight/@EntryIndexedValue" value="public" type="string" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=AccessRight/@EntryIndexRemoved" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=AcceptParameterKind/@EntryIndexedValue" value="Const reference" type="string" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=AcceptParameterKind/@EntryIndexRemoved" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=UseConstParameterTypes/@EntryIndexedValue" value="False" type="string" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=UseConstParameterTypes/@EntryIndexRemoved" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=DeclareConstructorsNodiscard/@EntryIndexedValue" value="False" type="string" />
+    <option name="/Default/CodeStyle/Generate/=CppConstructor/Options/=DeclareConstructorsNodiscard/@EntryIndexRemoved" />
   </component>
 </project>

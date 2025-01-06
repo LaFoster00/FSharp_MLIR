@@ -863,7 +863,7 @@ namespace fsharpgrammar
         }
         if (patterns.size() > 1)
             return make_ast<Pattern>(
-                Pattern::TuplePattern(
+                Pattern::Tuple(
                     std::move(patterns),
                     Range::create(context))
             );

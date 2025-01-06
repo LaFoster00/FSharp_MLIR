@@ -7,6 +7,10 @@
 #include <sstream>
 #include <utility>
 
+#define RANGED_NAMED_BLOCK(Name, Object) \
+    std::stringstream ss; \
+    ss << fmt::format("{} {}\n", Name, utils::to_string(Object.get_range()))
+
 namespace fsharpgrammar
 {
     Main::Main(
@@ -138,16 +142,14 @@ namespace fsharpgrammar
 
     std::string to_string(const ModuleDeclaration& moduleDeclaration)
     {
-        std::stringstream ss;
-        ss << fmt::format("Module Declaration {}\n", utils::to_string(moduleDeclaration.get_range()));
+        RANGED_NAMED_BLOCK("Module Declaration", moduleDeclaration);
         ss << utils::indent_string(utils::to_string(moduleDeclaration.declaration), 1, false);
         return ss.str();
     }
 
     std::string to_string(const Constant& constant)
     {
-        std::stringstream ss;
-        ss << fmt::format("Constant {}\n", utils::to_string(constant.range));
+        RANGED_NAMED_BLOCK("Constant", constant);
 
         if (constant.value.has_value())
         {
@@ -169,17 +171,14 @@ namespace fsharpgrammar
 
     std::string to_string(const Ident& ident)
     {
-        std::stringstream ss;
-        ss << fmt::format("Ident {}\n{}",
-                          utils::to_string(ident.range.start()),
-                          utils::indent_string(ident.ident, 1, false));
+        RANGED_NAMED_BLOCK("Ident", ident);
+        ss << utils::indent_string(ident.ident, 1, false);
         return ss.str();
     }
 
     std::string to_string(const LongIdent& longIdent)
     {
-        std::stringstream ss;
-        ss << fmt::format("LongIdent {}\n", utils::to_string(longIdent.range));
+        RANGED_NAMED_BLOCK("LongIdent", longIdent);
         std::string fullIdent = "\t";
         for (size_t i = 0; i < longIdent.idents.size(); ++i)
         {
@@ -193,8 +192,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Sequential& sequential)
     {
-        std::stringstream ss;
-        ss << "(Sequential " + utils::to_string(sequential.range) + "\n";
+        RANGED_NAMED_BLOCK("Sequential", sequential);
         for (size_t i = 0; i < sequential.expressions.size(); ++i)
         {
             ss << utils::indent_string(utils::to_string(*sequential.expressions[i]));
@@ -207,8 +205,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Append& append)
     {
-        std::stringstream ss;
-        ss << fmt::format("Append {}\n", utils::to_string(append.range));
+        RANGED_NAMED_BLOCK("Append", append);
         for (const auto& expression : append.expressions)
         {
             ss << utils::indent_string(utils::to_string(*expression));
@@ -219,8 +216,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Tuple& tuple)
     {
-        std::stringstream ss;
-        ss << fmt::format("Tuple {}\n", utils::to_string(tuple.range));
+        RANGED_NAMED_BLOCK("Tuple", tuple);
         for (size_t i = 0; i < tuple.expressions.size(); ++i)
         {
             ss << utils::indent_string(utils::to_string(*tuple.expressions[i]));
@@ -312,10 +308,8 @@ namespace fsharpgrammar
             }
         }
 
-        std::stringstream ss;
 
-        ss << fmt::format("{} {}\n", title, utils::to_string(op.range));
-
+        RANGED_NAMED_BLOCK(title, op);
         for (size_t i = 0; i < op.expressions.size(); ++i)
         {
             ss << utils::indent_string(
@@ -334,8 +328,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::DotGet& dot_get)
     {
-        std::stringstream ss;
-        ss << "Dot Get\n";
+        RANGED_NAMED_BLOCK("Dot Get", dot_get);
         ss << utils::indent_string(utils::to_string(*dot_get.expression));
         ss << utils::indent_string(utils::to_string(*dot_get.identifier));
         return ss.str();
@@ -343,8 +336,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::DotIndexedGet& dot_get)
     {
-        std::stringstream ss;
-        ss << ".[Get]\n";
+        RANGED_NAMED_BLOCK("DotIndexedGet", dot_get);
         ss << utils::indent_string(utils::to_string(*dot_get.base_expression), 2);
         ss << fmt::format(
             "\t[\n{}\t]\n",
@@ -355,8 +347,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Typed& typed)
     {
-        std::stringstream ss;
-        ss << "Typed\n";
+        RANGED_NAMED_BLOCK("Typed", typed);
         ss << utils::indent_string(utils::to_string(*typed.expression));
         ss << ':';
         ss << utils::indent_string(utils::to_string(*typed.type));
@@ -365,8 +356,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Unary& unary)
     {
-        std::stringstream ss;
-        ss << "Unary\n";
+        RANGED_NAMED_BLOCK("Unary", unary);
         switch (unary.type)
         {
         case Expression::Unary::Type::PLUS:
@@ -385,8 +375,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Paren& paren)
     {
-        std::stringstream ss;
-        ss << fmt::format("Parenthesis {}\n", utils::to_string(paren.range));
+        RANGED_NAMED_BLOCK("Parenthesis", paren);
         ss << utils::indent_string(utils::to_string(*paren.expression));
         return ss.str();
     }
@@ -398,8 +387,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Record& record)
     {
-        std::stringstream ss;
-        ss << fmt::format("Record {}\n", utils::to_string(record.range));
+        RANGED_NAMED_BLOCK("Record", record);
 
         std::stringstream args;
         for (auto& [ident, expression] : record.fields)
@@ -421,8 +409,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Array& array)
     {
-        std::stringstream ss;
-        ss << fmt::format("Array {}\n", utils::to_string(array.range));
+        RANGED_NAMED_BLOCK("Array", array);
 
         std::stringstream args;
         for (const auto& expression : array.expressions)
@@ -445,8 +432,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::List& list)
     {
-        std::stringstream ss;
-        ss << fmt::format("List {}\n", utils::to_string(list.range));
+        RANGED_NAMED_BLOCK("List", list);
 
         std::stringstream args;
         for (const auto& expression : list.expressions)
@@ -468,8 +454,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::New& n)
     {
-        std::stringstream ss;
-        ss << fmt::format("New {}\n", utils::to_string(n.range));
+        RANGED_NAMED_BLOCK("New", n);
         ss << utils::indent_string(
             fmt::format("new \n{}",
                         utils::to_string(*n.type)));
@@ -480,8 +465,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::IfThenElse& if_then_else)
     {
-        std::stringstream ss;
-        ss << fmt::format("Condition {}\n", utils::to_string(if_then_else.range));
+        RANGED_NAMED_BLOCK("Condition", if_then_else);
         std::stringstream args;
         args << fmt::format("if\n{}then\n",
                             utils::indent_string(utils::to_string(*if_then_else.condition)));
@@ -503,8 +487,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Match& match)
     {
-        std::stringstream ss;
-        ss << fmt::format("Match {}\n", utils::to_string(match.range));
+        RANGED_NAMED_BLOCK("Match", match);
         ss << utils::indent_string(fmt::format("{}\n", utils::to_string(*match.expression)));
         for (auto& clause : match.clauses)
         {
@@ -515,8 +498,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::PipeRight& right)
     {
-        std::stringstream ss;
-        ss << fmt::format("Pipe Right {}\n", utils::to_string(right.range));
+        RANGED_NAMED_BLOCK("PipeRight", right);
         for (auto& expression : right.expressions)
         {
             ss << utils::indent_string("|>" + utils::to_string(*expression));
@@ -527,8 +509,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Let& let)
     {
-        std::stringstream ss;
-        ss << fmt::format("Let {}\n", utils::to_string(let.range));
+        RANGED_NAMED_BLOCK("Let", let);
         auto prefix = let.isMutable ? "mutable" : (let.isRecursive ? "recursive" : "");
         ss << utils::indent_string(
             fmt::format("{} {}", prefix, utils::to_string(*let.args))
@@ -542,8 +523,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::LongIdentSet& long_ident_set)
     {
-        std::stringstream ss;
-        ss << fmt::format("Long Ident Set {}", utils::to_string(long_ident_set.range));
+        RANGED_NAMED_BLOCK("LongIdentSet", long_ident_set);
         ss << utils::indent_string(utils::to_string(*long_ident_set.long_ident));
         ss << "<-\n";
         ss << utils::indent_string(utils::to_string(*long_ident_set.expression));
@@ -552,8 +532,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::Set& set)
     {
-        std::stringstream ss;
-        ss << fmt::format("Set {}", utils::to_string(set.range));
+        RANGED_NAMED_BLOCK("Set", set);
         ss << utils::indent_string(utils::to_string(*set.target_expression));
         ss << "<-\n";
         ss << utils::indent_string(utils::to_string(*set.expression));
@@ -562,8 +541,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::DotSet& dot_set)
     {
-        std::stringstream ss;
-        ss << fmt::format("Dot Set {}", utils::to_string(dot_set.range));
+        RANGED_NAMED_BLOCK("DotSet", dot_set);
 
         std::stringstream target;
         target << utils::indent_string(utils::to_string(*dot_set.target_expression));
@@ -578,8 +556,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Expression::DotIndexSet& dot_index_set)
     {
-        std::stringstream ss;
-        ss << fmt::format("Dot Index Set {}", utils::to_string(dot_index_set.range));
+        RANGED_NAMED_BLOCK("DotIndexSet", dot_index_set);
 
         std::stringstream target;
         target << utils::indent_string(utils::to_string(*dot_index_set.pre_bracket_expression));
@@ -602,8 +579,7 @@ namespace fsharpgrammar
 
     std::string to_string(const MatchClause& match_clause)
     {
-        std::stringstream ss;
-        ss << fmt::format("| Match Clause {}\n", utils::to_string(match_clause.range));
+        RANGED_NAMED_BLOCK("| Match Clause", match_clause);
         ss << utils::indent_string(utils::to_string(*match_clause.pattern));
 
         if (match_clause.when_expression.has_value())
@@ -619,24 +595,100 @@ namespace fsharpgrammar
         return ss.str();
     }
 
-    std::string to_string(const Pattern::TuplePattern& tuplePattern)
+    std::string to_string(const Pattern::Tuple& tuplePattern)
     {
-        std::stringstream strStr;
-        strStr << fmt::format("TuplePattern {}\n", utils::to_string(tuplePattern.range));
+        RANGED_NAMED_BLOCK("Tuple Pattern", tuplePattern);
         for(size_t i = 0; i < tuplePattern.patterns.size(); ++i)
         {
-            strStr << utils::indent_string(utils::to_string(*tuplePattern.patterns[i]));
+            ss << utils::indent_string(utils::to_string(*tuplePattern.patterns[i]));
             if(i < tuplePattern.patterns.size() - 1)
-                strStr << ",\n";
+                ss << ",\n";
         }
-        return strStr.str();
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::And& andPattern)
+    {
+        RANGED_NAMED_BLOCK("And Pattern", andPattern);
+
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Or& orPattern)
+    {
+        RANGED_NAMED_BLOCK("Or Pattern", orPattern);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::As& asPattern)
+    {
+        RANGED_NAMED_BLOCK("As", asPattern);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Cons& cons)
+    {
+        RANGED_NAMED_BLOCK("Cons", cons);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Typed& typed)
+    {
+        RANGED_NAMED_BLOCK("Typed", typed);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Paren& paren)
+    {
+        RANGED_NAMED_BLOCK("Parethesis Pattern", paren);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Anon& anon)
+    {
+        RANGED_NAMED_BLOCK("Anon Pattern", anon);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Constant& constant)
+    {
+        RANGED_NAMED_BLOCK("Constant", constant);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Named& named)
+    {
+        RANGED_NAMED_BLOCK("Named", named);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::LongIdent& ident)
+    {
+        RANGED_NAMED_BLOCK("LongIdent", ident);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Record& record)
+    {
+        RANGED_NAMED_BLOCK("Record", record);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Array& array)
+    {
+        RANGED_NAMED_BLOCK("Array", array);
+        return ss.str();
+    }
+
+    std::string to_string(const Pattern::Null& null)
+    {
+        RANGED_NAMED_BLOCK("Null", null);
+        return ss.str();
     }
 
     std::string to_string(const Type::Fun& type)
     {
-        std::stringstream ss;
-        ss << fmt::format("Function {}\n", utils::to_string(type.get_range()));
-
+        RANGED_NAMED_BLOCK("Function", type);
         for (const auto& fun_type : type.fun_types)
         {
             ss << utils::indent_string(fmt::format("->{}\n", utils::to_string(*fun_type)));
@@ -646,8 +698,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Type::Tuple& tuple)
     {
-        std::stringstream ss;
-        ss << fmt::format("Tuple {}\n", utils::to_string(tuple.range));
+        RANGED_NAMED_BLOCK("Tuple", tuple);
         for (const auto& tuple_type : tuple.types)
         {
             ss << utils::indent_string(utils::to_string(*tuple_type));
@@ -657,11 +708,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Type::Postfix& postfix)
     {
-        std::stringstream ss;
-        ss << fmt::format("{} Postfix {}\n",
-                          postfix.is_paren ? "Paren" : "",
-                          utils::to_string(postfix.range)
-        );
+        RANGED_NAMED_BLOCK(postfix.is_paren ? "Paren" : "", postfix);
         ss << utils::indent_string(utils::to_string(*postfix.left));
         ss << utils::indent_string(utils::to_string(*postfix.right));
         return ss.str();
@@ -669,16 +716,14 @@ namespace fsharpgrammar
 
     std::string to_string(const Type::Array& array)
     {
-        std::stringstream ss;
-        ss << fmt::format("Array {}\n", utils::to_string(array.range));
+        RANGED_NAMED_BLOCK("Array", array);
         ss << utils::indent_string(utils::to_string(*array.type));
         return ss.str();
     }
 
     std::string to_string(const Type::Paren& parent)
     {
-        std::stringstream ss;
-        ss << fmt::format("Paren {}\n", utils::to_string(parent.range));
+        RANGED_NAMED_BLOCK("Parenthesis", parent);
         ss << utils::indent_string(utils::to_string(*parent.type));
         return ss.str();
     }
@@ -695,8 +740,7 @@ namespace fsharpgrammar
 
     std::string to_string(const Type::Anon& anon)
     {
-        std::stringstream ss;
-        ss << fmt::format("Anon {}", utils::to_string(anon.range));
+        RANGED_NAMED_BLOCK("Anon", anon);
         return ss.str();
     }
 
@@ -707,8 +751,8 @@ namespace fsharpgrammar
 
     std::string to_string(const Type::StaticNull& null)
     {
-        std::stringstream ss;
-        ss << fmt::format("Null {}", utils::to_string(null.range));
+        RANGED_NAMED_BLOCK("Null", null);
+        ss << utils::indent_string("null", false);
         return ss.str();
     }
 } // fsharpgrammar

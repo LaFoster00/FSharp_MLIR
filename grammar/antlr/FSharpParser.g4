@@ -74,8 +74,8 @@ typed_pat
 atomic_pat
     :
     paren_pat
-    | anon_expr
-    | constant
+    | anon_pat
+    | constant_pat
     | named_pat
     | record_pat
     | array_pat
@@ -86,6 +86,14 @@ atomic_pat
 paren_pat
     /// F# syntax: (pat)
     : OPEN_PAREN pattern CLOSE_PAREN
+    ;
+
+anon_pat
+    : UNDERSCORE
+    ;
+
+constant_pat
+    : constant
     ;
 
 record_pat
