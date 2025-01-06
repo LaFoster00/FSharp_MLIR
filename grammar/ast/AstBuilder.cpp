@@ -118,6 +118,24 @@ namespace fsharpgrammar
         return expressions;
     }
 
+    std::any AstBuilder::visitInline_sequential_stmt(FSharpParser::Inline_sequential_stmtContext* context)
+    {
+        std::vector<ast_ptr<Expression>> expressions;
+        for (auto expression : context->expression())
+        {
+            expressions.emplace_back(ast::any_cast<Expression>(expression->accept(this), context));
+        }
+        if (expressions.size() > 1)
+        {
+            return make_ast<Expression>(Expression::Sequential(
+                    std::move(expressions),
+                    true,
+                    Range::create(context))
+            );
+        }
+        return expressions.front();
+    }
+
     std::any AstBuilder::visitSequential_stmt(FSharpParser::Sequential_stmtContext* context)
     {
         std::vector<ast_ptr<Expression>> expressions;
@@ -680,6 +698,11 @@ namespace fsharpgrammar
         );
     }
 
+    std::any AstBuilder::visitBinding(FSharpParser::BindingContext* context)
+    {
+        return context->pattern()->accept(this);
+    }
+
     std::any AstBuilder::visitLong_ident_set_expr(FSharpParser::Long_ident_set_exprContext* context)
     {
         auto long_ident = ast::any_cast<LongIdent>(context->long_ident()->accept(this), context);
@@ -735,32 +758,6 @@ namespace fsharpgrammar
         );
     }
 
-    std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)
-    {
-        return make_ast<Pattern>(
-            Pattern::Type::AndPattern,
-            std::vector<ast_ptr<Pattern>>{},
-            Range::create(context));
-    }
-
-    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
-    {
-        std::vector<ast_ptr<Pattern>> patterns;
-        if (context->and_pat().size() > 1)
-        {
-            for (const auto pat : context->and_pat())
-            {
-                patterns.emplace_back(ast::any_cast<Pattern>(pat->accept(this), context));
-            }
-        }
-
-        return make_ast<Pattern>(
-            Pattern::Type::TuplePattern,
-            std::move(patterns),
-            Range::create(context)
-        );
-    }
-
     std::any AstBuilder::visitType(FSharpParser::TypeContext* context)
     {
         return context->fun_type()->accept(this);
@@ -768,7 +765,7 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitFun_type(FSharpParser::Fun_typeContext* context)
     {
-        if (context->type().empty())
+        if (!context->type().empty())
             return context->type().front()->accept(this);
 
         std::vector<ast_ptr<Type>> types;
@@ -839,7 +836,48 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitAtomic_type(FSharpParser::Atomic_typeContext* context)
     {
-        return make_ast<Type>(PlaceholderNodeAlternative("Atomic Type"));
+        return context->children[0]->accept(this);
+    }
+
+    std::any AstBuilder::visitParen_type(FSharpParser::Paren_typeContext* context)
+    {
+        return make_ast<Type>(Type::Paren(
+                ast::any_cast<Type>(context->type()->accept(this), context),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitVar_type(FSharpParser::Var_typeContext* context)
+    {
+        return make_ast<Type>(Type::Var(
+                ast::any_cast<Ident>(context->ident()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitLong_ident_type(FSharpParser::Long_ident_typeContext* context)
+    {
+        return make_ast<Type>(Type::LongIdent(
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitAnon_type(FSharpParser::Anon_typeContext* context)
+    {
+        return make_ast<Type>(Type::Anon(
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitStatic_constant_type(FSharpParser::Static_constant_typeContext* context)
+    {
+        return make_ast<Type>(Type::StaticConstant(
+                ast::any_cast<Constant>(context->constant()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitStatic_constant_null_type(FSharpParser::Static_constant_null_typeContext* context)
+    {
+        return make_ast<Type>(Type::StaticNull(Range::create(context)));
     }
 
     std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)
@@ -871,5 +909,179 @@ namespace fsharpgrammar
             idents.push_back(ast::any_cast<Ident>(ident->accept(this), context));
         }
         return make_ast<LongIdent>(std::move(idents), Range::create(context));
+    }
+
+    std::any AstBuilder::visitPattern(FSharpParser::PatternContext* context)
+    {
+        return context->tuple_pat()->accept(this);
+    }
+
+    std::any AstBuilder::visitTuple_pat(FSharpParser::Tuple_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (const auto pat : context->and_pat())
+            patterns.push_back(ast::any_cast<Pattern>(pat->accept(this), context));
+        if (patterns.size() > 1)
+            return make_ast<Pattern>(
+                Pattern::Tuple(
+                    std::move(patterns),
+                    Range::create(context))
+            );
+
+        return patterns[0];
+    }
+
+    std::any AstBuilder::visitAnd_pat(FSharpParser::And_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (const auto pat : context->or_pat())
+            patterns.push_back(ast::any_cast<Pattern>(pat->accept(this), context));
+        if (patterns.size() > 1)
+            return make_ast<Pattern>(
+                Pattern::And(
+                    std::move(patterns),
+                    Range::create(context))
+            );
+
+        return patterns[0];
+    }
+
+    std::any AstBuilder::visitOr_pat(FSharpParser::Or_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (const auto pat : context->as_pat())
+            patterns.push_back(ast::any_cast<Pattern>(pat->accept(this), context));
+        if (patterns.size() > 1)
+            return make_ast<Pattern>(
+                Pattern::And(
+                    std::move(patterns),
+                    Range::create(context))
+            );
+
+        return patterns[0];
+    }
+
+    std::any AstBuilder::visitAs_pat(FSharpParser::As_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (auto pattern : context->cons_pat())
+            patterns.emplace_back(ast::any_cast<Pattern>(pattern->accept(this), context));
+
+        if (patterns.size() > 1)
+            return make_ast<Pattern>(
+                Pattern::As(
+                    std::move(patterns.front()),
+                    std::move(patterns.back()),
+                    Range::create(context))
+            );
+        return patterns.front();
+    }
+
+    std::any AstBuilder::visitCons_pat(FSharpParser::Cons_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (auto pattern : context->typed_pat())
+            patterns.emplace_back(ast::any_cast<Pattern>(pattern->accept(this), context));
+
+        if (patterns.size() > 1)
+            return make_ast<Pattern>(
+                Pattern::Cons(
+                    std::move(patterns.front()),
+                    std::move(patterns.back()),
+                    Range::create(context))
+            );
+        return patterns.front();
+    }
+
+    std::any AstBuilder::visitTyped_pat(FSharpParser::Typed_patContext* context)
+    {
+        if (context->type())
+            return make_ast<Pattern>(Pattern::Typed(
+                    ast::any_cast<Pattern>(context->atomic_pat()->accept(this), context),
+                    ast::any_cast<Type>(context->type()->accept(this), context),
+                    Range::create(context))
+            );
+
+        return context->atomic_pat()->accept(this);
+    }
+
+    std::any AstBuilder::visitAtomic_pat(FSharpParser::Atomic_patContext* context)
+    {
+        return context->children[0]->accept(this);
+    }
+
+    std::any AstBuilder::visitParen_pat(FSharpParser::Paren_patContext* context)
+    {
+        return make_ast<Pattern>(Pattern::Paren(
+                ast::any_cast<Pattern>(context->pattern()->accept(this), context),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitAnon_pat(FSharpParser::Anon_patContext* context)
+    {
+        return make_ast<Pattern>(Pattern::Anon(Range::create(context)));
+    }
+
+    std::any AstBuilder::visitConstant_pat(FSharpParser::Constant_patContext* context)
+    {
+        return make_ast<Pattern>(Pattern::Constant(
+                ast::any_cast<Constant>(context->constant()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitNamed_pat(FSharpParser::Named_patContext* context)
+    {
+        return make_ast<Pattern>(Pattern::Named(
+                ast::any_cast<Ident>(context->ident()->accept(this), context))
+        );
+    }
+
+    std::any AstBuilder::visitRecord_pat(FSharpParser::Record_patContext* context)
+    {
+        std::vector<Pattern::Record::Field> fields;
+        fields.reserve(context->children.size() / 2);
+        for (size_t field = 0; field < context->children.size() / 2; ++field)
+        {
+            fields.emplace_back(
+                ast::any_cast<Ident>(context->children[field * 2 + 0]->accept(this), context),
+                ast::any_cast<Pattern>(context->children[field * 2 + 1]->accept(this), context)
+            );
+        }
+        return make_ast<Pattern>(Pattern::Record(
+            std::move(fields),
+            Range::create(context)
+        ));
+    }
+
+    std::any AstBuilder::visitArray_pat(FSharpParser::Array_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (const auto pattern : context->atomic_pat())
+        {
+            patterns.emplace_back(ast::any_cast<Pattern>(pattern->accept(this), context));
+        }
+        return make_ast<Pattern>(Pattern::Array(
+                std::move(patterns),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitLong_ident_pat(FSharpParser::Long_ident_patContext* context)
+    {
+        std::vector<ast_ptr<Pattern>> patterns;
+        for (const auto pattern : context->atomic_pat())
+            patterns.emplace_back(ast::any_cast<Pattern>(pattern->accept(this), context));
+
+        return make_ast<Pattern>(Pattern::LongIdent(
+                ast::any_cast<LongIdent>(context->long_ident()->accept(this), context),
+                std::move(patterns),
+                Range::create(context))
+        );
+    }
+
+    std::any AstBuilder::visitNull_pat(FSharpParser::Null_patContext* context)
+    {
+        return make_ast<Pattern>(Pattern::Null(Range::create(context)));
     }
 } // fsharpgrammar

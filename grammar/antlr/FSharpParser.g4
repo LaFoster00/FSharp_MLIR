@@ -74,8 +74,8 @@ typed_pat
 atomic_pat
     :
     paren_pat
-    | anon_expr
-    | constant
+    | anon_pat
+    | constant_pat
     | named_pat
     | record_pat
     | array_pat
@@ -86,6 +86,14 @@ atomic_pat
 paren_pat
     /// F# syntax: (pat)
     : OPEN_PAREN pattern CLOSE_PAREN
+    ;
+
+anon_pat
+    : UNDERSCORE
+    ;
+
+constant_pat
+    : constant
     ;
 
 record_pat
@@ -101,11 +109,6 @@ array_pat
 named_pat
     /// F# syntax: ident
     : ident
-    ;
-
-anon_expr
-    /// F# syntax: _
-    : UNDERSCORE
     ;
 
 null_pat
@@ -318,30 +321,6 @@ match_clause_stmt
     : PIPE pattern (WHEN expression)? RIGHT_ARROW body
     ;
 
-
-operators
-    : PLUS
-    | MINUS
-    | STAR
-    | DIV
-    | MOD
-    ;
-
-comp_ops
-    : EQUALS
-    | GREATER_THAN
-    | LESS_THAN
-    | GT_EQ
-    | LT_EQ
-    | NOT_EQ
-    | EXCLAMATION
-    ;
-
-sign
-    : PLUS
-    | MINUS
-    ;
-
 long_ident
     : ident (DOT ident)*;
 
@@ -374,7 +353,7 @@ array_type
 atomic_type
     : paren_type
     | var_type
-    | long_ident
+    | long_ident_type
     | anon_type
     | static_constant_type
     | static_constant_null_type
@@ -388,6 +367,10 @@ paren_type
 var_type
     /// F# syntax: var
     : ident
+    ;
+
+long_ident_type
+    : long_ident
     ;
 
 anon_type

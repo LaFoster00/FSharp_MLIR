@@ -116,8 +116,8 @@ namespace fsharpgrammar
     class Constant;
     class Ident;
     class LongIdent;
-    class Pattern;
     class MatchClause;
+    class Pattern;
 
     class Main : public IASTNode
     {
@@ -915,25 +915,256 @@ namespace fsharpgrammar
     class Pattern : public IASTNode
     {
     public:
-        enum class Type
+        using IPatternType = INodeAlternative;
+
+        struct Tuple final : IPatternType
         {
-            TuplePattern,
-            AndPattern
+            Tuple(std::vector<ast_ptr<Pattern>>&& patterns, const Range&& range)
+                : patterns(std::move(patterns)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Tuple& tuplePattern);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+
+            const std::vector<ast_ptr<Pattern>> patterns;
+            const Range range;
         };
 
-        Pattern(Type type, std::vector<ast_ptr<Pattern>>&& patterns, Range&& range);
-        ~Pattern() override = default;
-
-        [[nodiscard]] Range get_range() const override
+        struct And final : INodeAlternative
         {
-            return range;
+            And(std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
+                : patterns(std::move(patterns)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const And& andPattern);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<ast_ptr<Pattern>> patterns;
+            const Range range;
+        };
+
+        struct Or final : INodeAlternative
+        {
+            Or(std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
+                : patterns(std::move(patterns)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Or& orPattern);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<ast_ptr<Pattern>> patterns;
+            const Range range;
+        };
+
+        struct As final : INodeAlternative
+        {
+            As(ast_ptr<Pattern>&& left, ast_ptr<Pattern>&& right, Range&& range)
+                : left(std::move(left)),
+                  right(std::move(right)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const As& asPattern);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Pattern> left;
+            const ast_ptr<Pattern> right;
+            const Range range;
+        };
+
+        struct Cons final : INodeAlternative
+        {
+            Cons(ast_ptr<Pattern>&& left, ast_ptr<Pattern>&& right, Range&& range)
+                : left(std::move(left)),
+                  right(std::move(right)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Cons& cons);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Pattern> left;
+            const ast_ptr<Pattern> right;
+            const Range range;
+        };
+
+        struct Typed final : INodeAlternative
+        {
+            Typed(ast_ptr<Pattern>&& pattern, ast_ptr<Type>&& type, Range&& range)
+                : pattern(std::move(pattern)),
+                  type(std::move(type)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Typed& typed);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Pattern> pattern;
+            const ast_ptr<Type> type;
+            const Range range;
+        };
+
+        struct Paren final : INodeAlternative
+        {
+            Paren(ast_ptr<Pattern>&& pattern, Range&& range)
+                : pattern(std::move(pattern)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Paren& paren);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<Pattern> pattern;
+            const Range range;
+        };
+
+        struct Anon final : INodeAlternative
+        {
+            explicit Anon(Range&& range)
+                : range(range)
+            {
+            }
+
+            friend std::string to_string(const Anon& anon);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const Range range;
+        };
+
+        struct Constant final : INodeAlternative
+        {
+            Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
+                : constant(std::move(constant))
+            {
+            }
+
+            friend std::string to_string(const Constant& constant);
+            [[nodiscard]] Range get_range() const override { return constant->get_range(); }
+
+            const ast_ptr<fsharpgrammar::Constant> constant;
+        };
+
+        struct Named final : INodeAlternative
+        {
+            explicit Named(ast_ptr<fsharpgrammar::Ident>&& ident)
+                : ident(std::move(ident))
+            {
+            }
+
+            friend std::string to_string(const Named& named);
+            [[nodiscard]] Range get_range() const override { return ident->get_range(); }
+
+            const ast_ptr<fsharpgrammar::Ident> ident;
+        };
+
+        struct LongIdent final : INodeAlternative
+        {
+            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& ident,
+                               std::vector<ast_ptr<Pattern>>&& patterns,
+                               Range&& range)
+                : ident(std::move(ident)),
+                  patterns(std::move(patterns)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const LongIdent& ident);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const ast_ptr<fsharpgrammar::LongIdent> ident;
+            const std::vector<ast_ptr<Pattern>> patterns;
+            const Range range;
+        };
+
+        struct Record final : INodeAlternative
+        {
+            struct Field
+            {
+                ast_ptr<fsharpgrammar::Ident> ident;
+                ast_ptr<Pattern> pattern;
+            };
+
+            Record(std::vector<Field>&& fields, Range&& range)
+                : fields(std::move(fields)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Record& record);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<Field> fields;
+            const Range range;
+        };
+
+        struct Array final : INodeAlternative
+        {
+            Array(std::vector<ast_ptr<Pattern>>&& patterns, Range&& range)
+                : patterns(std::move(patterns)),
+                  range(range)
+            {
+            }
+
+            friend std::string to_string(const Array& array);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const std::vector<ast_ptr<Pattern>> patterns;
+            const Range range;
+        };
+
+        struct Null final : INodeAlternative
+        {
+            explicit Null(Range&& range)
+                : range(range)
+            {
+            }
+
+            friend std::string to_string(const Null& null);
+            [[nodiscard]] Range get_range() const override { return range; }
+
+            const Range range;
+        };
+
+        using PatternType = std::variant<
+            Tuple,
+            And,
+            Or,
+            As,
+            Cons,
+            Typed,
+            Paren,
+            Anon,
+            Constant,
+            Named,
+            LongIdent,
+            Record,
+            Array,
+            Null,
+            PlaceholderNodeAlternative
+        >;
+
+    public:
+        explicit Pattern(PatternType&& pattern);
+
+        friend std::string to_string(const Pattern& pattern)
+        {
+            return utils::to_string(pattern.pattern);
         }
 
-        friend std::string to_string(const Pattern& pattern);
+        [[nodiscard]] Range get_range() const override { return INodeAlternative::get_range(pattern); }
 
-        const Type type;
-        const std::vector<ast_ptr<Pattern>> patterns;
-        const Range range;
+        const PatternType pattern;
     };
 
     class Type final : public IASTNode
@@ -1031,34 +1262,28 @@ namespace fsharpgrammar
 
         struct Var final : ITypeType
         {
-            Var(ast_ptr<Ident>&& ident,
-                Range&& range)
-                : ident(std::move(ident)),
-                  range(range)
+            explicit Var(ast_ptr<Ident>&& ident)
+                : ident(std::move(ident))
             {
             }
 
             friend std::string to_string(const Var& var);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return ident->get_range(); }
 
             const ast_ptr<Ident> ident;
-            const Range range;
         };
 
         struct LongIdent final : ITypeType
         {
-            LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
-                      Range&& range)
-                : longIdent(std::move(long_ident)),
-                  range(range)
+            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& long_ident)
+                : longIdent(std::move(long_ident))
             {
             }
 
             friend std::string to_string(const LongIdent& ident);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return longIdent->get_range(); }
 
             const ast_ptr<fsharpgrammar::LongIdent> longIdent;
-            const Range range;
         };
 
         struct Anon final : ITypeType
@@ -1076,18 +1301,15 @@ namespace fsharpgrammar
 
         struct StaticConstant final : ITypeType
         {
-            StaticConstant(ast_ptr<Constant>&& constant,
-                           Range&& range)
-                : constant(std::move(constant)),
-                  range(range)
+            explicit StaticConstant(ast_ptr<Constant>&& constant)
+                : constant(std::move(constant))
             {
             }
 
             friend std::string to_string(const StaticConstant& constant);
-            [[nodiscard]] Range get_range() const override { return range; }
+            [[nodiscard]] Range get_range() const override { return constant->get_range(); }
 
             ast_ptr<Constant> constant;
-            const Range range;
         };
 
         struct StaticNull final : ITypeType
