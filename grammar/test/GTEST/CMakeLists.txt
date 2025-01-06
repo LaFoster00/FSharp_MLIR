@@ -7,14 +7,14 @@ add_executable(GrammarTests
 target_include_directories(GrammarTests
         PRIVATE
         ${PROJECT_SOURCE_DIR}/../
-        ${FSHARP_MLIR_UTILITY_INCLUDES})
+)
 
 target_link_libraries(GrammarTests
         PRIVATE
         GTest::gtest_main
 
+        PUBLIC
         FSharpGrammar
-        ${FSHARP_MLIR_UTILITY_LIBS}
 )
 
 include(GoogleTest)

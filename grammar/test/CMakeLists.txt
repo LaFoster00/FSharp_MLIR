@@ -12,13 +12,11 @@ add_executable(FSharpGrammarTest
 # include generated files in project environment
 target_include_directories(FSharpGrammarTest PRIVATE
         ${PROJECT_SOURCE_DIR}/../
-        ${FSHARP_MLIR_UTILITY_INCLUDES}
 )
 
 target_link_libraries(FSharpGrammarTest
         PRIVATE
         FSharpGrammar
-        ${FSHARP_MLIR_UTILITY_LIBS}
 )
 
 

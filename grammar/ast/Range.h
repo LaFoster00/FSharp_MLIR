@@ -15,7 +15,7 @@ namespace antlr4
     class ParserRuleContext;
 }
 
-namespace fsharpgrammar
+namespace fsharpgrammar::ast
 {
     constexpr int64_t pown64(int32_t n)
     {
@@ -101,16 +101,16 @@ namespace fsharpgrammar
 namespace std
 {
     template<>
-    struct hash<fsharpgrammar::Position>
+    struct hash<fsharpgrammar::ast::Position>
     {
-        size_t operator()(const fsharpgrammar::Position& pos) const noexcept
+        size_t operator()(const fsharpgrammar::ast::Position& pos) const noexcept
         {
             return hash<int64_t>()(pos.Encoding);
         }
     };
 }
 
-namespace fsharpgrammar {
+namespace fsharpgrammar::ast {
     static constexpr int32_t StartColumnBitCount = ColumnBitCount;
     static constexpr int32_t EndColumnBitCount = ColumnBitCount;
     static constexpr int32_t StartLineBitCount = LineBitCount;

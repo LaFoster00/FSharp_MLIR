@@ -8,8 +8,13 @@
 #include "ASTHelper.h"
 #include "utils/FunctionTimer.h"
 
-namespace fsharpgrammar
+namespace fsharpgrammar::ast
 {
+    std::unique_ptr<Main> AstBuilder::BuildAst(FSharpParser::MainContext* ctx)
+    {
+        return std::unique_ptr<Main>(std::any_cast<Main*>(visitMain(ctx)));
+    }
+
     std::any AstBuilder::visitMain(FSharpParser::MainContext* ctx)
     {
         std::vector<ast_ptr<ModuleOrNamespace>> anon_modules;
@@ -17,7 +22,7 @@ namespace fsharpgrammar
         {
             anon_modules.push_back(ast::any_cast<ModuleOrNamespace>(module_or_namespace->accept(this), ctx));
         }
-        return make_ast<Main>(std::move(anon_modules), Range::create(ctx));
+        return new Main(std::move(anon_modules), Range::create(ctx));
     }
 
     std::vector<ast_ptr<ModuleDeclaration>> get_module_declarations(
@@ -601,7 +606,7 @@ namespace fsharpgrammar
 
     std::any AstBuilder::visitNew_expr(FSharpParser::New_exprContext* context)
     {
-        auto type = ast::any_cast<fsharpgrammar::Type>(context->type()->accept(this), context);
+        auto type = ast::any_cast<Type>(context->type()->accept(this), context);
         std::optional<ast_ptr<Expression>> expression{};
         if (context->expression())
         {

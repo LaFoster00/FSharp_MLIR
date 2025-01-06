@@ -5,6 +5,7 @@
 #pragma once
 
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "Range.h"
@@ -13,13 +14,11 @@
 #include <variant>
 
 #include "ASTNode.h"
+#include "ASTHelper.h"
 
-namespace fsharpgrammar
+namespace fsharpgrammar::ast
 {
     class IASTNode;
-
-    template <typename T>
-    using ast_ptr = std::shared_ptr<T>;
 
     template <typename T, typename... Args>
         requires std::is_base_of_v<IASTNode, T>
@@ -69,7 +68,7 @@ namespace fsharpgrammar
 
     struct PlaceholderNodeAlternative final : INodeAlternative
     {
-        explicit PlaceholderNodeAlternative(const std::string& name) : name(name)
+        explicit PlaceholderNodeAlternative(std::string name) : name(std::move(name))
         {
         }
 
@@ -88,26 +87,26 @@ namespace fsharpgrammar
 }
 
 template <typename T>
-struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::IASTNode, T>,
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::ast::IASTNode, T>,
                                           char>> : fmt::formatter<std::string>
 {
-    auto format(const fsharpgrammar::IASTNode& node, fmt::format_context& ctx) const
+    auto format(const fsharpgrammar::ast::IASTNode& node, fmt::format_context& ctx) const
     {
         return fmt::formatter<std::string>::format(utils::to_string(static_cast<const T&>(node)), ctx);
     }
 };
 
 template <typename T>
-struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::INodeAlternative, T>,
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<fsharpgrammar::ast::INodeAlternative, T>,
                                           char>> : fmt::formatter<std::string>
 {
-    auto format(const fsharpgrammar::INodeAlternative& node, fmt::format_context& ctx) const
+    auto format(const fsharpgrammar::ast::INodeAlternative& node, fmt::format_context& ctx) const
     {
         return fmt::formatter<std::string>::format(utils::to_string(static_cast<const T&>(node)), ctx);
     }
 };
 
-namespace fsharpgrammar
+namespace fsharpgrammar::ast
 {
     class ModuleOrNamespace;
     class ModuleDeclaration;
@@ -261,7 +260,7 @@ namespace fsharpgrammar
         struct Expression : INodeAlternative
         {
             Expression(
-                ast_ptr<fsharpgrammar::Expression>&& expression,
+                ast_ptr<ast::Expression>&& expression,
                 Range&& range);
 
             friend std::string to_string(const Expression& expression)
@@ -274,7 +273,7 @@ namespace fsharpgrammar
                 return range;
             }
 
-            const ast_ptr<fsharpgrammar::Expression> expression;
+            const ast_ptr<ast::Expression> expression;
             const Range range;
         };
 
@@ -557,7 +556,7 @@ namespace fsharpgrammar
 
         struct Constant final : IExpressionType
         {
-            explicit Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
+            explicit Constant(ast_ptr<ast::Constant>&& constant)
                 : constant(std::move(constant))
             {
             }
@@ -565,12 +564,12 @@ namespace fsharpgrammar
             friend std::string to_string(const Expression::Constant& constant);
             [[nodiscard]] Range get_range() const override { return constant->get_range(); }
 
-            const ast_ptr<fsharpgrammar::Constant> constant;
+            const ast_ptr<ast::Constant> constant;
         };
 
         struct Ident final : IExpressionType
         {
-            explicit Ident(ast_ptr<fsharpgrammar::Ident>&& ident)
+            explicit Ident(ast_ptr<ast::Ident>&& ident)
                 : ident(std::move(ident))
             {
             }
@@ -578,12 +577,12 @@ namespace fsharpgrammar
             friend std::string to_string(const Ident& ident) { return utils::to_string(*ident.ident); }
             [[nodiscard]] Range get_range() const override { return ident->get_range(); }
 
-            const ast_ptr<fsharpgrammar::Ident> ident;
+            const ast_ptr<ast::Ident> ident;
         };
 
         struct LongIdent final : IExpressionType
         {
-            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& longIdent)
+            explicit LongIdent(ast_ptr<ast::LongIdent>&& longIdent)
                 : longIdent(std::move(longIdent))
             {
             }
@@ -591,7 +590,7 @@ namespace fsharpgrammar
             friend std::string to_string(const LongIdent& ident) { return utils::to_string(*ident.longIdent); }
             [[nodiscard]] Range get_range() const override { return longIdent->get_range(); }
 
-            const ast_ptr<fsharpgrammar::LongIdent> longIdent;
+            const ast_ptr<ast::LongIdent> longIdent;
         };
 
         struct Null final : IExpressionType
@@ -610,7 +609,7 @@ namespace fsharpgrammar
         {
             struct Field
             {
-                ast_ptr<fsharpgrammar::Ident> ident;
+                ast_ptr<ast::Ident> ident;
                 ast_ptr<Expression> expression;
             };
 
@@ -657,7 +656,7 @@ namespace fsharpgrammar
 
         struct New final : IExpressionType
         {
-            New(ast_ptr<fsharpgrammar::Type>&& type,
+            New(ast_ptr<ast::Type>&& type,
                 std::optional<ast_ptr<Expression>>&& expression,
                 Range&& range)
                 : type(std::move(type)), expression(std::move(expression)), range(range)
@@ -667,7 +666,7 @@ namespace fsharpgrammar
             friend std::string to_string(const New& n);
             [[nodiscard]] Range get_range() const override { return range; }
 
-            const ast_ptr<fsharpgrammar::Type> type;
+            const ast_ptr<ast::Type> type;
             const std::optional<ast_ptr<Expression>> expression;
             const Range range;
         };
@@ -764,7 +763,7 @@ namespace fsharpgrammar
         struct LongIdentSet final : IExpressionType
         {
             LongIdentSet(
-                ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
+                ast_ptr<ast::LongIdent>&& long_ident,
                 ast_ptr<Expression>&& expression,
                 Range&& range)
                 : long_ident(std::move(long_ident)),
@@ -776,7 +775,7 @@ namespace fsharpgrammar
             friend std::string to_string(const LongIdentSet& long_ident_set);
             [[nodiscard]] Range get_range() const override { return range; }
 
-            const ast_ptr<fsharpgrammar::LongIdent> long_ident;
+            const ast_ptr<ast::LongIdent> long_ident;
             const ast_ptr<Expression> expression;
             const Range range;
         };
@@ -805,7 +804,7 @@ namespace fsharpgrammar
         struct DotSet final : IExpressionType
         {
             DotSet(ast_ptr<Expression>&& target_expression,
-                   ast_ptr<fsharpgrammar::LongIdent>&& long_ident,
+                   ast_ptr<ast::LongIdent>&& long_ident,
                    ast_ptr<Expression>&& expression,
                    Range&& range)
                 : target_expression(std::move(target_expression)),
@@ -819,7 +818,7 @@ namespace fsharpgrammar
             [[nodiscard]] Range get_range() const override { return range; }
 
             const ast_ptr<Expression> target_expression;
-            const ast_ptr<fsharpgrammar::LongIdent> long_ident;
+            const ast_ptr<ast::LongIdent> long_ident;
             const ast_ptr<Expression> expression;
             const Range range;
         };
@@ -1044,7 +1043,7 @@ namespace fsharpgrammar
 
         struct Constant final : INodeAlternative
         {
-            Constant(ast_ptr<fsharpgrammar::Constant>&& constant)
+            explicit Constant(ast_ptr<ast::Constant>&& constant)
                 : constant(std::move(constant))
             {
             }
@@ -1052,12 +1051,12 @@ namespace fsharpgrammar
             friend std::string to_string(const Constant& constant);
             [[nodiscard]] Range get_range() const override { return constant->get_range(); }
 
-            const ast_ptr<fsharpgrammar::Constant> constant;
+            const ast_ptr<ast::Constant> constant;
         };
 
         struct Named final : INodeAlternative
         {
-            explicit Named(ast_ptr<fsharpgrammar::Ident>&& ident)
+            explicit Named(ast_ptr<ast::Ident>&& ident)
                 : ident(std::move(ident))
             {
             }
@@ -1065,12 +1064,12 @@ namespace fsharpgrammar
             friend std::string to_string(const Named& named);
             [[nodiscard]] Range get_range() const override { return ident->get_range(); }
 
-            const ast_ptr<fsharpgrammar::Ident> ident;
+            const ast_ptr<ast::Ident> ident;
         };
 
         struct LongIdent final : INodeAlternative
         {
-            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& ident,
+            explicit LongIdent(ast_ptr<ast::LongIdent>&& ident,
                                std::vector<ast_ptr<Pattern>>&& patterns,
                                Range&& range)
                 : ident(std::move(ident)),
@@ -1082,7 +1081,7 @@ namespace fsharpgrammar
             friend std::string to_string(const LongIdent& ident);
             [[nodiscard]] Range get_range() const override { return range; }
 
-            const ast_ptr<fsharpgrammar::LongIdent> ident;
+            const ast_ptr<ast::LongIdent> ident;
             const std::vector<ast_ptr<Pattern>> patterns;
             const Range range;
         };
@@ -1091,7 +1090,7 @@ namespace fsharpgrammar
         {
             struct Field
             {
-                ast_ptr<fsharpgrammar::Ident> ident;
+                ast_ptr<ast::Ident> ident;
                 ast_ptr<Pattern> pattern;
             };
 
@@ -1275,7 +1274,7 @@ namespace fsharpgrammar
 
         struct LongIdent final : ITypeType
         {
-            explicit LongIdent(ast_ptr<fsharpgrammar::LongIdent>&& long_ident)
+            explicit LongIdent(ast_ptr<ast::LongIdent>&& long_ident)
                 : longIdent(std::move(long_ident))
             {
             }
@@ -1283,7 +1282,7 @@ namespace fsharpgrammar
             friend std::string to_string(const LongIdent& ident);
             [[nodiscard]] Range get_range() const override { return longIdent->get_range(); }
 
-            const ast_ptr<fsharpgrammar::LongIdent> longIdent;
+            const ast_ptr<ast::LongIdent> longIdent;
         };
 
         struct Anon final : ITypeType

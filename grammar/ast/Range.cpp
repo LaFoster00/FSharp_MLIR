@@ -7,7 +7,7 @@
 #include <ParserRuleContext.h>
 #include <Token.h>
 
-namespace fsharpgrammar
+namespace fsharpgrammar::ast
 {
     Range Range::create(const antlr4::ParserRuleContext* ctx)
     {

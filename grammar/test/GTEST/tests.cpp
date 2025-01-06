@@ -3,50 +3,16 @@
 //
 
 #include "antlr4-runtime.h"
-#include "FSharpLexer.h"
-#include "FSharpParser.h"
 
 #include <fstream>
 #include <gtest/gtest.h>
 
-#include "utils/Utils.h"
-#include "utils/FunctionTimer.h"
-#include "magic_enum/magic_enum.hpp"
-
-#include "ast/AstBuilder.h"
-#include "ast/ASTNode.h"
+#include "Grammar.h"
 
 #define AST_GENERATION_TEST(Name, Type, SourceCode) \
 TEST(Name, Type) \
 { \
-    antlr4::ANTLRInputStream input(SourceCode); \
-    fsharpgrammar::FSharpLexer lexer(&input);\
-    antlr4::CommonTokenStream tokens(&lexer);\
-    \
-    tokens.fill();\
-    size_t lastLine = 0;\
-    for (auto token : tokens.getTokens())\
-    {\
-        auto type = static_cast<decltype(fsharpgrammar::FSharpLexer::UNKNOWN_CHAR)>(token->getType());\
-        if (token->getLine() != lastLine)\
-            std::cout << std::endl << "Line " << token->getLine() << ": \n";\
-        std::cout << magic_enum::enum_name(type) << ' ';\
-        lastLine = token->getLine();\
-    }\
-    \
-    std::cout << "Finished Lexing." << std::endl;\
-    \
-    fsharpgrammar::FSharpParser parser(&tokens);\
-    antlr4::tree::ParseTree* tree = parser.main();\
-    \
-    /* std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl; */ \
-    std::cout << "Simplifying tree" << std::endl;\
-    \
-    fsharpgrammar::AstBuilder builder;\
-    auto ast = std::any_cast<fsharpgrammar::ast_ptr<fsharpgrammar::Main>>(builder.visitMain(dynamic_cast<fsharpgrammar::FSharpParser::MainContext*>(tree)));\
-    std::string ast_string = utils::to_string(*ast);\
-    \
-    fmt::print("AST Generation Result = \n{}\n", *ast);\
+    fsharpgrammar::Grammar::parse(SourceCode, true, false, true); \
 }
 
 namespace basic_statements

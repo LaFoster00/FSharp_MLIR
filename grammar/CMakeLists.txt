@@ -11,15 +11,20 @@ project(
 add_subdirectory(antlr)
 add_subdirectory(ast)
 
-add_library(FSharpGrammar INTERFACE)
+add_library(FSharpGrammar SHARED
+        Grammar.h
+        Grammar.cpp
+)
 target_link_libraries(FSharpGrammar
-    INTERFACE
+    PUBLIC
         FSharpGrammarAntlr
         FSharpGrammarAST
         antlr4_shared
+        ${FSHARP_MLIR_UTILITY_LIBS}
 )
-target_include_directories(FSharpGrammar INTERFACE
+target_include_directories(FSharpGrammar PUBLIC
     ${PROJECT_SOURCE_DIR}
+    ${FSHARP_MLIR_UTILITY_INCLUDES}
 )
 
 add_subdirectory(test)
