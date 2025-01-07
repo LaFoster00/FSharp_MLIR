@@ -77,7 +77,6 @@ set(FSHARP_MLIR_UTILITY_INCLUDES CACHE INTERNAL "")
 # Add Project source files
 add_subdirectory(utils)
 add_subdirectory(grammar)
-add_subdirectory(compiler)
 
 message(STATUS "FSHARP_MLIR_UTILITY_LIBS : ${FSHARP_MLIR_UTILITY_LIBS}")
 message(STATUS "FSHARP_MLIR_UTILITY_INCLUDES : ${FSHARP_MLIR_UTILITY_INCLUDES}")
