@@ -10,6 +10,6 @@ TEST(HelloWorld, BasicAssertion)
 {
     mlir::MLIRContext context;
     generateMLIRFromAST(R"(
-printfn "Hello World!
+printfn "Hello World!"
 )", context);
 }

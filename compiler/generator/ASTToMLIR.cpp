@@ -8,6 +8,7 @@
 mlir::ModuleOp generateMLIRFromAST(
     std::string_view source, mlir::MLIRContext& context)
 {
+    auto result = fsharpgrammar::Grammar::parse(source, true, false, true);
     mlir::OpBuilder builder(&context);
 
     // Create an MLIR module
