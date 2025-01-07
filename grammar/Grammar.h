@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "ast/ASTHelper.h"
 #include "ast/ASTNode.h"
 
 namespace fsharpgrammar

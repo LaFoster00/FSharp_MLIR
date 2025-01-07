@@ -1,6 +1,6 @@
-if(NOT UNIX)
+if (NOT UNIX)
     message(WARNING "Unsupported operating system")
-endif()
+endif ()
 
 project(
         grammar
@@ -15,21 +15,16 @@ add_library(FSharpGrammar STATIC
         Grammar.h
         Grammar.cpp
 )
+
 target_link_libraries(FSharpGrammar
-    PUBLIC
+        PUBLIC
+        magic_enum::magic_enum
+
         FSharpGrammarAntlr
         FSharpGrammarAST
-        Utils
 )
 target_include_directories(FSharpGrammar PUBLIC
-    ${PROJECT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
 )
-
-install(TARGETS
-        FSharpGrammar
-        ARCHIVE DESTINATION lib)
-
-install(FILES)
-
 
 add_subdirectory(test)

@@ -54,5 +54,5 @@ target_include_directories(FSharpGrammarAntlr
         PUBLIC
         ${FSharpLexer_OUTPUT_DIR}
         ${FSharpParser_OUTPUT_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
 )

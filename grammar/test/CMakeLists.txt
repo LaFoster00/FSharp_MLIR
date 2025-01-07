@@ -9,11 +9,6 @@ add_executable(FSharpGrammarTest
         main.cpp
 )
 
-# include generated files in project environment
-target_include_directories(FSharpGrammarTest PRIVATE
-        ${PROJECT_SOURCE_DIR}/../
-)
-
 target_link_libraries(FSharpGrammarTest
         PRIVATE
         FSharpGrammar

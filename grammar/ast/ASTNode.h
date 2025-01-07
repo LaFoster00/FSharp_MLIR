@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "Range.h"
-#include "fmt/core.h"
 #include <type_traits>
 #include <variant>
 

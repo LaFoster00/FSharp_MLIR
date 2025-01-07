@@ -74,5 +74,4 @@ include(cmake/GTest.cmake)
 
 # Add Project source files
 add_subdirectory(utils)
-find_package(Utils)
 add_subdirectory(grammar)
