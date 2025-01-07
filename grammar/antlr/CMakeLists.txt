@@ -52,7 +52,7 @@ target_link_libraries(FSharpGrammarAntlr
 
 target_include_directories(FSharpGrammarAntlr
         PUBLIC
-        ${FSharpLexer_OUTPUT_DIR}
-        ${FSharpParser_OUTPUT_DIR}
-        ${PROJECT_SOURCE_DIR}
+        "$<BUILD_INTERFACE:${FSharpLexer_OUTPUT_DIR}>"
+        "$<BUILD_INTERFACE:${FSharpParser_OUTPUT_DIR}>"
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
 )

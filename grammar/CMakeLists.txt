@@ -24,7 +24,22 @@ target_link_libraries(FSharpGrammar
         FSharpGrammarAST
 )
 target_include_directories(FSharpGrammar PUBLIC
-        ${PROJECT_SOURCE_DIR}
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
+)
+
+install(TARGETS
+        FSharpGrammar
+        FSharpGrammarAntlr
+        FSharpGrammarAST
+        EXPORT GrammarTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(EXPORT GrammarTargets
+        FILE GrammarTargets.cmake
+        NAMESPACE Grammar::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Grammar
 )
 
 add_subdirectory(test)

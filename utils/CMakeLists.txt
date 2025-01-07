@@ -11,3 +11,15 @@ add_library(Utils STATIC
 target_include_directories(Utils PUBLIC
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
 )
+
+install(TARGETS Utils
+        EXPORT UtilsTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(
+        EXPORT UtilsTargets
+        FILE UtilsTargets.cmake
+        NAMESPACE Utils::
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/${PROJECT_NAME}
+)
