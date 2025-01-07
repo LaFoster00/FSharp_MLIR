@@ -21,6 +21,12 @@ list(APPEND CMAKE_PREFIX_PATH "extern/llvm-project/mlir/cmake")
 list(APPEND CMAKE_PREFIX_PATH "extern/magic_enum")
 
 include(FetchContent)
+include(CMakePackageConfigHelpers)
+
+message(STATUS "CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}")
+message(STATUS "CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}")
+message(STATUS "CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR}")
 
 project(
     FSharp_MLIR
@@ -66,17 +72,7 @@ include(cmake/cpptrace.cmake)
 # gtest setup
 include(cmake/GTest.cmake)
 
-# Define global utility library resources
-set(FSHARP_MLIR_UTILITY_LIBS
-        magic_enum::magic_enum
-        fmt::fmt
-        cpptrace::cpptrace
-        CACHE INTERNAL "")
-set(FSHARP_MLIR_UTILITY_INCLUDES CACHE INTERNAL "")
-
 # Add Project source files
 add_subdirectory(utils)
+find_package(Utils)
 add_subdirectory(grammar)
-
-message(STATUS "FSHARP_MLIR_UTILITY_LIBS : ${FSHARP_MLIR_UTILITY_LIBS}")
-message(STATUS "FSHARP_MLIR_UTILITY_INCLUDES : ${FSHARP_MLIR_UTILITY_INCLUDES}")

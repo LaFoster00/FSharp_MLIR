@@ -47,7 +47,7 @@ add_dependencies(FSharpGrammarAntlr
 
 target_link_libraries(FSharpGrammarAntlr
         PUBLIC
-        antlr4_shared
+        antlr4_static
 )
 
 target_include_directories(FSharpGrammarAntlr

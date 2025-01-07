@@ -11,7 +11,7 @@ project(
 add_subdirectory(antlr)
 add_subdirectory(ast)
 
-add_library(FSharpGrammar SHARED
+add_library(FSharpGrammar STATIC
         Grammar.h
         Grammar.cpp
 )
@@ -19,12 +19,17 @@ target_link_libraries(FSharpGrammar
     PUBLIC
         FSharpGrammarAntlr
         FSharpGrammarAST
-        antlr4_shared
-        ${FSHARP_MLIR_UTILITY_LIBS}
+        Utils
 )
 target_include_directories(FSharpGrammar PUBLIC
     ${PROJECT_SOURCE_DIR}
-    ${FSHARP_MLIR_UTILITY_INCLUDES}
 )
+
+install(TARGETS
+        FSharpGrammar
+        ARCHIVE DESTINATION lib)
+
+install(FILES)
+
 
 add_subdirectory(test)

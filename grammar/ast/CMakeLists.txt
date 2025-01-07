@@ -10,7 +10,7 @@ add_dependencies(FSharpGrammarAST FSharpGrammarGenerator)
 target_link_libraries(FSharpGrammarAST
         PRIVATE
         FSharpGrammarAntlr
-        ${FSHARP_MLIR_UTILITY_LIBS}
+        Utils
 )
 
 message(STATUS "UTILS_INCLUDE_DIR: ${UTILS_INCLUDE_DIR}")
