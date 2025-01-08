@@ -6,14 +6,16 @@
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
 
-#include "mlir/IR/Builders.h"
 #include "Grammar.h"
 
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Verifier.h"
 
@@ -22,6 +24,8 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 namespace fsharpgrammar::compiler
 {
@@ -90,6 +94,37 @@ namespace fsharpgrammar::compiler
             return mlir::success();
         }
 
+        mlir::Value createPrintf(mlir::OpBuilder &builder, mlir::Location loc,
+                        llvm::StringRef format, llvm::ArrayRef<mlir::Value> params) {
+            // Get LLVM dialect
+            auto *llvmDialect = builder.getContext()->getLoadedDialect<mlir::LLVM::LLVMDialect>();
+
+            // Create global constant for format string
+            auto type = mlir::LLVM::LLVMArrayType::get(builder.getIntegerType(8), format.size() + 1);
+            auto global = builder.create<mlir::LLVM::GlobalOp>(
+                loc, type, /*isConstant=*/true, mlir::LLVM::linkage::Linkage::Internal,
+                "printf_fmt", builder.getStringAttr(format));
+
+            // Get pointer to format string
+            auto zero = builder.create<mlir::LLVM::ConstantOp>(loc, builder.getI64Type(),
+                                                               builder.getI64IntegerAttr(0));
+            auto gepIndices = llvm::ArrayRef<mlir::Value>({zero, zero});
+            auto fmtPtr = builder.create<mlir::LLVM::GEPOp>(
+                loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()),
+                global, gepIndices);
+
+            // Create printf function declaration if needed
+            auto printfFuncTy = mlir::LLVM::LLVMFunctionType::get(
+                builder.getI32Type(), {fmtPtr.getType()}, /*isVarArg=*/true);
+            auto printfFunc = builder.create<mlir::LLVM::LLVMFuncOp>(
+                loc, "printf", printfFuncTy);
+
+            // Call printf
+            auto operands = llvm::to_vector<4>(params);
+            operands.insert(operands.begin(), fmtPtr);
+            return builder.create<mlir::LLVM::CallOp>(loc, printfFunc, operands).getResult(0);
+        }
+
     private:
         mlir::ModuleOp mlirGen(const ast::ModuleOrNamespace& module_or_namespace)
         {
@@ -111,12 +146,18 @@ namespace fsharpgrammar::compiler
 
             for (auto& module_decl : module_or_namespace.moduleDecls)
             {
-                std::visit([&](auto& obj) { mlirGen(obj); }, module_decl->declaration);
+                std::visit([&](auto& obj) { mlirGen(obj); },
+                    module_decl->declaration);
             }
 
             builder.setInsertionPointToEnd(fileModule.getBody());
 
             return m;
+        }
+
+        void mlirGen(const ast::ModuleDeclaration::Open& open)
+        {
+            throw std::runtime_error("Open statement not supported!");
         }
 
         mlir::ModuleOp mlirGen(const ast::ModuleDeclaration::NestedModule& nested_module)
@@ -139,10 +180,11 @@ namespace fsharpgrammar::compiler
                 }
                 else if (std::holds_alternative<ast::ModuleDeclaration::Expression>(module_decl->declaration))
                 {
-                    mlirGen(std::get<ast::ModuleDeclaration::Expression>(module_decl->declaration));
-                }else
+                    mlirGen(*std::get<ast::ModuleDeclaration::Expression>(module_decl->declaration).expression);
+                }
+                else
                 {
-                    mlirGen(std::get<ast::ModuleDeclaration::Open>(module_decl->declaration));
+                    throw std::runtime_error("Open statements not supported!");
                 }
             }
 
@@ -152,14 +194,49 @@ namespace fsharpgrammar::compiler
             return m;
         }
 
-        mlir::Value mlirGen(const ast::ModuleDeclaration::Expression& expression)
+        mlir::Value mlirGen(const ast::ModuleDeclaration::Expression &expression)
         {
-            return nullptr;
+            return mlirGen(*expression.expression);
         }
 
-        mlir::Value mlirGen(const ast::ModuleDeclaration::Open& open)
+        mlir::Value mlirGen(const ast::Expression& expression)
         {
-            throw std::runtime_error("Open not supported!");
+            if (std::holds_alternative<ast::Expression::Append>(expression.expression))
+                return mlirGen(std::get<ast::Expression::Append>(expression.expression));
+            if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
+                return mlirGen(std::get<ast::Expression::Constant>(expression.expression));
+
+            throw std::runtime_error("Expression not supported!");
+        }
+
+        mlir::Value mlirGen(const ast::Expression::Append& append)
+        {
+            if (append.isFunctionCall)
+            {
+                if (std::holds_alternative<ast::Expression::Ident>(append.expressions.front()->expression))
+                {
+
+                }
+            }
+
+        }
+
+        mlir::Value mlirGen(const ast::Expression::Constant& constant)
+        {
+            auto type = getType(*constant.constant);
+            auto value = constant.constant->value.value();
+            if (std::holds_alternative<int32_t>(value))
+            {
+                return builder.create<mlir::arith::ConstantIntOp>(loc(constant.get_range()), std::get<int32_t>(value), type);
+            }
+        }
+
+        mlir::Type getType(const ast::Constant& constant)
+        {
+            if (std::holds_alternative<int32_t>(*constant.value))
+                return builder.getI32Type();
+            else
+                throw std::runtime_error("Constant not supported!");
         }
     };
 
@@ -167,6 +244,9 @@ namespace fsharpgrammar::compiler
     mlir::OwningOpRef<mlir::ModuleOp> MLIRGen::mlirGen(mlir::MLIRContext& context, std::string_view source,
                                                        std::string_view source_filename)
     {
+        context.getOrLoadDialect<mlir::BuiltinDialect>();
+        context.getOrLoadDialect<mlir::arith::ArithDialect>();
+
         auto result = fsharpgrammar::Grammar::parse(source, true, false, true);
         return MLIRGenImpl(context, source_filename).mlirGen(*result);
     }

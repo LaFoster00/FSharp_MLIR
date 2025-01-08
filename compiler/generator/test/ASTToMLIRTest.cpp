@@ -10,7 +10,6 @@
 
 #include <gtest/gtest.h>
 
-#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Target/LLVMIR/ModuleImport.h"
@@ -21,8 +20,6 @@ using namespace std::chrono_literals;
 mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
                                                 mlir::MLIRContext& context)
 {
-    context.getOrLoadDialect<mlir::BuiltinDialect>();
-
     return MLIRGen::mlirGen(
         context,
         source
@@ -40,7 +37,7 @@ TEST(HelloWorld, BasicAssertion)
 {
     GENERATE_AND_DUMP_MLIR(
         R"(
-printfn "Hello World!"
+printfn 1
 )"
     );
 }
@@ -51,7 +48,7 @@ TEST(SimpleNamedModule, BasicAssertion)
         R"(
 module outer
 
-printfn "Hello World!"
+printfn 1
 )"
     );
 }
@@ -61,9 +58,9 @@ TEST(SimpleNestedModule, BasicAssertion)
     GENERATE_AND_DUMP_MLIR(
         R"(
 module outer
-printfn "Outer"
+printfn 1
 module nested =
-    printfn "Inner"
+    printfn 2
 )"
     );
 }
@@ -73,13 +70,13 @@ TEST(MultiNestedModule, BasicAssertion)
     GENERATE_AND_DUMP_MLIR(
         R"(
 module outer
-printfn "Outer"
+printfn 1
 module nested =
-    printfn "Inner"
+    printfn 2
     module nested_nested =
-        printfn "Inner_Inner"
+        printfn 3
 module nested2 =
-    printfn "Inner2"
+    printfn 4
 )"
     );
 }

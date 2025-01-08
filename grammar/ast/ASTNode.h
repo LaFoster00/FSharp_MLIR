@@ -342,8 +342,9 @@ namespace fsharpgrammar::ast
 
         struct Append final : IExpressionType
         {
-            Append(std::vector<ast_ptr<Expression>>&& expressions, const Range&& range)
+            Append(std::vector<ast_ptr<Expression>>&& expressions, const bool isFuncionCall, const Range&& range)
                 : expressions(std::move(expressions)),
+                  isFunctionCall(isFuncionCall),
                   range(range)
             {
             }
@@ -356,6 +357,8 @@ namespace fsharpgrammar::ast
             }
 
             const std::vector<ast_ptr<Expression>> expressions;
+            // True if the append is standing on its own, False if it is on the right side of an assignment or the like
+            const bool isFunctionCall;
             const Range range;
         };
 

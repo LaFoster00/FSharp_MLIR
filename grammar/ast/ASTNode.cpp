@@ -219,7 +219,7 @@ namespace fsharpgrammar::ast
 
     std::string to_string(const Expression::Append& append)
     {
-        RANGED_NAMED_BLOCK("Append", append);
+        RANGED_NAMED_BLOCK(fmt::format("Append{}", append.isFunctionCall ? " (Function Call)" : ""), append);
         for (const auto& expression : append.expressions)
         {
             ss << utils::indent_string(utils::to_string(*expression));

@@ -10,6 +10,7 @@
 #include <antlr4-runtime.h>
 #include <fmt/format.h>
 #include <cpptrace/cpptrace.hpp>
+#include <tree/Trees.h>
 
 #include "utils/Utils.h"
 #include "Range.h"
@@ -17,16 +18,16 @@
 namespace fsharpgrammar::ast
 {
     template <typename T>
-        using ast_ptr = std::shared_ptr<T>;
+    using ast_ptr = std::shared_ptr<T>;
 
-    template<typename T>
-    ast_ptr<T> any_cast(std::any& obj, antlr4::ParserRuleContext *parserRuleContext)
+    template <typename T>
+    ast_ptr<T> any_cast(std::any& obj, antlr4::ParserRuleContext* parserRuleContext)
     {
         try
         {
             return std::any_cast<ast_ptr<T>>(obj);
         }
-        catch(std::bad_any_cast&)
+        catch (std::bad_any_cast&)
         {
             std::string error_message = fmt::format(
                 "AST Building exception at \"{}\" {} expected {} but got {} instead",
@@ -40,14 +41,14 @@ namespace fsharpgrammar::ast
         }
     }
 
-    template<typename T>
-    ast_ptr<T> any_cast(std::any&& obj, antlr4::ParserRuleContext *parserRuleContext)
+    template <typename T>
+    ast_ptr<T> any_cast(std::any&& obj, antlr4::ParserRuleContext* parserRuleContext)
     {
         try
         {
             return std::any_cast<ast_ptr<T>>(std::move(obj));
         }
-        catch(std::bad_any_cast&)
+        catch (std::bad_any_cast&)
         {
             std::string error_message = fmt::format(
                 "AST Building exception at \"{}\" {} expected {} but got {} instead",
@@ -60,5 +61,25 @@ namespace fsharpgrammar::ast
             throw antlr4::ParseCancellationException(error_message);
         }
     }
-}
 
+    // Returns false if t1 is found first and true if t2 is found first
+    template <typename T1, typename T2>
+    std::optional<bool> find_closest_parent(antlr4::tree::ParseTree* node)
+    {
+        using antlr4::tree::ParseTree;
+        ParseTree* parent = node->parent;
+        while (parent)
+        {
+            if (dynamic_cast<T1*>(parent))
+            {
+                return false;
+            }
+            if (dynamic_cast<T2*>(parent))
+            {
+                return true;
+            }
+            parent = parent->parent;
+        }
+        return {};
+    }
+}

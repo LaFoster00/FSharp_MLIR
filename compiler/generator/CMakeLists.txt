@@ -18,6 +18,8 @@ target_link_libraries(ASTToMLIR
         MLIRParser
         MLIRSideEffectInterfaces
         MLIRTransforms
+        MLIRArithDialect
+        MLIRLLVMDialect
 
         PUBLIC
         FSharpGrammar
