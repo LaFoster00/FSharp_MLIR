@@ -8,9 +8,12 @@
 #include <FSharpLexer.h>
 #include <FSharpParser.h>
 #include <magic_enum/magic_enum.hpp>
+#include <fmt/format.h>
+#include <utils/Utils.h>
+#include "utils/FunctionTimer.h"
 
 #include "ast/AstBuilder.h"
-#include "utils/FunctionTimer.h"
+#include "ast/ASTNode.h"
 
 namespace fsharpgrammar
 {

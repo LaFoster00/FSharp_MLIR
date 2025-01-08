@@ -22,6 +22,18 @@ namespace fsharpgrammar::ast
     {
     }
 
+    std::string LongIdent::get_as_string() const
+    {
+        std::stringstream ss;
+        for (size_t i = 0; i < idents.size(); ++i)
+        {
+            ss << idents[i]->ident;
+            if (i != idents.size() - 1)
+                ss << '.';
+        }
+        return ss.str();
+    }
+
     ModuleOrNamespace::ModuleOrNamespace(
         const Type type,
         std::optional<ast_ptr<LongIdent>> name,

@@ -132,8 +132,7 @@ namespace fsharpgrammar::ast
 
         friend std::string to_string(const Main& main);
 
-    private:
-        std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
+        const std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
         const Range range;
     };
 
@@ -171,6 +170,7 @@ namespace fsharpgrammar::ast
 
         friend std::string to_string(const LongIdent& ident);
         [[nodiscard]] Range get_range() const override { return range; }
+        [[nodiscard]] std::string get_as_string() const;
 
     public:
         const std::vector<ast_ptr<Ident>> idents;

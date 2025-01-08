@@ -6,10 +6,22 @@
 
 #include <gtest/gtest.h>
 
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/OwningOpRef.h"
+#include "mlir/Target/LLVMIR/ModuleImport.h"
+
+using namespace fsharpgrammar::compiler;
+
 TEST(HelloWorld, BasicAssertion)
 {
     mlir::MLIRContext context;
-    generateMLIRFromAST(R"(
+    context.getOrLoadDialect<mlir::BuiltinDialect>();
+    auto result = MLIRGen::mlirGen(
+        context,
+        R"(
 printfn "Hello World!"
-)", context);
+)"
+    );
+    result->dump();
 }
