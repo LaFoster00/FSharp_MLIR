@@ -121,8 +121,10 @@ namespace fsharpgrammar::ast
         switch (moduleOrNamespace.type)
         {
         case ModuleOrNamespace::Type::NamedModule:
-            ss << fmt::format("Module {} {}\n", utils::to_string(*moduleOrNamespace.name.value()),
-                              utils::to_string(moduleOrNamespace.range));
+            ss << fmt::format("Module {}\n {}",
+                              utils::to_string(moduleOrNamespace.range),
+                              utils::indent_string(utils::to_string(*moduleOrNamespace.name.value()))
+            );
             break;
         case ModuleOrNamespace::Type::AnonymousModule:
             ss << fmt::format("AnonymousModule {}\n", utils::to_string(moduleOrNamespace.range));
@@ -610,10 +612,10 @@ namespace fsharpgrammar::ast
     std::string to_string(const Pattern::Tuple& tuplePattern)
     {
         RANGED_NAMED_BLOCK("Tuple Pattern", tuplePattern);
-        for(size_t i = 0; i < tuplePattern.patterns.size(); ++i)
+        for (size_t i = 0; i < tuplePattern.patterns.size(); ++i)
         {
             ss << utils::indent_string(utils::to_string(*tuplePattern.patterns[i]));
-            if(i < tuplePattern.patterns.size() - 1)
+            if (i < tuplePattern.patterns.size() - 1)
                 ss << ",\n";
         }
         return ss.str();

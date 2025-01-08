@@ -97,8 +97,9 @@ namespace fsharpgrammar::compiler
             mlir::ModuleOp m;
             switch (module_or_namespace.type)
             {
-            case fsharpgrammar::ast::ModuleOrNamespace::Type::NamedModule:
             case fsharpgrammar::ast::ModuleOrNamespace::Type::Namespace:
+                throw std::runtime_error("Namespaces not supported!");
+            case fsharpgrammar::ast::ModuleOrNamespace::Type::NamedModule:
                 m = builder.create<mlir::ModuleOp>(loc(module_or_namespace.range),
                                                    module_or_namespace.name.value()->get_as_string());
                 break;
@@ -110,7 +111,7 @@ namespace fsharpgrammar::compiler
 
             for (auto& module_decl : module_or_namespace.moduleDecls)
             {
-                mlirGen(module_decl->declaration);
+                std::visit([&](auto& obj) { mlirGen(obj); }, module_decl->declaration);
             }
 
             builder.setInsertionPointToEnd(fileModule.getBody());
@@ -118,11 +119,48 @@ namespace fsharpgrammar::compiler
             return m;
         }
 
-        mlir::Value mlirGen(const ast::ModuleDeclaration::ModuleDeclarationType &module_declaration)
+        mlir::ModuleOp mlirGen(const ast::ModuleDeclaration::NestedModule& nested_module)
+        {
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+
+            auto previous_insertion_block = builder.getInsertionBlock();
+            auto m = builder.create<
+                mlir::ModuleOp>(loc(nested_module.get_range()), nested_module.name->get_as_string());
+
+            // Move into new module
+            builder.setInsertionPointToStart(m.getBody());
+
+            // Emit the body of the module
+            for (auto module_decl : nested_module.moduleDecls)
+            {
+                if (std::holds_alternative<ast::ModuleDeclaration::NestedModule>(module_decl->declaration))
+                {
+                    mlirGen(std::get<ast::ModuleDeclaration::NestedModule>(module_decl->declaration));
+                }
+                else if (std::holds_alternative<ast::ModuleDeclaration::Expression>(module_decl->declaration))
+                {
+                    mlirGen(std::get<ast::ModuleDeclaration::Expression>(module_decl->declaration));
+                }else
+                {
+                    mlirGen(std::get<ast::ModuleDeclaration::Open>(module_decl->declaration));
+                }
+            }
+
+            // Move back to outer scope
+            builder.setInsertionPointToEnd(previous_insertion_block);
+
+            return m;
+        }
+
+        mlir::Value mlirGen(const ast::ModuleDeclaration::Expression& expression)
         {
             return nullptr;
         }
 
+        mlir::Value mlirGen(const ast::ModuleDeclaration::Open& open)
+        {
+            throw std::runtime_error("Open not supported!");
+        }
     };
 
 
