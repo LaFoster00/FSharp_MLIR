@@ -94,37 +94,6 @@ namespace fsharpgrammar::compiler
             return mlir::success();
         }
 
-        mlir::Value createPrintf(mlir::OpBuilder &builder, mlir::Location loc,
-                        llvm::StringRef format, llvm::ArrayRef<mlir::Value> params) {
-            // Get LLVM dialect
-            auto *llvmDialect = builder.getContext()->getLoadedDialect<mlir::LLVM::LLVMDialect>();
-
-            // Create global constant for format string
-            auto type = mlir::LLVM::LLVMArrayType::get(builder.getIntegerType(8), format.size() + 1);
-            auto global = builder.create<mlir::LLVM::GlobalOp>(
-                loc, type, /*isConstant=*/true, mlir::LLVM::linkage::Linkage::Internal,
-                "printf_fmt", builder.getStringAttr(format));
-
-            // Get pointer to format string
-            auto zero = builder.create<mlir::LLVM::ConstantOp>(loc, builder.getI64Type(),
-                                                               builder.getI64IntegerAttr(0));
-            auto gepIndices = llvm::ArrayRef<mlir::Value>({zero, zero});
-            auto fmtPtr = builder.create<mlir::LLVM::GEPOp>(
-                loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()),
-                global, gepIndices);
-
-            // Create printf function declaration if needed
-            auto printfFuncTy = mlir::LLVM::LLVMFunctionType::get(
-                builder.getI32Type(), {fmtPtr.getType()}, /*isVarArg=*/true);
-            auto printfFunc = builder.create<mlir::LLVM::LLVMFuncOp>(
-                loc, "printf", printfFuncTy);
-
-            // Call printf
-            auto operands = llvm::to_vector<4>(params);
-            operands.insert(operands.begin(), fmtPtr);
-            return builder.create<mlir::LLVM::CallOp>(loc, printfFunc, operands).getResult(0);
-        }
-
     private:
         mlir::ModuleOp mlirGen(const ast::ModuleOrNamespace& module_or_namespace)
         {
