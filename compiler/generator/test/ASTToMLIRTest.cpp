@@ -13,15 +13,50 @@
 
 using namespace fsharpgrammar::compiler;
 
+mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
+                                                mlir::MLIRContext& context)
+{
+    context.getOrLoadDialect<mlir::BuiltinDialect>();
+
+    return MLIRGen::mlirGen(
+        context,
+        source
+    );
+}
+
+#define GENERATE_AND_DUMP_MLIR(source) \
+    mlir::MLIRContext context; \
+    auto result = generate_mlir(source, context); \
+    result->dump()
+
 TEST(HelloWorld, BasicAssertion)
 {
-    mlir::MLIRContext context;
-    context.getOrLoadDialect<mlir::BuiltinDialect>();
-    auto result = MLIRGen::mlirGen(
-        context,
+    GENERATE_AND_DUMP_MLIR(
         R"(
 printfn "Hello World!"
 )"
     );
-    result->dump();
+}
+
+TEST(SimpleNamedModule, BasicAssertion)
+{
+    GENERATE_AND_DUMP_MLIR(
+        R"(
+module outer
+
+printfn "Hello World!"
+)"
+    );
+}
+
+TEST(SimpleNestedModule, BasicAssertion)
+{
+    GENERATE_AND_DUMP_MLIR(
+        R"(
+module outer
+printfn "Outer"
+module nested =
+    printfn "Inner"
+)"
+    );
 }

@@ -17,6 +17,20 @@
 
 namespace fsharpgrammar
 {
+    class FSharpErrorListener : public antlr4::BaseErrorListener {
+    public:
+        bool hasErrors = false;
+        std::vector<std::string> errors;
+
+        void syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *offendingSymbol,
+                         size_t line, size_t charPositionInLine, const std::string &msg,
+                         std::exception_ptr e) override {
+            hasErrors = true;
+            errors.push_back("line " + std::to_string(line) + ":" +
+                             std::to_string(charPositionInLine) + " " + msg);
+        }
+    };
+
     void lex_source(const bool print_lexer_output, antlr4::CommonTokenStream& tokens)
     {
         tokens.fill();
@@ -36,7 +50,18 @@ namespace fsharpgrammar
 
     antlr4::tree::ParseTree* parse_source(const bool print_parser_output, FSharpParser& parser)
     {
+        FSharpErrorListener error_listener;
+        parser.removeErrorListeners();
+        parser.addErrorListener(&error_listener);
         antlr4::tree::ParseTree* tree = parser.main();
+        if (error_listener.hasErrors)
+        {
+            std::cerr << "Parsing failed with the following errors:\n";
+            for (const auto &error : error_listener.errors) {
+                std::cerr << error << "\n";
+            }
+            throw std::exception();
+        }
         if (print_parser_output)
             std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
         return tree;

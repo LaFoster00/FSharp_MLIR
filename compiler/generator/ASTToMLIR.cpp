@@ -113,6 +113,8 @@ namespace fsharpgrammar::compiler
                 mlirGen(module_decl->declaration);
             }
 
+            builder.setInsertionPointToEnd(fileModule.getBody());
+
             return m;
         }
 
