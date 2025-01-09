@@ -13,5 +13,9 @@ target_link_libraries(ASTToMLIRTest
         ASTToMLIR
 )
 
+target_include_directories(ASTToMLIRTest PUBLIC
+        ${COMPILER_INCLUDE_DIRECTORIES}
+)
+
 include(GoogleTest)
 gtest_discover_tests(ASTToMLIRTest)

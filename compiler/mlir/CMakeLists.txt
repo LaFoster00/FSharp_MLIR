@@ -1,11 +1,11 @@
-add_llvm_library(ASTToMLIR
+add_library(ASTToMLIR STATIC
         ASTToMLIR.cpp
         SetupDependencies.cpp
-
-        DEPENDS
-        FSharpGrammar  # Ensure the AST target is built first
 )
-llvm_update_compile_flags(ASTToMLIR)
+add_dependencies(ASTToMLIR
+        FSharpGrammar
+        MLIRFSharpOpsIncGen
+)
 
 set_target_properties(ASTToMLIR PROPERTIES
         COMPILE_FLAGS "-frtti"
@@ -29,6 +29,8 @@ target_link_libraries(ASTToMLIR
         FSharpGrammar
 )
 
-target_include_directories(ASTToMLIR PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>")
+target_include_directories(ASTToMLIR PRIVATE
+        ${COMPILER_INCLUDE_DIRECTORIES}
+)
 
 add_subdirectory(test)

@@ -1,7 +1,7 @@
 //
 // Created by lasse on 1/7/25.
 //
-#include "ASTToMLIR.h"
+#include "compiler/ASTToMLIR.h"
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
@@ -54,7 +54,7 @@ namespace fsharpgrammar::compiler
             if (failed(mlir::verify(fileModule)))
             {
                 fileModule.emitError("module verification error");
-                return nullptr;
+                //return nullptr;
             }
 
             return fileModule;

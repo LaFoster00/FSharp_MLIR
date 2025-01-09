@@ -2,7 +2,7 @@
 // Created by lasse on 1/7/25.
 //
 
-#include "generator/ASTToMLIR.h"
+#include "compiler/ASTToMLIR.h"
 
 #include <chrono>
 #include <iostream>
