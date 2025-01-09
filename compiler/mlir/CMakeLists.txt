@@ -29,7 +29,7 @@ target_link_libraries(ASTToMLIR
         FSharpGrammar
 )
 
-target_include_directories(ASTToMLIR PRIVATE
+target_include_directories(ASTToMLIR PUBLIC
         ${COMPILER_INCLUDE_DIRECTORIES}
 )
 

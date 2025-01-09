@@ -2,6 +2,7 @@
 // Created by lasse on 1/7/25.
 //
 #include "compiler/ASTToMLIR.h"
+#include "compiler/Dialect.h"
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
@@ -260,6 +261,7 @@ namespace fsharpgrammar::compiler
         context.getOrLoadDialect<mlir::arith::ArithDialect>();
         context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
         context.getOrLoadDialect<mlir::func::FuncDialect>();
+        context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
 
         auto result = fsharpgrammar::Grammar::parse(source, true, false, true);
         return MLIRGenImpl(context, source_filename).mlirGen(*result);
