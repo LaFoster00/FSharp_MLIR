@@ -7,6 +7,7 @@
 #include <ast/Range.h>
 
 #include "Grammar.h"
+#include "SetupDependencies.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Block.h"
@@ -16,6 +17,7 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Verifier.h"
 
@@ -24,7 +26,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 namespace fsharpgrammar::compiler
@@ -42,6 +43,7 @@ namespace fsharpgrammar::compiler
             // We create an empty MLIR module and codegen functions one at a time and
             // add them to the module.
             fileModule = mlir::ModuleOp::create(builder.getUnknownLoc(), filename);
+            getOrInsertPrintf(builder, fileModule);
 
             for (auto& f : main_ast.modules_or_namespaces)
                 mlirGen(*f);
@@ -116,7 +118,7 @@ namespace fsharpgrammar::compiler
             for (auto& module_decl : module_or_namespace.moduleDecls)
             {
                 std::visit([&](auto& obj) { mlirGen(obj); },
-                    module_decl->declaration);
+                           module_decl->declaration);
             }
 
             builder.setInsertionPointToEnd(fileModule.getBody());
@@ -163,7 +165,7 @@ namespace fsharpgrammar::compiler
             return m;
         }
 
-        mlir::Value mlirGen(const ast::ModuleDeclaration::Expression &expression)
+        mlir::Value mlirGen(const ast::ModuleDeclaration::Expression& expression)
         {
             return mlirGen(*expression.expression);
         }
@@ -178,16 +180,53 @@ namespace fsharpgrammar::compiler
             throw std::runtime_error("Expression not supported!");
         }
 
+        std::span<const ast::ast_ptr<ast::Expression>> getFunctionArgs(const ast::Expression::Append& append)
+        {
+            return {std::next(append.expressions.begin()), append.expressions.end()};
+        }
+
         mlir::Value mlirGen(const ast::Expression::Append& append)
         {
             if (append.isFunctionCall)
             {
+                std::string func_name;
                 if (std::holds_alternative<ast::Expression::Ident>(append.expressions.front()->expression))
+                    func_name = std::get<ast::Expression::Ident>(append.expressions.front()->expression).ident->ident;
+                else if (std::holds_alternative<ast::Expression::LongIdent>(append.expressions.front()->expression))
+                    func_name = std::get<ast::Expression::LongIdent>(append.expressions.front()->expression).longIdent->
+                        get_as_string();
+
+
+                // Codegen the operands first
+                llvm::SmallVector<mlir::Value, 4> operands;
+                for (auto& expr : getFunctionArgs(append))
                 {
-
+                    const auto arg = mlirGen(*expr);
+                    if (!arg)
+                        return nullptr;
+                    operands.push_back(arg);
                 }
-            }
 
+                if (func_name == "printf" || func_name == "printfn")
+                {
+                    auto printfRef = getOrInsertPrintf(builder, fileModule);
+                    mlir::Value formatSpecifierCst = getOrCreateGlobalString(
+                        loc(append.get_range()), builder, "frmt_spec", mlir::StringRef("%f \0", 4), fileModule);
+                    mlir::Value newLineCst = getOrCreateGlobalString(
+                        loc(append.get_range()), builder, "nl", mlir::StringRef("Hello World\n\0", 2), fileModule);
+
+                    return builder.create<mlir::LLVM::CallOp>(
+                        loc(append.get_range()), getPrintfType(builder.getContext()), printfRef, mlir::ArrayRef<mlir::Value>({newLineCst})
+                    )->getResult(0);
+                }
+
+                return builder.create<mlir::func::CallOp>(
+                    loc(append.get_range()),
+                    llvm::StringRef(func_name),
+                    mlir::ValueRange(operands)
+                ).getResult(0);
+            }
+            return nullptr;
         }
 
         mlir::Value mlirGen(const ast::Expression::Constant& constant)
@@ -196,7 +235,11 @@ namespace fsharpgrammar::compiler
             auto value = constant.constant->value.value();
             if (std::holds_alternative<int32_t>(value))
             {
-                return builder.create<mlir::arith::ConstantIntOp>(loc(constant.get_range()), std::get<int32_t>(value), type);
+                return builder.create<mlir::arith::ConstantIntOp>(
+                    loc(constant.get_range()),
+                    static_cast<int64_t>(std::get<int32_t>(value)),
+                    32
+                ).getResult();
             }
         }
 
@@ -215,6 +258,8 @@ namespace fsharpgrammar::compiler
     {
         context.getOrLoadDialect<mlir::BuiltinDialect>();
         context.getOrLoadDialect<mlir::arith::ArithDialect>();
+        context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
+        context.getOrLoadDialect<mlir::func::FuncDialect>();
 
         auto result = fsharpgrammar::Grammar::parse(source, true, false, true);
         return MLIRGenImpl(context, source_filename).mlirGen(*result);

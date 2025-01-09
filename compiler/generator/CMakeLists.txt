@@ -1,5 +1,6 @@
 add_llvm_library(ASTToMLIR
         ASTToMLIR.cpp
+        SetupDependencies.cpp
 
         DEPENDS
         FSharpGrammar  # Ensure the AST target is built first
@@ -20,6 +21,9 @@ target_link_libraries(ASTToMLIR
         MLIRTransforms
         MLIRArithDialect
         MLIRLLVMDialect
+        MLIRFuncDialect
+        MLIRAffineDialect
+
 
         PUBLIC
         FSharpGrammar
