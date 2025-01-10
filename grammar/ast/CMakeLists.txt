@@ -17,7 +17,6 @@ target_link_libraries(FSharpGrammarAST
         FSharpGrammarAntlr
 )
 
-message(STATUS "UTILS_INCLUDE_DIR: ${UTILS_INCLUDE_DIR}")
 target_include_directories(FSharpGrammarAST PUBLIC
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
 )

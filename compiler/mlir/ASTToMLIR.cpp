@@ -8,7 +8,7 @@
 #include <ast/Range.h>
 
 #include "Grammar.h"
-#include "SetupDependencies.h"
+#include "compiler/SetupDependencies.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Block.h"

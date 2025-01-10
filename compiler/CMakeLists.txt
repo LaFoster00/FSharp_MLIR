@@ -5,6 +5,7 @@ set(LLVM_LINK_COMPONENTS
 )
 
 add_subdirectory(include)
+add_subdirectory(lib)
 add_subdirectory(mlir)
 
 #include all the necessary files
@@ -17,7 +18,6 @@ set(COMPILER_INCLUDE_DIRECTORIES
         ${COMPILER_BINARY_DIR}/include
         CACHE INTERNAL ""
 )
-message(STATUS "COMPILER_INCLUDE_DIRECTORIES ${COMPILER_INCLUDE_DIRECTORIES}")
 include_directories(${COMPILER_INCLUDE_DIRECTORIES})
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})

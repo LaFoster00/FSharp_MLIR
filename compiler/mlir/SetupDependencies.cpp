@@ -2,7 +2,7 @@
 // Created by lasse on 1/9/25.
 //
 
-#include "SetupDependencies.h"
+#include "compiler/SetupDependencies.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"

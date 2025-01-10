@@ -24,11 +24,12 @@ target_link_libraries(ASTToMLIR
         MLIRFuncDialect
         MLIRAffineDialect
 
-
         PUBLIC
         FSharpGrammar
+        MLIRFSharpDialect
 )
 
+message(STATUS "COMPILER_INCLUDE_DIRECTORIES ${COMPILER_INCLUDE_DIRECTORIES}")
 target_include_directories(ASTToMLIR PUBLIC
         ${COMPILER_INCLUDE_DIRECTORIES}
 )
