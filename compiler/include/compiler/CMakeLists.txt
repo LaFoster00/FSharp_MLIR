@@ -1,1 +1,1 @@
-add_mlir_dialect(FSharpOps fsharp)
+add_mlir_dialect(FSharp fsharp)

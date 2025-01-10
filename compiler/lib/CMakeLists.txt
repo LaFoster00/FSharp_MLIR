@@ -2,16 +2,19 @@ add_mlir_dialect_library(MLIRFSharpDialect
         FSharpDialect.cpp
 
         ADDITIONAL_HEADER_DIRS
-        ${PROJECT_SOURCE_DIR}/include/compiler
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_BINARY_DIR}/include
 
         DEPENDS
-        MLIRFSharpOpsIncGen
+        MLIRFSharpIncGen
 
         LINK_LIBS PUBLIC
         MLIRIR
         MLIRInferTypeOpInterface
         MLIRFuncDialect
 )
+
 target_include_directories(MLIRFSharpDialect PRIVATE
-        ${COMPILER_INCLUDE_DIRECTORIES}
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_BINARY_DIR}/include
 )

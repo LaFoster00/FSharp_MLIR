@@ -13,9 +13,9 @@
 
 /// Include the auto-generated header file containing the declaration of the fsharp
 /// dialect.
-#include "compiler/FSharpOpsDialect.h.inc"
+#include "compiler/FSharpDialect.h.inc"
 
 /// Include the auto-generated header file containing the declarations of the
 /// fsharp operations.
 #define GET_OP_CLASSES
-#include "compiler/FSharpOps.h.inc"
+#include "compiler/FSharp.h.inc"

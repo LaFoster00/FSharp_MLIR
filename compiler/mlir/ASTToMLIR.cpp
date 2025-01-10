@@ -2,7 +2,7 @@
 // Created by lasse on 1/7/25.
 //
 #include "compiler/ASTToMLIR.h"
-#include "compiler/Dialect.h"
+#include "compiler/FSharpDialect.h"
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
