@@ -12,6 +12,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/AttrTypeBase.td"
 
 // Provide a definition of the 'fsharp' dialect in the ODS framework so that we
 // can define our operations.
@@ -27,6 +28,11 @@ def FSharp_Dialect : Dialect {
 //   * A list of traits for the operation.
 class FSharp_Op<string mnemonic, list<Trait> traits = []> :
     Op<FSharp_Dialect, mnemonic, traits>;
+
+class FSharp_Type<string name, string typeMnemonic, list<Trait> traits = []>
+  : TypeDef<FSharp_Dialect, name, traits> {
+    let mnemonic = typeMnemonic;
+  }
 
 //===----------------------------------------------------------------------===//
 // FSharp Operations

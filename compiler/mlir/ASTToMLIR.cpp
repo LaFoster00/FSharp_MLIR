@@ -7,9 +7,9 @@
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
 
 #include "Grammar.h"
-#include "compiler/SetupDependencies.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Block.h"
@@ -29,6 +29,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/MemRef/TransformOps/MemRefTransformOps.h"
 
 namespace fsharpgrammar::compiler
 {
@@ -45,7 +46,6 @@ namespace fsharpgrammar::compiler
             // We create an empty MLIR module and codegen functions one at a time and
             // add them to the module.
             fileModule = mlir::ModuleOp::create(builder.getUnknownLoc(), filename);
-            getOrInsertPrintf(builder, fileModule);
 
             for (auto& f : main_ast.modules_or_namespaces)
                 mlirGen(*f);
@@ -208,32 +208,32 @@ namespace fsharpgrammar::compiler
 
         mlir::Value mlirGen(const ast::Expression::Constant& constant)
         {
-            auto type = getType(*constant.constant);
-            auto value = constant.constant->value.value();
-            if (std::holds_alternative<int32_t>(value))
-            {
-                return builder.create<mlir::arith::ConstantIntOp>(
-                    loc(constant.get_range()),
-                    static_cast<int64_t>(std::get<int32_t>(value)),
-                    32
-                ).getResult();
-            }
+            auto value = getValue(constant);
+            return builder.create<mlir::arith::ConstantOp>(
+                loc(constant.get_range()),
+                value.getType(),
+                value
+            );
         }
 
-        mlir::Type getType(const ast::Constant& constant)
+        mlir::TypedAttr getValue(const ast::Expression::Constant& constant)
         {
-            if (std::holds_alternative<int32_t>(*constant.value))
-                return builder.getI32Type();
-            else if (std::holds_alternative<float_t>(*constant.value))
-                return builder.getF32Type();
-            else if (std::holds_alternative<char8_t>(*constant.value))
-                return builder.getIntegerType(8, false);
-            else if (std::holds_alternative<bool>(*constant.value))
-                return builder.getI1Type();
-
-
-            else
-                throw std::runtime_error("Constant not supported!");
+            auto& value = constant.constant->value.value();
+            return std::visit<mlir::TypedAttr>(utils::overloaded{
+                                                   [&](const int32_t i) { return builder.getI32IntegerAttr(i); },
+                                                   [&](const float_t f) { return builder.getF32FloatAttr(f); },
+                                                   [&](const std::string& s)
+                                                   {
+                                                       llvm::ArrayRef data(s.c_str(), s.size() + 1);
+                                                       return mlir::DenseIntElementsAttr::get(
+                                                           mlir::RankedTensorType::get(
+                                                               static_cast<int64_t>(data.size()),
+                                                               builder.getI8Type()),
+                                                           data);
+                                                   },
+                                                   [&](const char8_t c) { return builder.getI8IntegerAttr(c); },
+                                                   [&](const bool b) { return builder.getBoolAttr(b); },
+                                               }, value);
         }
     };
 

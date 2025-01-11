@@ -38,7 +38,7 @@ TEST(HelloWorld, BasicAssertion)
 {
     GENERATE_AND_DUMP_MLIR(
         R"(
-printfn 1
+printfn "Hello, World!"
 )"
     );
 }
