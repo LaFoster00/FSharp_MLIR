@@ -22,5 +22,6 @@ namespace fsharpgrammar::compiler
         /// Emit IR for the given Toy moduleAST, returns a newly created MLIR module
         /// or nullptr on failure.
         static mlir::OwningOpRef<mlir::ModuleOp> mlirGen(mlir::MLIRContext &context, std::string_view source, std::string_view source_filename = "File");
+        static mlir::OwningOpRef<mlir::ModuleOp> mlirGen(mlir::MLIRContext& context, std::unique_ptr<ast::Main>& ast,std::string_view source_filename = "File");
     };
 }

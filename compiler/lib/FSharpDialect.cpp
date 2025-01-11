@@ -91,6 +91,18 @@ static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
   printer.printFunctionalType(op->getOperandTypes(), op->getResultTypes());
 }
 
+//===----------------------------------------------------------------------===//
+// GenericCallOp
+//===----------------------------------------------------------------------===//
+
+void GenericCallOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                          StringRef callee, ArrayRef<mlir::Value> arguments) {
+  // Generic call always returns an unranked Tensor initially.
+  state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
+  state.addOperands(arguments);
+  state.addAttribute("callee",
+                     mlir::SymbolRefAttr::get(builder.getContext(), callee));
+}
 
 //===----------------------------------------------------------------------===//
 // FuncOp
