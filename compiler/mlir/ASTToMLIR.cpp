@@ -3,6 +3,7 @@
 //
 #include "compiler/ASTToMLIR.h"
 #include "compiler/FSharpDialect.h"
+#include <span>
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>

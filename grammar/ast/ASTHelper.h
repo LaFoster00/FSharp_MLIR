@@ -6,6 +6,7 @@
 
 #include <any>
 #include <memory>
+#include <optional>
 
 #include <antlr4-runtime.h>
 #include <fmt/format.h>
