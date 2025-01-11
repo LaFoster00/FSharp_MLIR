@@ -34,6 +34,70 @@ class FSharp_Type<string name, string typeMnemonic, list<Trait> traits = []>
     let mnemonic = typeMnemonic;
   }
 
+class FSharp_Attr<string name, string attrMnemonic, list<Trait> traits = []>
+    : AttrDef<My_Dialect, name, traits> {
+  let mnemonic = attrMnemonic;
+  }
+
+//===----------------------------------------------------------------------===//
+// FSharp Types
+//===----------------------------------------------------------------------===//
+
+def StringType : FSharp_Type<"String", "string"> {
+  let summary = "A simple type for storing tensors filled with characters, but prettier printing."
+  let description = [{
+    Strings represent a tensor<*xI8> with appropriate printing.
+  }];
+
+  let parameters = {ins }
+
+  /// Here we define the textual format of the type declaratively, which will
+  /// automatically generate parser and printer logic. This will allow for
+  /// instances of the type to be output as, for example:
+  ///
+  ///    !fsharp.string "Bla" // a string containing the word bla.
+  ///
+  let assemblyFormat = " `\"` $data `\"`";
+}
+
+//===----------------------------------------------------------------------===//
+// FSharp Attributes
+//===----------------------------------------------------------------------===//
+
+def StringAttr : FSharp_Attr<"String", "string"> {
+  let summary = "A simple attribute for storing tensors filled with characters, but prettier printing."
+  let description = [{
+    Strings represent a tensor<*xI8> with appropriate printing.
+  }];
+
+  /// Here we've defined two parameters, one is a "self" type parameter, and the
+  /// other is the integer value of the attribute. The self type parameter is
+  /// specially handled by the assembly format.
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "std::string":$value);
+
+  /// Here we've defined a custom builder for the type, that removes the need to pass
+  /// in an MLIRContext instance; as it can be infered from the `type`.
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type,
+                                        "const std::string &":$value), [{
+      return $_get(type.getContext(), type, value);
+    }]>
+  ];
+
+  /// Here we define the textual format of the type declaratively, which will
+  /// automatically generate parser and printer logic. This will allow for
+  /// instances of the type to be output as, for example:
+  ///
+  ///    !fsharp.string "Bla" // a string containing the word bla.
+  ///
+  let assemblyFormat = " `\"` $value `\"`";
+
+  /// Indicate to the ODS generator that we do not want the default builders,
+  /// as we have defined our own simpler ones.
+  let skipDefaultBuilders = 1;
+}
+
+
 //===----------------------------------------------------------------------===//
 // FSharp Operations
 //===----------------------------------------------------------------------===//
