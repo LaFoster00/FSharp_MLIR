@@ -10,6 +10,7 @@ add_subdirectory(lib)
 add_library(FSharpCompiler STATIC
         mlir/ASTToMLIR.cpp
         mlir/SetupDependencies.cpp
+        include/compiler/FSharpOp.h
 )
 
 add_dependencies(FSharpCompiler
