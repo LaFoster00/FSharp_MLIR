@@ -13,6 +13,7 @@ include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 // Provide a definition of the 'fsharp' dialect in the ODS framework so that we
 // can define our operations.
@@ -66,25 +67,58 @@ def StringType : FSharp_Type<"String", "string"> {
 // FSharp Attributes
 //===----------------------------------------------------------------------===//
 
-def StringAttr : FSharp_Attr<"String", "string"> {
+def StringAttr : FSharp_Attr<"String", "string", [ElementsAttrInterface]> {
   let summary = "A simple attribute for storing tensors filled with characters, but prettier printing.";
   let description = [{
     Strings represent a tensor<*xI8> with appropriate printing.
   }];
 
-  /// Here we've defined two parameters, one is a "self" type parameter, and the
-  /// other is the integer value of the attribute. The self type parameter is
-  /// specially handled by the assembly format.
-  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "std::string":$value);
+  let parameters = (ins StringRefParameter<"">:$value,
+                        AttributeSelfTypeParameter<"">:$type);
 
-  /// Here we've defined a custom builder for the type, that removes the need to pass
-  /// in an MLIRContext instance; as it can be infered from the `type`.
   let builders = [
-    AttrBuilderWithInferredContext<(ins "Type":$type,
-                                        "const std::string &":$value), [{
-      return $_get(type.getContext(), type, value);
-    }]>
+    AttrBuilderWithInferredContext<(ins "const Twine &":$bytes, "Type":$type)>
   ];
+
+  let extraClassDeclaration = [{
+  let extraClassDeclaration = [{
+    using ValueType = StringRef;
+
+    /// If the value of this string is prefixed with a dialect namespace,
+    /// returns the dialect corresponding to that namespace if it is loaded,
+    /// nullptr otherwise. For example, the string `llvm.fastmathflags` would
+    /// return the LLVM dialect, assuming it is loaded in the context.
+    Dialect *getReferencedDialect() const;
+
+    /// Enable conversion to StringRef.
+    operator StringRef() const { return getValue(); }
+
+    /// Returns the underlying string value
+    StringRef strref() const { return getValue(); }
+
+    /// Convert the underling value to an std::string.
+    std::string str() const { return getValue().str(); }
+
+    /// Return a pointer to the start of the string data.
+    const char *data() const { return getValue().data(); }
+
+    /// Return the number of bytes in this string.
+    size_t size() const { return getValue().size(); }
+
+    /// Return whether the string is empty.
+    bool empty() const { return getValue().empty(); }
+
+    /// Iterate over the underlying string data.
+    StringRef::iterator begin() const { return getValue().begin(); }
+    StringRef::iterator end() const { return getValue().end(); }
+
+    /// Compare the underlying string value to the one in `rhs`.
+    int compare(StringAttr rhs) const {
+      if (*this == rhs)
+        return 0;
+      return getValue().compare(rhs.getValue());
+    }
+  }];
 
   /// Here we define the textual format of the type declaratively, which will
   /// automatically generate parser and printer logic. This will allow for
@@ -94,6 +128,7 @@ def StringAttr : FSharp_Attr<"String", "string"> {
   ///
   let assemblyFormat = " `\"` $value `\"`";
 
+  let genStorageClass = 0;
   /// Indicate to the ODS generator that we do not want the default builders,
   /// as we have defined our own simpler ones.
   let skipDefaultBuilders = 1;
