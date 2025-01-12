@@ -12,12 +12,17 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/AttrTypeBase.td"
 
 // Provide a definition of the 'fsharp' dialect in the ODS framework so that we
 // can define our operations.
 def FSharp_Dialect : Dialect {
   let name = "fsharp";
   let cppNamespace = "::mlir::fsharp";
+  let extraClassDeclaration = [{
+            void registerTypes();
+            void registerAttributes();
+        }];
 }
 
 // Base class for fsharp dialect operations. This operation inherits from the base
@@ -27,6 +32,73 @@ def FSharp_Dialect : Dialect {
 //   * A list of traits for the operation.
 class FSharp_Op<string mnemonic, list<Trait> traits = []> :
     Op<FSharp_Dialect, mnemonic, traits>;
+
+class FSharp_Type<string name, string typeMnemonic, list<Trait> traits = []>
+  : TypeDef<FSharp_Dialect, name, traits> {
+    let mnemonic = typeMnemonic;
+  }
+
+class FSharp_Attr<string name, string attrMnemonic, list<Trait> traits = []>
+    : AttrDef<FSharp_Dialect, name, traits> {
+  let mnemonic = attrMnemonic;
+  }
+
+//===----------------------------------------------------------------------===//
+// FSharp Types
+//===----------------------------------------------------------------------===//
+
+def StringType : FSharp_Type<"String", "string"> {
+  let summary = "A simple type for storing tensors filled with characters, but prettier printing.";
+  let description = [{
+    Strings represent a tensor<*xI8> with appropriate printing.
+  }];
+
+  /// Here we define the textual format of the type declaratively, which will
+  /// automatically generate parser and printer logic. This will allow for
+  /// instances of the type to be output as, for example:
+  ///
+  ///    !fsharp.string // a string.
+  ///
+  let assemblyFormat = "";
+}
+
+//===----------------------------------------------------------------------===//
+// FSharp Attributes
+//===----------------------------------------------------------------------===//
+
+def StringAttr : FSharp_Attr<"String", "string"> {
+  let summary = "A simple attribute for storing tensors filled with characters, but prettier printing.";
+  let description = [{
+    Strings represent a tensor<*xI8> with appropriate printing.
+  }];
+
+  /// Here we've defined two parameters, one is a "self" type parameter, and the
+  /// other is the integer value of the attribute. The self type parameter is
+  /// specially handled by the assembly format.
+  let parameters = (ins AttributeSelfTypeParameter<"">:$type, "std::string":$value);
+
+  /// Here we've defined a custom builder for the type, that removes the need to pass
+  /// in an MLIRContext instance; as it can be infered from the `type`.
+  let builders = [
+    AttrBuilderWithInferredContext<(ins "Type":$type,
+                                        "const std::string &":$value), [{
+      return $_get(type.getContext(), type, value);
+    }]>
+  ];
+
+  /// Here we define the textual format of the type declaratively, which will
+  /// automatically generate parser and printer logic. This will allow for
+  /// instances of the type to be output as, for example:
+  ///
+  ///    !fsharp.string "Bla" // a string containing the word bla.
+  ///
+  let assemblyFormat = " `\"` $value `\"`";
+
+  /// Indicate to the ODS generator that we do not want the default builders,
+  /// as we have defined our own simpler ones.
+  let skipDefaultBuilders = 1;
+}
+
 
 //===----------------------------------------------------------------------===//
 // FSharp Operations
