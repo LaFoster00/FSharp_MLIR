@@ -224,13 +224,8 @@ namespace fsharpgrammar::compiler
                                                    [&](const float_t f) { return builder.getF32FloatAttr(f); },
                                                    [&](const std::string& s)
                                                    {
-                                                       auto string = mlir::StringAttr::get("Hello, World", builder.getI8Type());
-                                                       llvm::ArrayRef data(s.c_str(), s.size() + 1);
-                                                       return mlir::DenseIntElementsAttr::get(
-                                                           mlir::RankedTensorType::get(
-                                                               static_cast<int64_t>(data.size()),
-                                                               builder.getI8Type()),
-                                                           data);
+                                                       auto string_attr = mlir::fsharp::StringAttr::get(builder.getContext(), s);
+                                                       return string_attr;
                                                    },
                                                    [&](const char8_t c) { return builder.getI8IntegerAttr(c); },
                                                    [&](const bool b) { return builder.getBoolAttr(b); },

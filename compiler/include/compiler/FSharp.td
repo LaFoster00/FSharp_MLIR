@@ -67,71 +67,9 @@ def StringType : FSharp_Type<"String", "string"> {
 // FSharp Attributes
 //===----------------------------------------------------------------------===//
 
-def StringAttr : FSharp_Attr<"String", "string", [ElementsAttrInterface]> {
-  let summary = "A simple attribute for storing tensors filled with characters, but prettier printing.";
-  let description = [{
-    Strings represent a tensor<*xI8> with appropriate printing.
-  }];
-
-  let parameters = (ins StringRefParameter<"">:$value,
-                        AttributeSelfTypeParameter<"">:$type);
-
-  let builders = [
-    AttrBuilderWithInferredContext<(ins "const Twine &":$bytes, "Type":$type)>
-  ];
-
-  let extraClassDeclaration = [{
-  let extraClassDeclaration = [{
-    using ValueType = StringRef;
-
-    /// If the value of this string is prefixed with a dialect namespace,
-    /// returns the dialect corresponding to that namespace if it is loaded,
-    /// nullptr otherwise. For example, the string `llvm.fastmathflags` would
-    /// return the LLVM dialect, assuming it is loaded in the context.
-    Dialect *getReferencedDialect() const;
-
-    /// Enable conversion to StringRef.
-    operator StringRef() const { return getValue(); }
-
-    /// Returns the underlying string value
-    StringRef strref() const { return getValue(); }
-
-    /// Convert the underling value to an std::string.
-    std::string str() const { return getValue().str(); }
-
-    /// Return a pointer to the start of the string data.
-    const char *data() const { return getValue().data(); }
-
-    /// Return the number of bytes in this string.
-    size_t size() const { return getValue().size(); }
-
-    /// Return whether the string is empty.
-    bool empty() const { return getValue().empty(); }
-
-    /// Iterate over the underlying string data.
-    StringRef::iterator begin() const { return getValue().begin(); }
-    StringRef::iterator end() const { return getValue().end(); }
-
-    /// Compare the underlying string value to the one in `rhs`.
-    int compare(StringAttr rhs) const {
-      if (*this == rhs)
-        return 0;
-      return getValue().compare(rhs.getValue());
-    }
-  }];
-
-  /// Here we define the textual format of the type declaratively, which will
-  /// automatically generate parser and printer logic. This will allow for
-  /// instances of the type to be output as, for example:
-  ///
-  ///    !fsharp.string "Bla" // a string containing the word bla.
-  ///
-  let assemblyFormat = " `\"` $value `\"`";
-
-  let genStorageClass = 0;
-  /// Indicate to the ODS generator that we do not want the default builders,
-  /// as we have defined our own simpler ones.
-  let skipDefaultBuilders = 1;
+def StringAttr : FSharp_Attr<"String", "string"> {
+    let parameters = (ins "std::string":$value);
+    let assemblyFormat = "$value";
 }
 
 
