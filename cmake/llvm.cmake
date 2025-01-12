@@ -26,6 +26,8 @@ if(NOT EXISTS "${LLVM_BUILD_DIR}/bin/llvm-config" OR ${FORCE_BUILD_LLVM})
     execute_process(
             COMMAND ${CMAKE_COMMAND} -G Ninja ${LLVM_SOURCE_DIR}
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+            -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
             -DLLVM_ENABLE_PROJECTS=mlir
             -DLLVM_BUILD_EXAMPLES=OFF
             -DLLVM_TARGETS_TO_BUILD=X86
