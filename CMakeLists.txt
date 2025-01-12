@@ -1,18 +1,34 @@
 cmake_minimum_required(VERSION 3.25)
 
+if(POLICY CMP0068)
+    cmake_policy(SET CMP0068 NEW)
+    set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
+endif()
+
+if(POLICY CMP0075)
+    cmake_policy(SET CMP0075 NEW)
+endif()
+
+if(POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
+endif()
+
 # LLVM requires CMP0116 for tblgen: https://reviews.llvm.org/D101083
 # CMP0116: Ninja generators transform `DEPFILE`s from `add_custom_command()`
 # New in CMake 3.20. https://cmake.org/cmake/help/latest/policy/CMP0116.html
-set(CMAKE_POLICY_DEFAULT_CMP0116 OLD)
 if(POLICY CMP0116)
     cmake_policy(SET CMP0116 OLD)
+endif()
+
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(DEBUG)
 endif()
 
-set(CMAKE_CXX_STANDARD 23 CACHE STRING "C++ standard to conform to")
+set(CMAKE_CXX_STANDARD 23 CACHE STRING "C++ standard to conform to" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
@@ -39,7 +55,22 @@ include(cmake/utils.cmake)
 
 # LLVM Setup
 include(cmake/llvm.cmake)
-build_llvm()
+
+find_package(MLIR REQUIRED CONFIG)
+
+message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
+set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
+
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+
+include(TableGen)
+include(AddLLVM)
+include(AddMLIR)
+include(HandleLLVMOptions)
 
 find_package(MLIR REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)

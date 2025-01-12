@@ -1,36 +1,59 @@
-macro(build_llvm)
-    message(STATUS "Building llvm dependencies.")
 
-    set(_CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+message(STATUS "Building llvm dependencies.")
 
-    set(CMAKE_BUILD_TYPE "Release")
-    set(LLVM_ENABLE_PROJECTS "mlir;llvm" CACHE STRING "" FORCE)
-    set(LLVM_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(DLLVM_TARGETS_TO_BUILD "Native" CACHE STRING "" FORCE)
-    set(LLVM_ENABLE_ASSERTIONS ON CACHE BOOL "" FORCE)
-    set(LLVM_ENABLE_LLD ON CACHE BOOL "" FORCE)
-    set(LLVM_CCACHE_BUILD ON CACHE BOOL "" FORCE)
-    set(LLVM_ENABLE_IDE ON CACHE BOOL "" FORCE)
-    set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
-    set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "" FORCE)
+# Define the paths
+set(LLVM_SOURCE_DIR "${PROJECT_SOURCE_DIR}/extern/llvm-project/llvm")
+set(LLVM_BUILD_DIR "${LLVM_SOURCE_DIR}/extern/llvm-project/build")
+set(LLVM_INSTALL_DIR "${LLVM_BUILD_DIR}/install") # Optional, depending on use case
 
-    message(VERBOSE "Building LLVM Targets: ${LLVM_TARGETS_TO_BUILD}")
-    message(VERBOSE "Building LLVM Projects: ${LLVM_ENABLE_PROJECTS}")
+message("LLVM_SOURCE_DIR: ${LLVM_SOURCE_DIR}")
+message("LLVM_BUILD_DIR: ${LLVM_BUILD_DIR}")
+message("LLVM_INSTALL_DIR: ${LLVM_INSTALL_DIR}")
 
-    set(LLVM_LIBRARY_OUTPUT_INTDIR "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/lib")
-    set(LLVM_RUNTIME_OUTPUT_INTDIR "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/bin")
+# Create the build directory if it doesn't exist
+file(MAKE_DIRECTORY ${LLVM_BUILD_DIR})
 
-    message(STATUS "Configuring extern/llvm-project")
-    list(APPEND CMAKE_MESSAGE_INDENT "  ")
-    set(LLVM_CMAKE_SOURCE_SUBDIR "extern/llvm-project/llvm")
-    add_subdirectory("${LLVM_CMAKE_SOURCE_SUBDIR}" "llvm-project" EXCLUDE_FROM_ALL)
-    get_directory_property(LLVM_VERSION_MAJOR DIRECTORY "${LLVM_CMAKE_SOURCE_SUBDIR}" LLVM_VERSION_MAJOR)
-    if (NOT LLVM_VERSION_MAJOR)
-        message(SEND_ERROR "Failed to read LLVM_VERSION_MAJOR property on LLVM directory. Should have been set since https://github.com/llvm/llvm-project/pull/83346.")
-    endif()
+list(APPEND CMAKE_MESSAGE_INDENT "  ")
+# Run the CMake configuration command for LLVM
+execute_process(
+        COMMAND ${CMAKE_COMMAND} -G Ninja ${LLVM_SOURCE_DIR}
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DLLVM_ENABLE_PROJECTS=mlir
+        -DLLVM_BUILD_EXAMPLES=OFF
+        -DLLVM_TARGETS_TO_BUILD=X86
+        -DLLVM_ENABLE_ASSERTIONS=ON
+        -DLLVM_ENABLE_LLD=ON
+        -DLLVM_CCACHE_BUILD=ON
+        -DLLVM_ENABLE_IDE=ON
+        -DLLVM_INCLUDE_TESTS=OFF
+        -DLLVM_INCLUDE_BENCHMARKS=OFF
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        WORKING_DIRECTORY ${LLVM_BUILD_DIR}
+        RESULT_VARIABLE llvm_cmake_result
+)
+list(POP_BACK CMAKE_MESSAGE_INDENT)
 
-    list(POP_BACK CMAKE_MESSAGE_INDENT)
+# Check if the CMake configuration succeeded
+if(llvm_cmake_result)
+    message(FATAL_ERROR "Failed to configure LLVM project in ${LLVM_BUILD_DIR}")
+endif()
 
-    set(CMAKE_BUILD_TYPE "${_CMAKE_BUILD_TYPE}" )
-    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/mlir")
-endmacro()
+list(APPEND CMAKE_MESSAGE_INDENT "  ")
+# Build the LLVM project
+execute_process(
+        COMMAND ninja
+        WORKING_DIRECTORY ${LLVM_BUILD_DIR}
+        RESULT_VARIABLE llvm_build_result
+)
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+# Check if the build succeeded
+if(llvm_build_result)
+    message(FATAL_ERROR "Failed to build LLVM project in ${LLVM_BUILD_DIR}")
+endif()
+
+# Update paths if necessary for find_package to locate MLIR
+set(MLIR_DIR "${LLVM_BUILD_DIR}/lib/cmake/mlir" CACHE INTERNAL "")
+set(LLVM_DIR "${LLVM_BUILD_DIR}/lib/cmake/llvm" CACHE INTERNAL "")
+list(APPEND CMAKE_PREFIX_PATH "${MLIR_DIR}")
+list(APPEND CMAKE_PREFIX_PATH "${LLVM_DIR}")
