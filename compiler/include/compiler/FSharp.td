@@ -19,6 +19,10 @@ include "mlir/IR/AttrTypeBase.td"
 def FSharp_Dialect : Dialect {
   let name = "fsharp";
   let cppNamespace = "::mlir::fsharp";
+  let extraClassDeclaration = [{
+            void registerTypes();
+            void registerAttributes();
+        }];
 }
 
 // Base class for fsharp dialect operations. This operation inherits from the base
@@ -35,7 +39,7 @@ class FSharp_Type<string name, string typeMnemonic, list<Trait> traits = []>
   }
 
 class FSharp_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<My_Dialect, name, traits> {
+    : AttrDef<FSharp_Dialect, name, traits> {
   let mnemonic = attrMnemonic;
   }
 
@@ -44,20 +48,18 @@ class FSharp_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 //===----------------------------------------------------------------------===//
 
 def StringType : FSharp_Type<"String", "string"> {
-  let summary = "A simple type for storing tensors filled with characters, but prettier printing."
+  let summary = "A simple type for storing tensors filled with characters, but prettier printing.";
   let description = [{
     Strings represent a tensor<*xI8> with appropriate printing.
   }];
-
-  let parameters = {ins }
 
   /// Here we define the textual format of the type declaratively, which will
   /// automatically generate parser and printer logic. This will allow for
   /// instances of the type to be output as, for example:
   ///
-  ///    !fsharp.string "Bla" // a string containing the word bla.
+  ///    !fsharp.string // a string.
   ///
-  let assemblyFormat = " `\"` $data `\"`";
+  let assemblyFormat = "";
 }
 
 //===----------------------------------------------------------------------===//
@@ -65,7 +67,7 @@ def StringType : FSharp_Type<"String", "string"> {
 //===----------------------------------------------------------------------===//
 
 def StringAttr : FSharp_Attr<"String", "string"> {
-  let summary = "A simple attribute for storing tensors filled with characters, but prettier printing."
+  let summary = "A simple attribute for storing tensors filled with characters, but prettier printing.";
   let description = [{
     Strings represent a tensor<*xI8> with appropriate printing.
   }];

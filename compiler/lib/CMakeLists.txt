@@ -7,6 +7,7 @@ add_mlir_dialect_library(MLIRFSharpDialect
 
         DEPENDS
         MLIRFSharpIncGen
+        MLIRFSharpAttrDefsIncGen
 
         LINK_LIBS PUBLIC
         MLIRIR
