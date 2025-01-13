@@ -10,6 +10,7 @@
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 
 #include "Grammar.h"
+#include "../../cmake-build-release/_deps/fmt-src/include/fmt/color.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Block.h"
@@ -29,6 +30,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 
 namespace fsharpgrammar::compiler
 {
@@ -137,15 +139,20 @@ namespace fsharpgrammar::compiler
             throw std::runtime_error("Nested modules not supported!");
         }
 
-        mlir::Value mlirGen(const ast::ModuleDeclaration::Expression& expression)
+        std::optional<mlir::Value> mlirGen(const ast::ModuleDeclaration::Expression& expression)
         {
             return mlirGen(*expression.expression);
         }
 
-        mlir::Value mlirGen(const ast::Expression& expression)
+        std::optional<mlir::Value> mlirGen(const ast::Expression& expression)
         {
             if (std::holds_alternative<ast::Expression::Append>(expression.expression))
-                return mlirGen(std::get<ast::Expression::Append>(expression.expression));
+            {
+                if (auto result = mlirGen(std::get<ast::Expression::Append>(expression.expression));
+                    std::holds_alternative<mlir::Value>(result))
+                    return std::get<mlir::Value>(result);
+                return {};
+            }
             if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
                 return mlirGen(std::get<ast::Expression::Constant>(expression.expression));
 
@@ -157,52 +164,67 @@ namespace fsharpgrammar::compiler
             return {std::next(append.expressions.begin()), append.expressions.end()};
         }
 
-        mlir::Value mlirGen(const ast::Expression::Append& append)
+        std::optional<llvm::SmallVector<mlir::Value, 4>> getFunctionArgValues(const ast::Expression::Append& append)
         {
-            if (append.isFunctionCall)
-            {
-                return declareFunctionCall(append);
-            }
-            else
-            {
-                return mlirGen(*append.expressions.front());
-            }
-            return nullptr;
-        }
-
-        mlir::Value declareFunctionCall(const ast::Expression::Append& append)
-        {
-            std::string func_name;
-            if (std::holds_alternative<ast::Expression::Ident>(append.expressions.front()->expression))
-                func_name = std::get<ast::Expression::Ident>(append.expressions.front()->expression).ident->ident;
-            else if (std::holds_alternative<ast::Expression::LongIdent>(append.expressions.front()->expression))
-                func_name = std::get<ast::Expression::LongIdent>(append.expressions.front()->expression).longIdent->
-                    get_as_string();
-
-            auto location = loc(append.get_range());
-
             // Codegen the operands first
             llvm::SmallVector<mlir::Value, 4> operands;
             for (auto& expr : getFunctionArgs(append))
             {
                 const auto arg = mlirGen(*expr);
                 if (!arg)
-                    return nullptr;
-                operands.push_back(arg);
+                    return {};
+                if (!arg.has_value())
+                {
+                    fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}", utils::to_string(expr->get_range()));
+                    operands.push_back(nullptr);
+                    continue;
+                };
+                operands.push_back(arg.value());
             }
-
-            return builder.create<mlir::fsharp::GenericCallOp>(location, func_name, operands);
+            return operands;
         }
 
-        llvm::LogicalResult declarePrintExpr(const ast::Expression::Append& append)
+        std::variant<mlir::Value, llvm::LogicalResult> mlirGen(const ast::Expression::Append& append)
         {
-            // Get the printf formating argument
-            auto arg = mlirGen(*(*std::next(append.expressions.begin())));
-            if (!arg)
-                return mlir::failure();
+            if (append.isFunctionCall)
+            {
+                std::string func_name;
+                if (std::holds_alternative<ast::Expression::Ident>(append.expressions.front()->expression))
+                    func_name = std::get<ast::Expression::Ident>(append.expressions.front()->expression).ident->ident;
+                else if (std::holds_alternative<ast::Expression::LongIdent>(append.expressions.front()->expression))
+                    func_name = std::get<ast::Expression::LongIdent>(append.expressions.front()->expression).longIdent->
+                        get_as_string();
 
-            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), arg);
-            return mlir::success();
+                if (func_name == "print" || func_name == "printf" || func_name == "printfn")
+                    return generatePrint(append);
+
+                return declareFunctionCall(append, func_name);
+            }
+            else
+            {
+                return mlirGen(*append.expressions.front()).value();
+            }
+            return mlir::Value(nullptr);
+        }
+
+        mlir::Value declareFunctionCall(const ast::Expression::Append& append, const std::string& func_name)
+        {
+            auto location = loc(append.get_range());
+
+            auto args = getFunctionArgValues(append);
+            if (!args.has_value())
+                return nullptr;
+            return builder.create<mlir::func::CallOp>(location, mlir::StringRef(func_name),
+                                                      mlir::ValueRange(args.value()))->getResult(0);
+        }
+
+        llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
+        {
+            auto args = getFunctionArgValues(append);
+            if (!args.has_value())
+                return llvm::failure();
+            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
+            return llvm::success();
         }
 
         mlir::Value mlirGen(const ast::Expression::Constant& constant)
@@ -223,8 +245,9 @@ namespace fsharpgrammar::compiler
                                                    [&](const float_t f) { return builder.getF32FloatAttr(f); },
                                                    [&](const std::string& s)
                                                    {
-                                                       auto type = mlir::RankedTensorType::get({static_cast<int64_t>(s.size() + 1)},
-                                                                                                builder.getI8Type());
+                                                       auto type = mlir::RankedTensorType::get(
+                                                           {static_cast<int64_t>(s.size() + 1)},
+                                                           builder.getI8Type());
                                                        auto data = mlir::ArrayRef(s.data(), s.size() + 1);
                                                        return mlir::DenseElementsAttr::get(type, data);
                                                    },

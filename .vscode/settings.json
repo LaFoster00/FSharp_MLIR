@@ -1,6 +1,7 @@
 {
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "files.associations": {
-        "*cpp.inc": "cpp"
+        "*cpp.inc": "cpp",
+        "*.inc": "cpp"
     }
 }
