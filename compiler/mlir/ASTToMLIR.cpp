@@ -29,7 +29,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/MemRef/TransformOps/MemRefTransformOps.h"
 
 namespace fsharpgrammar::compiler
 {
@@ -224,8 +223,10 @@ namespace fsharpgrammar::compiler
                                                    [&](const float_t f) { return builder.getF32FloatAttr(f); },
                                                    [&](const std::string& s)
                                                    {
-                                                       auto string_attr = mlir::fsharp::StringAttr::get(builder.getContext(), s);
-                                                       return string_attr;
+                                                       auto type = mlir::RankedTensorType::get({static_cast<int64_t>(s.size() + 1)},
+                                                                                                builder.getI8Type());
+                                                       auto data = mlir::ArrayRef(s.data(), s.size() + 1);
+                                                       return mlir::DenseElementsAttr::get(type, data);
                                                    },
                                                    [&](const char8_t c) { return builder.getI8IntegerAttr(c); },
                                                    [&](const bool b) { return builder.getBoolAttr(b); },
