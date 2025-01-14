@@ -4,13 +4,14 @@
 #include "compiler/ASTToMLIR.h"
 #include "compiler/FSharpDialect.h"
 #include <span>
+#include <fmt/color.h>
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
+#include <mlir/InitAllDialects.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 
 #include "Grammar.h"
-#include "../../cmake-build-release/_deps/fmt-src/include/fmt/color.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Block.h"
@@ -272,6 +273,12 @@ namespace fsharpgrammar::compiler
         context.getOrLoadDialect<mlir::arith::ArithDialect>();
         context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
         context.getOrLoadDialect<mlir::func::FuncDialect>();
+        context.getOrLoadDialect<mlir::bufferization::BufferizationDialect>();
+
+        mlir::DialectRegistry registry;
+        mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+        context.appendDialectRegistry(registry);
+
         context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
 
         return MLIRGenImpl(context, source_filename).mlirGen(*ast);

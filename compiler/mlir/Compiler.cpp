@@ -29,6 +29,7 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
@@ -72,7 +73,8 @@ namespace fsharp::compiler
 
         mlir::OwningOpRef<mlir::ModuleOp> module;
         if (int error = loadAndProcessMLIR(context, module))
-            return error;
+            int a = 10;
+            //return error;
 
         // If we aren't exporting to non-mlir, then we are done.
         bool isOutputingMLIR = emitAction <= Action::DumpMLIRLLVM;
@@ -171,6 +173,7 @@ namespace fsharp::compiler
         if (isLoweringToAffine)
         {
             // Partially lower the fsharp dialect.
+            pm.addPass(mlir::bufferization::createOneShotBufferizePass());
             //pm.addPass(mlir::fsharp::createBufferizationPass()); // TODO implement bufferization
 
             // Add a few cleanups post lowering.
