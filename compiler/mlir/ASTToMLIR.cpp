@@ -176,7 +176,8 @@ namespace fsharpgrammar::compiler
                     return {};
                 if (!arg.has_value())
                 {
-                    fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}", utils::to_string(expr->get_range()));
+                    fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}",
+                               utils::to_string(expr->get_range()));
                     operands.push_back(nullptr);
                     continue;
                 };
@@ -230,34 +231,95 @@ namespace fsharpgrammar::compiler
 
         mlir::Value mlirGen(const ast::Expression::Constant& constant)
         {
-            auto value = getValue(constant);
-            return builder.create<mlir::arith::ConstantOp>(
-                loc(constant.get_range()),
-                value.getType(),
-                value
-            );
+            return mlirGen(*constant.constant);
         }
 
-        mlir::TypedAttr getValue(const ast::Expression::Constant& constant)
+        /// Emit a literal/constant array. It will be emitted as a flattened array of
+        /// data in an Attribute attached to a `toy.constant` operation.
+        /// See documentation on [Attributes](LangRef.md#attributes) for more details.
+        /// Here is an excerpt:
+        ///
+        ///   Attributes are the mechanism for specifying constant data in MLIR in
+        ///   places where a variable is never allowed [...]. They consist of a name
+        ///   and a concrete attribute value. The set of expected attributes, their
+        ///   structure, and their interpretation are all contextually dependent on
+        ///   what they are attached to.
+        ///
+        /// Example, the source level statement:
+        ///   let a = [1, 2, 3, 4, 5, 6];
+        /// will be converted to:
+        ///   %0 = "arith.constant"() {value: dense<tensor<6xi32>,
+        ///     [1, 2, 3, 4, 5 ,6]>} : () -> tensor<6xi32>
+        ///
+        mlir::Value mlirGen(const ast::Constant& constant)
         {
-            auto& value = constant.constant->value.value();
-            return std::visit<mlir::TypedAttr>(utils::overloaded{
-                                                   [&](const int32_t i) { return builder.getI32IntegerAttr(i); },
-                                                   [&](const float_t f) { return builder.getF32FloatAttr(f); },
-                                                   [&](const std::string& s)
-                                                   {
-                                                       auto type = mlir::RankedTensorType::get(
-                                                           {static_cast<int64_t>(s.size() + 1)},
-                                                           builder.getI8Type());
-                                                       auto data = mlir::ArrayRef(s.data(), s.size() + 1);
-                                                       return mlir::DenseElementsAttr::get(type, data);
-                                                   },
-                                                   [&](const char8_t c) { return builder.getI8IntegerAttr(c); },
-                                                   [&](const bool b) { return builder.getBoolAttr(b); },
-                                               }, value);
+            return getValue(constant);
+        }
+
+        mlir::ShapedType getType(const ast::Constant& constant)
+        {
+            auto value = constant.value.value();
+            return std::visit<mlir::ShapedType>(utils::overloaded{
+                                                    [&](const int32_t&)
+                                                    {
+                                                        return mlir::RankedTensorType::get({1}, builder.getI32Type());
+                                                    },
+                                                    [&](const float_t&)
+                                                    {
+                                                        return mlir::RankedTensorType::get({1}, builder.getF32Type());
+                                                    },
+                                                    [&](const std::string& s)
+                                                    {
+                                                        return mlir::RankedTensorType::get(
+                                                            {static_cast<int64_t>(s.size() + 1)}, builder.getF32Type());
+                                                    },
+                                                    [&](const bool&)
+                                                    {
+                                                        return mlir::RankedTensorType::get({1}, builder.getI1Type());
+                                                    },
+                                                }, value);
+        }
+
+        mlir::Value getValue(const ast::Constant& constant)
+        {
+            auto value = constant.value.value();
+            auto type = getType(constant);
+            return std::visit<mlir::Value>(utils::overloaded<mlir::Value>{
+                                               [&](const int32_t &i)
+                                               {
+                                                   const std::vector data = {i};
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                               [&](const float_t &f)
+                                               {
+                                                   const std::vector data = {f};
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                               [&](const std::string& s)
+                                               {
+                                                   auto data = mlir::ArrayRef(s.data(), s.size() + 1);
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                               [&](const bool &b)
+                                               {
+                                                   const std::vector data = {b};
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                           }, value);
         }
     };
-
 
     mlir::OwningOpRef<mlir::ModuleOp> MLIRGen::mlirGen(mlir::MLIRContext& context, std::string_view source,
                                                        std::string_view source_filename)

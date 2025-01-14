@@ -171,7 +171,6 @@ namespace fsharpgrammar::ast
                                         [](const int32_t i) { return std::to_string(i); },
                                         [](const float_t f) { return std::to_string(f); },
                                         [](const std::string& s) { return s; },
-                                        [](const char8_t c) { return std::to_string(c); },
                                         [](const bool b) { return std::to_string(b); },
                                     }, constant.value.value());
             ss << utils::indent_string(value + '\n', 1, false);

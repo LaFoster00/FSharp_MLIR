@@ -184,7 +184,6 @@ namespace fsharpgrammar::ast
             int32_t,
             float_t,
             std::string,
-            char8_t,
             bool>;
 
     public:
