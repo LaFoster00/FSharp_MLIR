@@ -8,9 +8,10 @@ add_subdirectory(include)
 add_subdirectory(lib)
 
 add_library(FSharpCompiler STATIC
+        mlir/Compiler.cpp
         mlir/ASTToMLIR.cpp
-        mlir/SetupDependencies.cpp
-        include/compiler/FSharpOp.h
+        mlir/Bufferize.cpp
+        mlir/LowerToLLVM.cpp
 )
 
 add_dependencies(FSharpCompiler
@@ -18,12 +19,35 @@ add_dependencies(FSharpCompiler
 )
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
-get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
+get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
+get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
 
 target_link_libraries(FSharpCompiler
         PUBLIC
         ${dialect_libs}
         ${conversion_libs}
+        ${extension_libs}
+        LLVMCore
+        LLVMSupport
+        LLVMCodeGen
+        LLVMOrcJIT
+        MLIRAnalysis
+        MLIRBuiltinToLLVMIRTranslation
+        MLIRCallInterfaces
+        MLIRCastInterfaces
+        MLIRExecutionEngine
+        MLIRFunctionInterfaces
+        MLIRIR
+        MLIRLLVMCommonConversion
+        MLIRLLVMDialect
+        MLIRLLVMToLLVMIRTranslation
+        MLIRMemRefDialect
+        MLIRParser
+        MLIRPass
+        MLIRSideEffectInterfaces
+        MLIRSupport
+        MLIRTargetLLVMIRExport
+        MLIRTransforms
 
         FSharpGrammar
 )
