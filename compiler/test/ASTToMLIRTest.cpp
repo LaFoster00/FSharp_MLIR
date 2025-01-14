@@ -2,12 +2,12 @@
 // Created by lasse on 1/7/25.
 //
 
-#include "compiler/ASTToMLIR.h"
+#include "compiler/Compiler.h"
 
 #include <chrono>
 #include <iostream>
 #include <thread>
-#include <ast/ASTNode.h>
+#include <compiler/ASTToMLIR.h>
 
 #include <gtest/gtest.h>
 
@@ -15,13 +15,13 @@
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/Target/LLVMIR/ModuleImport.h"
 
-using namespace fsharpgrammar::compiler;
+using namespace fsharp::compiler;
 using namespace std::chrono_literals;
 
 mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
                                                 mlir::MLIRContext& context)
 {
-    return MLIRGen::mlirGen(
+    return fsharpgrammar::compiler::MLIRGen::mlirGen(
         context,
         source
     );
@@ -36,10 +36,25 @@ mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
 
 TEST(HelloWorld, BasicAssertion)
 {
-    GENERATE_AND_DUMP_MLIR(
-        R"(
-printfn "Hello, World!"
-)"
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::DumpAST,
+        false
+    );
+
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::DumpMLIR,
+        false
+    );
+
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::DumpMLIRAffine,
+        false
     );
 }
 
@@ -127,7 +142,7 @@ TEST(SimpleAdd, BasicAssertion)
 
     std::cout << utils::to_string(*main) << std::endl;
 
-    auto result = MLIRGen::mlirGen(
+    auto result = compiler::MLIRGen::mlirGen(
         context,
         main
     );
