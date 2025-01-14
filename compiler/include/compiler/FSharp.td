@@ -194,8 +194,6 @@ def PrintOp : FSharp_Op<"print"> {
   let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
 }
 
-#endif // FSHARP_OPS
-
 //===----------------------------------------------------------------------===//
 // Arithmetic Operations
 //===----------------------------------------------------------------------===//
@@ -234,3 +232,14 @@ def FSharp_DivOp : FSharp_Op<"div"> {
   let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
   let results = (outs AnyTensor);
 }
+
+def FSharp_ModOp : FSharp_Op<"mod"> {
+  let summary = "modulo operation";
+  let description = [{
+    This operation performs element-wise modulo of two tensors.
+  }];
+  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
+  let results = (outs AnyTensor);
+}
+
+#endif // FSHARP_OPS
