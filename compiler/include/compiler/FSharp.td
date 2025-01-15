@@ -14,6 +14,7 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
 
 // Provide a definition of the 'fsharp' dialect in the ODS framework so that we
 // can define our operations.
@@ -180,7 +181,7 @@ def FSharp_StringAttr : FSharp_Attr<"FSharp_String", "fsharp_string", [ElementsA
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : FSharp_Op<"print"> {
+def PrintOp : FSharp_Op<"print", [BufferizableOpInterface]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -189,6 +190,20 @@ def PrintOp : FSharp_Op<"print"> {
 
   // The print operation takes an input tensor to print.
   let arguments = (ins Variadic<AnyType>:$operands);
+
+  let extraClassDeclaration = [{
+    bool bufferizesToMemoryRead(OpOperand &opOperand,
+                                const bufferization::AnalysisState &state)
+    { return true; }
+
+    bool bufferizesToMemoryWrite(OpOperand &opOperand,
+                                const bufferization::AnalysisState &state)
+    { return false; }
+
+    bufferization::AliasingValueList getAliasingValues(OpOperand & opOperand, const bufferization::AnalysisState & state);
+    LogicalResult bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options);
+
+  }];
 
 
   let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
