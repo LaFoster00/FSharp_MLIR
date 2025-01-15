@@ -48,6 +48,7 @@ namespace fsharpgrammar::compiler
             // We create an empty MLIR module and codegen functions one at a time and
             // add them to the module.
             fileModule = mlir::ModuleOp::create(builder.getUnknownLoc(), filename);
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
 
             for (auto& f : main_ast.modules_or_namespaces)
                 mlirGen(*f);
@@ -92,7 +93,7 @@ namespace fsharpgrammar::compiler
 
         /// Declare a variable in the current scope, return success if the variable
         /// wasn't declared yet.
-        llvm::LogicalResult declare(llvm::StringRef var, mlir::Value value)
+        llvm::LogicalResult declare(const llvm::StringRef var, mlir::Value value)
         {
             if (symbolTable.count(var))
                 return mlir::failure();
@@ -156,8 +157,12 @@ namespace fsharpgrammar::compiler
             }
             if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
                 return mlirGen(std::get<ast::Expression::Constant>(expression.expression));
+            if (std::holds_alternative<ast::Expression::Let>(expression.expression))
+                return mlirGen(std::get<ast::Expression::Let>(expression.expression));
+            if (std::holds_alternative<ast::Expression::Ident>(expression.expression))
+                return mlirGen(std::get<ast::Expression::Ident>(expression.expression));
 
-            throw std::runtime_error("Expression not supported!");
+            mlir::emitError(loc(expression.get_range()), "Expression not supported!");
         }
 
         std::span<const ast::ast_ptr<ast::Expression>> getFunctionArgs(const ast::Expression::Append& append)
@@ -176,7 +181,8 @@ namespace fsharpgrammar::compiler
                     return {};
                 if (!arg.has_value())
                 {
-                    fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}", utils::to_string(expr->get_range()));
+                    fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}",
+                               utils::to_string(expr->get_range()));
                     operands.push_back(nullptr);
                     continue;
                 };
@@ -224,40 +230,205 @@ namespace fsharpgrammar::compiler
             auto args = getFunctionArgValues(append);
             if (!args.has_value())
                 return llvm::failure();
-            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
+            if (mlir::cast<mlir::ShapedType>(args.value().front().getType()).getElementType() == builder.getI8Type())
+                builder.create<mlir::fsharp::PrintStringOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
+            else
+                builder.create<mlir::fsharp::PrintArrayOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
             return llvm::success();
         }
 
         mlir::Value mlirGen(const ast::Expression::Constant& constant)
         {
-            auto value = getValue(constant);
-            return builder.create<mlir::arith::ConstantOp>(
-                loc(constant.get_range()),
-                value.getType(),
-                value
-            );
+            return mlirGen(*constant.constant);
         }
 
-        mlir::TypedAttr getValue(const ast::Expression::Constant& constant)
+        std::tuple<std::reference_wrapper<const std::string>, std::reference_wrapper<const std::string>> getLetArg(
+            const ast::Pattern::PatternType& pattern)
         {
-            auto& value = constant.constant->value.value();
-            return std::visit<mlir::TypedAttr>(utils::overloaded{
-                                                   [&](const int32_t i) { return builder.getI32IntegerAttr(i); },
-                                                   [&](const float_t f) { return builder.getF32FloatAttr(f); },
-                                                   [&](const std::string& s)
-                                                   {
-                                                       auto type = mlir::RankedTensorType::get(
-                                                           {static_cast<int64_t>(s.size() + 1)},
-                                                           builder.getI8Type());
-                                                       auto data = mlir::ArrayRef(s.data(), s.size() + 1);
-                                                       return mlir::DenseElementsAttr::get(type, data);
-                                                   },
-                                                   [&](const char8_t c) { return builder.getI8IntegerAttr(c); },
-                                                   [&](const bool b) { return builder.getBoolAttr(b); },
-                                               }, value);
+            static const std::string no_type = "";
+            if (std::holds_alternative<ast::Pattern::Named>(pattern))
+            {
+                auto named = std::get<ast::Pattern::Named>(pattern);
+                auto& name = named.ident->ident;
+                return {name, no_type};
+            }
+            else
+            {
+                auto typed = std::get<ast::Pattern::Typed>(pattern);
+                assert(
+                    std::holds_alternative<ast::Pattern::Named>(typed.pattern->pattern) &&
+                    "Only named patterns are supported for typed variable declaration!");
+                auto named = std::get<ast::Pattern::Named>(typed.pattern->pattern);
+                auto& name = named.ident->ident;
+                assert(
+                    std::holds_alternative<ast::Type::Var>(typed.type->type) &&
+                    "Only var types are supported for typed variable declaration!");
+                auto& type_name = std::get<ast::Type::Var>(typed.type->type).ident->ident;
+                return {name, type_name};
+            }
+        }
+
+        mlir::Type getMLIRType(const std::string& type_name)
+        {
+            if (type_name == "int")
+                return mlir::RankedTensorType::get({1}, builder.getI32Type());
+            if (type_name == "float")
+                return mlir::RankedTensorType::get({1}, builder.getF32Type());
+            if (type_name == "bool")
+                return mlir::RankedTensorType::get({1}, builder.getI8Type());
+            if (type_name == "string")
+                return mlir::UnrankedTensorType::get(builder.getI8Type());
+            assert(false && "Type not supported!");
+        }
+
+
+        mlir::Value generateVariable(const ast::Expression::Let& let)
+        {
+            auto [name, type] = getLetArg(let.args->pattern);
+            if (let.expressions.empty())
+            {
+                mlir::emitError(loc(let.get_range()), "No initializer given to variable declaration!");
+                return nullptr;
+            }
+
+            mlir::SmallVector<mlir::Value, 4> expressions;
+            for (auto& expr : let.expressions)
+            {
+                auto value = mlirGen(*expr);
+                expressions.push_back(value.has_value() ? value.value() : nullptr);
+            }
+
+            auto value = expressions.back();
+
+            if (type.get() != "")
+            {
+                if (value.getType() != getMLIRType(type))
+                {
+                    if (!mlir::tensor::CastOp::areCastCompatible(value.getType(), getMLIRType(type)))
+                    {
+                        mlir::emitError(loc(let.get_range()),
+                                        fmt::format(
+                                            "Variable declaration not compatible with specified variable type {}!",
+                                            type.get()));
+                        return nullptr;
+                    }
+                    value = builder.create<mlir::tensor::CastOp>(loc(let.get_range()), getMLIRType(type),
+                                                                 expressions.back());
+                }
+            }
+
+
+            if (llvm::failed(declare(name.get(), value)))
+                return nullptr;
+            return value;
+        }
+
+        mlir::Value mlirGen(const ast::Expression::Let& let)
+        {
+            // Check if this is a function definition
+            if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern))
+            {
+                mlir::emitError(loc(let.get_range()), "Function definitions not supported!");
+            }
+            return generateVariable(let);
+        }
+
+        mlir::Value mlirGen(const ast::Expression::Ident& ident)
+        {
+            if (auto variable = symbolTable.lookup(ident.ident->ident))
+                return variable;
+
+            mlir::emitError(loc(ident.get_range()), fmt::format("error: unknown variable '{}'!", ident.ident->ident));
+            return nullptr;
+        }
+
+        /// Emit a literal/constant array. It will be emitted as a flattened array of
+        /// data in an Attribute attached to a `toy.constant` operation.
+        /// See documentation on [Attributes](LangRef.md#attributes) for more details.
+        /// Here is an excerpt:
+        ///
+        ///   Attributes are the mechanism for specifying constant data in MLIR in
+        ///   places where a variable is never allowed [...]. They consist of a name
+        ///   and a concrete attribute value. The set of expected attributes, their
+        ///   structure, and their interpretation are all contextually dependent on
+        ///   what they are attached to.
+        ///
+        /// Example, the source level statement:
+        ///   let a = [1, 2, 3, 4, 5, 6];
+        /// will be converted to:
+        ///   %0 = "arith.constant"() {value: dense<tensor<6xi32>,
+        ///     [1, 2, 3, 4, 5 ,6]>} : () -> tensor<6xi32>
+        ///
+        mlir::Value mlirGen(const ast::Constant& constant)
+        {
+            return getValue(constant);
+        }
+
+        mlir::ShapedType getType(const ast::Constant& constant)
+        {
+            auto value = constant.value.value();
+            return std::visit<mlir::ShapedType>(utils::overloaded{
+                                                    [&](const int32_t&)
+                                                    {
+                                                        return mlir::RankedTensorType::get({1}, builder.getI32Type());
+                                                    },
+                                                    [&](const float_t&)
+                                                    {
+                                                        return mlir::RankedTensorType::get({1}, builder.getF32Type());
+                                                    },
+                                                    [&](const std::string& s)
+                                                    {
+                                                        return mlir::RankedTensorType::get(
+                                                            {static_cast<int64_t>(s.size() + 1)}, builder.getI8Type());
+                                                    },
+                                                    [&](const bool&)
+                                                    {
+                                                        return mlir::RankedTensorType::get({1}, builder.getI8Type());
+                                                    },
+                                                }, value);
+        }
+
+        mlir::Value getValue(const ast::Constant& constant)
+        {
+            auto value = constant.value.value();
+            auto type = getType(constant);
+            return std::visit<mlir::Value>(utils::overloaded{
+                                               [&](const int32_t& i)
+                                               {
+                                                   const std::vector data = {i};
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                               [&](const float_t& f)
+                                               {
+                                                   const std::vector data = {f};
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                               [&](const std::string& s)
+                                               {
+                                                   std::vector<char8_t> data{s.begin(), s.end()};
+                                                   data.push_back('\0');
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                               [&](const bool& b)
+                                               {
+                                                   const std::vector<int8_t> data = {b};
+                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
+                                                       type, llvm::ArrayRef(data));
+                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                       loc(constant.get_range()), type, dataAttribute);
+                                               },
+                                           }, value);
         }
     };
-
 
     mlir::OwningOpRef<mlir::ModuleOp> MLIRGen::mlirGen(mlir::MLIRContext& context, std::string_view source,
                                                        std::string_view source_filename)
@@ -277,6 +448,7 @@ namespace fsharpgrammar::compiler
 
         mlir::DialectRegistry registry;
         mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+        mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
         context.appendDialectRegistry(registry);
 
         context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();

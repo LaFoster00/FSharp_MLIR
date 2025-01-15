@@ -60,6 +60,9 @@ namespace fsharp::compiler
         mlir::registerMLIRContextCLOptions();
         mlir::registerPassManagerCLOptions();
 
+        if (emitAction == Action::DumpST)
+            return dumpST();
+
         if (emitAction == Action::DumpAST)
             return dumpAST();
 
@@ -106,7 +109,7 @@ namespace fsharp::compiler
             return nullptr;
         }
         auto buffer = fileOrErr.get()->getBuffer();
-        return fsharpgrammar::Grammar::parse(buffer, false, false, false);
+        return fsharpgrammar::Grammar::parse(buffer, false, emitAction==Action::DumpST, false);
     }
 
     int FSharpCompiler::loadMLIR(mlir::MLIRContext& context, mlir::OwningOpRef<mlir::ModuleOp>& module)
@@ -201,6 +204,21 @@ namespace fsharp::compiler
 
         if (mlir::failed(pm.run(*module)))
             return 4;
+        return 0;
+    }
+
+    int FSharpCompiler::dumpST()
+    {
+        if (inputType == InputType::MLIR)
+        {
+            llvm::errs() << "Can't dump a FSharp AST when the input is MLIR\n";
+            return 5;
+        }
+
+        auto mainAst = parseInputFile(inputFilename);
+        if (!mainAst)
+            return 1;
+
         return 0;
     }
 

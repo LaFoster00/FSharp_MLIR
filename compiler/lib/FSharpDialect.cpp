@@ -19,6 +19,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+
 #include <algorithm>
 #include <string>
 
@@ -77,6 +79,117 @@ void FSharpDialect::registerAttributes()
 //===----------------------------------------------------------------------===//
 // FSharp Operations
 //===----------------------------------------------------------------------===//
+
+bufferization::AliasingValueList PrintStringOp::getAliasingValues(::mlir::OpOperand & opOperand, const ::mlir::bufferization::AnalysisState & state)
+{
+    return bufferization::AliasingValueList({bufferization::AliasingValue(opOperand.get(), bufferization::BufferRelation::Equivalent)});
+}
+
+/// Convert the given RankedTensorType into the corresponding MemRefType.
+static MemRefType convertTensorToMemRef(RankedTensorType type) {
+    return MemRefType::get(type.getShape(), type.getElementType());
+}
+
+LogicalResult PrintStringOp::bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options)
+{
+
+    // 1. Rewrite tensor operands as memrefs based on type of the already
+    //    bufferized callee.
+    SmallVector<Value> newOperands;
+    for (auto opOperand : getOperands()) {
+      // Non-tensor operands are just copied.
+      if (!isa<TensorType>(opOperand.getType())) {
+        newOperands.push_back(opOperand);
+        continue;
+      }
+
+      // Retrieve buffers for tensor operands.
+      FailureOr<Value> maybeBuffer =
+          getBuffer(rewriter, opOperand, options);
+      if (failed(maybeBuffer))
+        return failure();
+      Value buffer = *maybeBuffer;
+
+      // Caller / callee type mismatch is handled with a CastOp.
+      auto memRefType = convertTensorToMemRef(mlir::cast<RankedTensorType>(opOperand.getType()));
+      // Since we don't yet have a clear layout story, to_memref may
+      // conservatively turn tensors into more dynamic memref than necessary.
+      // If the memref type of the callee fails, introduce an extra memref.cast
+      // that will either canonicalize away or fail compilation until we can do
+      // something better.
+      if (buffer.getType() != memRefType) {
+        assert(
+            memref::CastOp::areCastCompatible(buffer.getType(), memRefType) &&
+            "CallOp::bufferize: cast incompatible");
+        Value castBuffer = rewriter.create<memref::CastOp>(getLoc(),
+                                                           memRefType, buffer);
+        buffer = castBuffer;
+      }
+      newOperands.push_back(buffer);
+    }
+
+    // 3. Create the new CallOp.
+    Operation *newCallOp = rewriter.create<PrintStringOp>(
+        getLoc(), newOperands);
+
+    // 4. Replace the old op with the new op.
+    bufferization::replaceOpWithBufferizedValues(rewriter, *this, newCallOp->getResults());
+
+    return success();
+}
+
+bufferization::AliasingValueList PrintArrayOp::getAliasingValues(::mlir::OpOperand & opOperand, const ::mlir::bufferization::AnalysisState & state)
+{
+    return bufferization::AliasingValueList({bufferization::AliasingValue(opOperand.get(), bufferization::BufferRelation::Equivalent)});
+}
+
+LogicalResult PrintArrayOp::bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options)
+{
+
+    // 1. Rewrite tensor operands as memrefs based on type of the already
+    //    bufferized callee.
+    SmallVector<Value> newOperands;
+    for (auto opOperand : getOperands()) {
+      // Non-tensor operands are just copied.
+      if (!isa<TensorType>(opOperand.getType())) {
+        newOperands.push_back(opOperand);
+        continue;
+      }
+
+      // Retrieve buffers for tensor operands.
+      FailureOr<Value> maybeBuffer =
+          getBuffer(rewriter, opOperand, options);
+      if (failed(maybeBuffer))
+        return failure();
+      Value buffer = *maybeBuffer;
+
+      // Caller / callee type mismatch is handled with a CastOp.
+      auto memRefType = convertTensorToMemRef(mlir::cast<RankedTensorType>(opOperand.getType()));
+      // Since we don't yet have a clear layout story, to_memref may
+      // conservatively turn tensors into more dynamic memref than necessary.
+      // If the memref type of the callee fails, introduce an extra memref.cast
+      // that will either canonicalize away or fail compilation until we can do
+      // something better.
+      if (buffer.getType() != memRefType) {
+        assert(
+            memref::CastOp::areCastCompatible(buffer.getType(), memRefType) &&
+            "CallOp::bufferize: cast incompatible");
+        Value castBuffer = rewriter.create<memref::CastOp>(getLoc(),
+                                                           memRefType, buffer);
+        buffer = castBuffer;
+      }
+      newOperands.push_back(buffer);
+    }
+
+    // 3. Create the new CallOp.
+    Operation *newCallOp = rewriter.create<PrintStringOp>(
+        getLoc(), newOperands);
+
+    // 4. Replace the old op with the new op.
+    bufferization::replaceOpWithBufferizedValues(rewriter, *this, newCallOp->getResults());
+
+    return success();
+}
 
 /// A generalized parser for binary operations. This parses the different forms
 /// of 'printBinaryOp' below.

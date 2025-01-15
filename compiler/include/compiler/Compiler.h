@@ -13,6 +13,7 @@ enum class InputType { FSharp = 0, MLIR };
 enum class Action
 {
     None = 0,
+    DumpST,
     DumpAST,
     DumpMLIR,
     DumpMLIRAffine,
@@ -41,6 +42,7 @@ namespace fsharp::compiler
                             mlir::OwningOpRef<mlir::ModuleOp>& module);
         static int loadAndProcessMLIR(mlir::MLIRContext& context,
                                       mlir::OwningOpRef<mlir::ModuleOp>& module);
+        static int dumpST();
         static int dumpAST();
         static int dumpLLVMIR(mlir::ModuleOp module);
         static int runJit(mlir::ModuleOp module);

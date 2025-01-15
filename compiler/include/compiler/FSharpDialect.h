@@ -11,6 +11,7 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 
 /// Include the auto-generated header file containing the declaration of the fsharp
 /// dialect.
