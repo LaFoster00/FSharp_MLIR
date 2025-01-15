@@ -93,6 +93,7 @@ namespace fsharpgrammar::ast
         // append type
         std::any visitPostfix_type(FSharpParser::Postfix_typeContext* context) override;
         std::any visitParen_postfix_type(FSharpParser::Paren_postfix_typeContext* context) override;
+        // type
         std::any visitArray_type(FSharpParser::Array_typeContext* context) override;
         std::any visitAtomic_type(FSharpParser::Atomic_typeContext* context) override;
         std::any visitParen_type(FSharpParser::Paren_typeContext* context) override;

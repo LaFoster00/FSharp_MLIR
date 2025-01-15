@@ -181,7 +181,35 @@ def FSharp_StringAttr : FSharp_Attr<"FSharp_String", "fsharp_string", [ElementsA
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : FSharp_Op<"print", [BufferizableOpInterface]> {
+def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
+  let summary = "print operation";
+  let description = [{
+    The "print" builtin operation prints a given input tensor, and produces
+    no results.
+  }];
+
+  // The print operation takes an input tensor to print.
+  let arguments = (ins Variadic<AnyType>:$operands);
+
+  let extraClassDeclaration = [{
+    bool bufferizesToMemoryRead(OpOperand &opOperand,
+                                const bufferization::AnalysisState &state)
+    { return true; }
+
+    bool bufferizesToMemoryWrite(OpOperand &opOperand,
+                                const bufferization::AnalysisState &state)
+    { return false; }
+
+    bufferization::AliasingValueList getAliasingValues(OpOperand & opOperand, const bufferization::AnalysisState & state);
+    LogicalResult bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options);
+
+  }];
+
+
+  let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
+}
+
+def PrintArrayOp : FSharp_Op<"print_array", [BufferizableOpInterface]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces

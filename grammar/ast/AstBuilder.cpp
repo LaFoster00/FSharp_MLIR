@@ -776,8 +776,8 @@ namespace fsharpgrammar::ast
 
     std::any AstBuilder::visitFun_type(FSharpParser::Fun_typeContext* context)
     {
-        if (!context->type().empty())
-            return context->type().front()->accept(this);
+        if (context->type().empty())
+            return context->tuple_type()->accept(this);
 
         std::vector<ast_ptr<Type>> types;
         for (const auto type : context->type())
