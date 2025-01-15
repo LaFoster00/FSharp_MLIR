@@ -271,11 +271,11 @@ namespace fsharpgrammar::compiler
                                                     [&](const std::string& s)
                                                     {
                                                         return mlir::RankedTensorType::get(
-                                                            {static_cast<int64_t>(s.size() + 1)}, builder.getF32Type());
+                                                            {static_cast<int64_t>(s.size() + 1)}, builder.getI8Type());
                                                     },
                                                     [&](const bool&)
                                                     {
-                                                        return mlir::RankedTensorType::get({1}, builder.getI1Type());
+                                                        return mlir::RankedTensorType::get({1}, builder.getI8Type());
                                                     },
                                                 }, value);
         }
@@ -284,7 +284,7 @@ namespace fsharpgrammar::compiler
         {
             auto value = constant.value.value();
             auto type = getType(constant);
-            return std::visit<mlir::Value>(utils::overloaded<mlir::Value>{
+            return std::visit<mlir::Value>(utils::overloaded{
                                                [&](const int32_t &i)
                                                {
                                                    const std::vector data = {i};
@@ -303,7 +303,8 @@ namespace fsharpgrammar::compiler
                                                },
                                                [&](const std::string& s)
                                                {
-                                                   auto data = mlir::ArrayRef(s.data(), s.size() + 1);
+                                                   std::vector<char8_t> data{ s.begin(), s.end()};
+                                                   data.push_back('\0');
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
                                                        type, llvm::ArrayRef(data));
                                                    return builder.create<mlir::arith::ConstantOp>(
@@ -311,7 +312,7 @@ namespace fsharpgrammar::compiler
                                                },
                                                [&](const bool &b)
                                                {
-                                                   const std::vector data = {b};
+                                                   const std::vector<int8_t> data = {b};
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
                                                        type, llvm::ArrayRef(data));
                                                    return builder.create<mlir::arith::ConstantOp>(
