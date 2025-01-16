@@ -2,17 +2,16 @@
 // Created by lasse on 1/14/25.
 //
 
-#include "compiler/FSharpPasses.h"
-
-#include <mlir/Dialect/MemRef/IR/MemRef.h>
-
 #include "compiler/FSharpDialect.h"
+#include "compiler/FSharpPasses.h"
 
 #include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/Support/LLVM.h"
+#include "mlir/Support/TypeID.h"
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
@@ -30,9 +29,9 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/IR/BuiltinOps.h"
-
-#include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
+#include "llvm/Support/Casting.h"
+#include <memory>
+#include <utility>
 
 using namespace mlir;
 
@@ -231,12 +230,12 @@ void FSharpToLLVMLoweringPass::runOnOperation()
     // patterns must be applied to fully transform an illegal operation into a
     // set of legal ones.
     RewritePatternSet patterns(&getContext());
-    //populateAffineToStdConversionPatterns(patterns);
-    //populateSCFToControlFlowConversionPatterns(patterns);
-    //mlir::arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
+    populateAffineToStdConversionPatterns(patterns);
+    populateSCFToControlFlowConversionPatterns(patterns);
+    mlir::arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
     populateFinalizeMemRefToLLVMConversionPatterns(typeConverter, patterns);
-    //cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
-    //populateFuncToLLVMConversionPatterns(typeConverter, patterns);
+    cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
+    populateFuncToLLVMConversionPatterns(typeConverter, patterns);
 
     // The only remaining operation to lower from the `toy` dialect, is the
     // PrintOp.
@@ -251,7 +250,7 @@ void FSharpToLLVMLoweringPass::runOnOperation()
 
 /// Create a pass for lowering operations the remaining `Toy` operations, as
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
-std::unique_ptr<mlir::Pass> fsharp::createLowerToLLVMPass()
+std::unique_ptr<mlir::Pass> mlir::fsharp::createLowerToLLVMPass()
 {
     return std::make_unique<FSharpToLLVMLoweringPass>();
 }

@@ -4,6 +4,7 @@ add_executable(FSharpCompilerTest
         ASTToMLIRTest.cpp
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 target_link_libraries(FSharpCompilerTest
         PRIVATE
         GTest::gtest_main
