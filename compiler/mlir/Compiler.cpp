@@ -195,7 +195,7 @@ namespace fsharp::compiler
         if (isLoweringToLLVM)
         {
             // Finish lowering the fsharp IR to the LLVM dialect.
-            // pm.addPass(mlir::fsharp::createLowerToLLVMPass()); // TODO implement lowering to LLVM
+            pm.addPass(mlir::fsharp::createLowerToLLVMPass()); // TODO implement lowering to LLVM
             // This is necessary to have line tables emitted and basic
             // debugger working. In the future we will add proper debug information
             // emission directly from our frontend.

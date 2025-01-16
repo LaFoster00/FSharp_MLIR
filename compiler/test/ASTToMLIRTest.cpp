@@ -56,6 +56,13 @@ TEST(HelloWorld, BasicAssertion)
         Action::DumpMLIRAffine,
         false
     );
+
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::DumpMLIRLLVM,
+        false
+    );
 }
 
 TEST(SimpleNamedModule, BasicAssertion)
