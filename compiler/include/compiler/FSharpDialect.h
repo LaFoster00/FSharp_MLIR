@@ -28,3 +28,7 @@
 
 #define GET_ATTRDEF_CLASSES
 #include "compiler/FSharpAttrDefs.h.inc"
+
+std::string getTypeString(mlir::Type type);
+
+mlir::Type getMLIRType(mlir::OpBuilder b, const std::string& type_name);

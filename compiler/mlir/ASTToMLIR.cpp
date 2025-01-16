@@ -36,27 +36,6 @@
 
 namespace fsharpgrammar::compiler
 {
-    std::string getTypeString(mlir::Type type)
-    {
-        std::string typeStr;
-        llvm::raw_string_ostream rso(typeStr);
-        type.print(rso);
-        return rso.str();
-    }
-
-    mlir::Type getMLIRType(mlir::OpBuilder b, const std::string& type_name)
-    {
-        if (type_name == "int")
-            return b.getI32Type();
-        if (type_name == "float")
-            return b.getF32Type();
-        if (type_name == "bool")
-            return b.getI8Type();
-        if (type_name == "string")
-            return mlir::UnrankedTensorType::get(b.getI8Type());
-        assert(false && "Type not supported!");
-    }
-
     mlir::Value convertTensorToDType(mlir::OpBuilder& b, mlir::Location loc, mlir::Value value, mlir::Type toType)
     {
         if (!mlir::tensor::CastOp::areCastCompatible(value.getType(), toType))
@@ -283,7 +262,7 @@ namespace fsharpgrammar::compiler
             auto args = getFunctionArgValues(append);
             if (!args.has_value() || args.value().empty())
                 return llvm::failure();
-            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), *args->erase(args->begin()), mlir::ValueRange(args.value()));
+            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
             return llvm::success();
         }
 
