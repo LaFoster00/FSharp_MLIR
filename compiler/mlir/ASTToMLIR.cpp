@@ -35,6 +35,58 @@
 
 namespace fsharpgrammar::compiler
 {
+    std::string getTypeString(mlir::Type type)
+    {
+        std::string typeStr;
+        llvm::raw_string_ostream rso(typeStr);
+        type.print(rso);
+        return rso.str();
+    }
+
+    mlir::Type getMLIRType(mlir::OpBuilder b, const std::string& type_name)
+    {
+        if (type_name == "int")
+            return b.getI32Type();
+        if (type_name == "float")
+            return b.getF32Type();
+        if (type_name == "bool")
+            return b.getI8Type();
+        if (type_name == "string")
+            return mlir::UnrankedTensorType::get(b.getI8Type());
+        assert(false && "Type not supported!");
+    }
+
+    mlir::Value convertTensorToDType(mlir::OpBuilder& b, mlir::Location loc, mlir::Value value, mlir::Type toType)
+    {
+        if (!mlir::tensor::CastOp::areCastCompatible(value.getType(), toType))
+        {
+            mlir::emitError(loc, fmt::format("Can't cast tensor from {} to {}!",
+                                             getTypeString(value.getType()), getTypeString(toType)));
+            return value;
+        }
+
+        return b.create<mlir::tensor::CastOp>(loc, toType, value);
+    }
+
+    mlir::Value genCast(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value,
+                        mlir::Type dstTp)
+    {
+        const mlir::Type srcTp = value.getType();
+        if (srcTp == dstTp)
+            return value;
+
+        if (value.getType().isa<mlir::TensorType>())
+            return convertTensorToDType(builder, loc, value, dstTp.dyn_cast<mlir::TensorType>());
+
+        // int <=> index
+        if (isa<mlir::IndexType>(srcTp) || isa<mlir::IndexType>(dstTp))
+            return builder.create<mlir::arith::IndexCastOp>(loc, dstTp, value);
+
+        const auto srcIntTp = dyn_cast_or_null<mlir::IntegerType>(srcTp);
+        const bool isUnsignedCast = srcIntTp ? srcIntTp.isUnsigned() : false;
+        return mlir::convertScalarToDtype(builder, loc, value, dstTp, isUnsignedCast);
+    }
+
     class MLIRGenImpl
     {
     public:
@@ -115,7 +167,7 @@ namespace fsharpgrammar::compiler
                                                    module_or_namespace.name.value()->get_as_string());
                 break;
             case fsharpgrammar::ast::ModuleOrNamespace::Type::AnonymousModule:
-                m = builder.create<mlir::ModuleOp>(loc(module_or_namespace.range));
+                m = fileModule;
                 break;
             }
             builder.setInsertionPointToEnd(m.getBody());
@@ -228,12 +280,9 @@ namespace fsharpgrammar::compiler
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
         {
             auto args = getFunctionArgValues(append);
-            if (!args.has_value())
+            if (!args.has_value() || args.value().empty())
                 return llvm::failure();
-            if (mlir::cast<mlir::ShapedType>(args.value().front().getType()).getElementType() == builder.getI8Type())
-                builder.create<mlir::fsharp::PrintStringOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
-            else
-                builder.create<mlir::fsharp::PrintArrayOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
+            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), *args->erase(args->begin()), mlir::ValueRange(args.value()));
             return llvm::success();
         }
 
@@ -268,19 +317,6 @@ namespace fsharpgrammar::compiler
             }
         }
 
-        mlir::Type getMLIRType(const std::string& type_name)
-        {
-            if (type_name == "int")
-                return mlir::RankedTensorType::get({1}, builder.getI32Type());
-            if (type_name == "float")
-                return mlir::RankedTensorType::get({1}, builder.getF32Type());
-            if (type_name == "bool")
-                return mlir::RankedTensorType::get({1}, builder.getI8Type());
-            if (type_name == "string")
-                return mlir::UnrankedTensorType::get(builder.getI8Type());
-            assert(false && "Type not supported!");
-        }
-
 
         mlir::Value generateVariable(const ast::Expression::Let& let)
         {
@@ -302,19 +338,7 @@ namespace fsharpgrammar::compiler
 
             if (type.get() != "")
             {
-                if (value.getType() != getMLIRType(type))
-                {
-                    if (!mlir::tensor::CastOp::areCastCompatible(value.getType(), getMLIRType(type)))
-                    {
-                        mlir::emitError(loc(let.get_range()),
-                                        fmt::format(
-                                            "Variable declaration not compatible with specified variable type {}!",
-                                            type.get()));
-                        return nullptr;
-                    }
-                    value = builder.create<mlir::tensor::CastOp>(loc(let.get_range()), getMLIRType(type),
-                                                                 expressions.back());
-                }
+                genCast(builder, loc(let.get_range()), value, getMLIRType(builder, type));
             }
 
 
@@ -364,28 +388,28 @@ namespace fsharpgrammar::compiler
             return getValue(constant);
         }
 
-        mlir::ShapedType getType(const ast::Constant& constant)
+        mlir::Type getType(const ast::Constant& constant)
         {
             auto value = constant.value.value();
-            return std::visit<mlir::ShapedType>(utils::overloaded{
-                                                    [&](const int32_t&)
-                                                    {
-                                                        return mlir::RankedTensorType::get({1}, builder.getI32Type());
-                                                    },
-                                                    [&](const float_t&)
-                                                    {
-                                                        return mlir::RankedTensorType::get({1}, builder.getF32Type());
-                                                    },
-                                                    [&](const std::string& s)
-                                                    {
-                                                        return mlir::RankedTensorType::get(
-                                                            {static_cast<int64_t>(s.size() + 1)}, builder.getI8Type());
-                                                    },
-                                                    [&](const bool&)
-                                                    {
-                                                        return mlir::RankedTensorType::get({1}, builder.getI8Type());
-                                                    },
-                                                }, value);
+            return std::visit<mlir::Type>(utils::overloaded{
+                                              [&](const int32_t&)
+                                              {
+                                                  return builder.getI32Type();
+                                              },
+                                              [&](const float_t&)
+                                              {
+                                                  return builder.getF32Type();
+                                              },
+                                              [&](const std::string& s)
+                                              {
+                                                  return mlir::RankedTensorType::get(
+                                                      {static_cast<int64_t>(s.size() + 1)}, builder.getI8Type());
+                                              },
+                                              [&](const bool&)
+                                              {
+                                                  return builder.getI8Type();
+                                              },
+                                          }, value);
         }
 
         mlir::Value getValue(const ast::Constant& constant)
@@ -395,36 +419,27 @@ namespace fsharpgrammar::compiler
             return std::visit<mlir::Value>(utils::overloaded{
                                                [&](const int32_t& i)
                                                {
-                                                   const std::vector data = {i};
-                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
-                                                       type, llvm::ArrayRef(data));
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, dataAttribute);
+                                                       loc(constant.get_range()), type, builder.getI32IntegerAttr(i));
                                                },
                                                [&](const float_t& f)
                                                {
-                                                   const std::vector data = {f};
-                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
-                                                       type, llvm::ArrayRef(data));
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, dataAttribute);
+                                                       loc(constant.get_range()), type, builder.getF32FloatAttr(f));
                                                },
                                                [&](const std::string& s)
                                                {
                                                    std::vector<char8_t> data{s.begin(), s.end()};
                                                    data.push_back('\0');
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
-                                                       type, llvm::ArrayRef(data));
+                                                       mlir::dyn_cast<mlir::ShapedType>(type), llvm::ArrayRef(data));
                                                    return builder.create<mlir::arith::ConstantOp>(
                                                        loc(constant.get_range()), type, dataAttribute);
                                                },
                                                [&](const bool& b)
                                                {
-                                                   const std::vector<int8_t> data = {b};
-                                                   auto dataAttribute = mlir::DenseElementsAttr::get(
-                                                       type, llvm::ArrayRef(data));
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, dataAttribute);
+                                                       loc(constant.get_range()), type, builder.getI8IntegerAttr(b));
                                                },
                                            }, value);
         }

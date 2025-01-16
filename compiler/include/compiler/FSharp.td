@@ -15,6 +15,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
+include "mlir/IR/CommonTypeConstraints.td"
 
 // Provide a definition of the 'fsharp' dialect in the ODS framework so that we
 // can define our operations.
@@ -181,7 +182,7 @@ def FSharp_StringAttr : FSharp_Attr<"FSharp_String", "fsharp_string", [ElementsA
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
+def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -189,7 +190,7 @@ def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
   }];
 
   // The print operation takes an input tensor to print.
-  let arguments = (ins Variadic<AnyType>:$operands);
+  let arguments = (ins I8Tensor:$fmt_string, Variadic<AnyType>:$fmt_operands);
 
   let extraClassDeclaration = [{
     bool bufferizesToMemoryRead(OpOperand &opOperand,
@@ -206,35 +207,7 @@ def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
   }];
 
 
-  let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
-}
-
-def PrintArrayOp : FSharp_Op<"print_array", [BufferizableOpInterface]> {
-  let summary = "print operation";
-  let description = [{
-    The "print" builtin operation prints a given input tensor, and produces
-    no results.
-  }];
-
-  // The print operation takes an input tensor to print.
-  let arguments = (ins Variadic<AnyType>:$operands);
-
-  let extraClassDeclaration = [{
-    bool bufferizesToMemoryRead(OpOperand &opOperand,
-                                const bufferization::AnalysisState &state)
-    { return true; }
-
-    bool bufferizesToMemoryWrite(OpOperand &opOperand,
-                                const bufferization::AnalysisState &state)
-    { return false; }
-
-    bufferization::AliasingValueList getAliasingValues(OpOperand & opOperand, const bufferization::AnalysisState & state);
-    LogicalResult bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options);
-
-  }];
-
-
-  let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
+  let assemblyFormat = "`(` $fmt_string `)` `(` $fmt_operands `)` attr-dict `:` type($fmt_string) type($fmt_operands)";
 }
 
 #endif // FSHARP_OPS
