@@ -32,6 +32,7 @@
 #include "llvm/ADT/Twine.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
+#include "boost/algorithm/string.hpp"
 
 namespace fsharpgrammar::compiler
 {

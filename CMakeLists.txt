@@ -55,6 +55,9 @@ project(
 # CMAKE UTILITIES
 include(cmake/utils.cmake)
 
+# Boost Setup
+include(cmake/boost.cmake)
+
 # LLVM Setup
 include(cmake/llvm.cmake)
 
