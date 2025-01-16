@@ -195,7 +195,7 @@ namespace fsharp::compiler
         if (isLoweringToLLVM)
         {
             // Finish lowering the fsharp IR to the LLVM dialect.
-            pm.addPass(mlir::fsharp::createLowerToLLVMPass()); // TODO implement lowering to LLVM
+            pm.addPass(mlir::fsharp::createLowerToLLVMPass());
             // This is necessary to have line tables emitted and basic
             // debugger working. In the future we will add proper debug information
             // emission directly from our frontend.
@@ -312,7 +312,7 @@ namespace fsharp::compiler
         auto& engine = maybeEngine.get();
 
         // Invoke the JIT-compiled function.
-        auto invocationResult = engine->invokePacked("main");
+        auto invocationResult = engine->invokePacked("entrypoint");
         if (invocationResult)
         {
             llvm::errs() << "JIT invocation failed\n";

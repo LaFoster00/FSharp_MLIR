@@ -176,8 +176,22 @@ namespace
                 }
             }
 
-
-            //rewriter.create<LLVM::CallOp>(loc, printfRef, ArrayRef<Value>({formatSpecifierCst, elementLoad}));
+            auto printOp = mlir::dyn_cast<fsharp::PrintOp>(op);
+            mlir::SmallVector<mlir::Value, 4> updated_operands;
+            for (auto operand : op->getOperands())
+            {
+                // If the oprand isn't a shaped type, we can just add it to the updated operands.
+                if (!operand.getType().isa<mlir::ShapedType>())
+                {
+                    updated_operands.push_back(operand);
+                    continue;
+                }
+                auto pointer_index = rewriter.create<mlir::memref::ExtractAlignedPointerAsIndexOp>(loc, operand);
+                auto arith_index = rewriter.create<mlir::arith::IndexCastOp>(loc, IntegerType::get(context, 64), pointer_index);
+                auto llvm_pointer = rewriter.create<LLVM::IntToPtrOp>(loc, LLVM::LLVMPointerType::get(context), arith_index);
+                updated_operands.push_back(llvm_pointer);
+            }
+            rewriter.create<LLVM::CallOp>(loc, printfRef, updated_operands);
 
             // Notify the rewriter that this operation has been removed.
             rewriter.eraseOp(op);

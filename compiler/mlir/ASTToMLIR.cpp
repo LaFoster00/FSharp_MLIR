@@ -80,7 +80,7 @@ namespace fsharpgrammar::compiler
             // We create an empty MLIR module and codegen functions one at a time and
             // add them to the module.
             fileModule = mlir::ModuleOp::create(builder.getUnknownLoc(), filename);
-            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+            createEntryPoint();
 
             for (auto& f : main_ast.modules_or_namespaces)
                 mlirGen(*f);
@@ -134,6 +134,21 @@ namespace fsharpgrammar::compiler
         }
 
     private:
+        mlir::func::FuncOp createEntryPoint()
+        {
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+            builder.setInsertionPointToEnd(fileModule.getBody());
+            mlir::func::FuncOp func_op = builder.create<mlir::func::FuncOp>(
+                builder.getUnknownLoc(), "entrypoint", builder.getFunctionType({}, {std::nullopt}));
+            if (!func_op)
+                return nullptr;
+
+            mlir::Block &entryBlock = func_op.front();
+            builder.setInsertionPointToStart(&entryBlock);
+
+            return func_op;
+        }
+
         mlir::ModuleOp mlirGen(const ast::ModuleOrNamespace& module_or_namespace)
         {
             builder.setInsertionPointToEnd(fileModule.getBody());

@@ -63,6 +63,27 @@ TEST(HelloWorld, BasicAssertion)
         Action::DumpMLIRLLVM,
         false
     );
+
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::DumpMLIRLLVM,
+        true
+    );
+
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::DumpLLVMIR,
+        true
+    );
+
+    FSharpCompiler::compileProgram(
+        InputType::FSharp,
+        "TestFiles/HelloWorld.fs",
+        Action::RunJIT,
+        true
+    );
 }
 
 TEST(SimpleNamedModule, BasicAssertion)
