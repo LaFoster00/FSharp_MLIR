@@ -34,7 +34,7 @@ mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
     std::this_thread::sleep_for(100ms); \
     result->dump()
 
-void RunFullTestSuite(InputType inputType, std::string_view fileName)
+void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitExe = false, std::optional<std::string> executableOutputPath = std::nullopt)
 {
     FSharpCompiler::compileProgram(
         inputType,
@@ -77,16 +77,27 @@ void RunFullTestSuite(InputType inputType, std::string_view fileName)
         Action::RunJIT,
         true
     );
+
+    if (!emitExe)
+        return;
+
+    FSharpCompiler::compileProgram(
+        inputType,
+        fileName,
+        Action::EmitExecutable,
+        true,
+        executableOutputPath
+    );
 }
 
 TEST(HelloWorld, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorld.fs");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorld.fs", true, "HelloWorld");
 }
 
 TEST(HelloWorldVariable, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs", true, "HelloWorldVariable");
 }
 
 TEST(SimpleAdd, BasicAssertion)

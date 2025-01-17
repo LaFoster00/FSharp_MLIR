@@ -48,7 +48,7 @@
 namespace fsharp::compiler
 {
     int FSharpCompiler::compileProgram(InputType inputType, std::string_view inputFilename, Action emitAction,
-                                       bool runOptimizations)
+                                       bool runOptimizations, std::optional<std::string> executableOutputPath)
     {
         FSharpCompiler::inputType = inputType;
         FSharpCompiler::inputFilename = inputFilename;
@@ -77,7 +77,7 @@ namespace fsharp::compiler
         mlir::OwningOpRef<mlir::ModuleOp> module;
         if (int error = loadAndProcessMLIR(context, module))
             int a = 10;
-            //return error;
+        //return error;
 
         // If we aren't exporting to non-mlir, then we are done.
         bool isOutputingMLIR = emitAction <= Action::DumpMLIRLLVM;
@@ -95,6 +95,14 @@ namespace fsharp::compiler
         if (emitAction == Action::RunJIT)
             return runJit(*module);
 
+        if (emitAction == Action::EmitExecutable)
+        {
+            if (!executableOutputPath.has_value())
+                assert("No output path for executable specified!");
+            else
+                return emitExecutable(*module, executableOutputPath.value());
+        }
+
         llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
         return -1;
     }
@@ -109,7 +117,7 @@ namespace fsharp::compiler
             return nullptr;
         }
         auto buffer = fileOrErr.get()->getBuffer();
-        return fsharpgrammar::Grammar::parse(buffer, false, emitAction==Action::DumpST, false);
+        return fsharpgrammar::Grammar::parse(buffer, false, emitAction == Action::DumpST, false);
     }
 
     int FSharpCompiler::loadMLIR(mlir::MLIRContext& context, mlir::OwningOpRef<mlir::ModuleOp>& module)
@@ -312,13 +320,87 @@ namespace fsharp::compiler
         auto& engine = maybeEngine.get();
 
         // Invoke the JIT-compiled function.
-        auto invocationResult = engine->invokePacked("entrypoint");
+        auto invocationResult = engine->invokePacked("main");
         if (invocationResult)
         {
             llvm::errs() << "JIT invocation failed\n";
             return -1;
         }
 
+        return 0;
+    }
+
+    int FSharpCompiler::emitExecutable(mlir::ModuleOp module, const std::string& outputFilePath,
+                                       const bool writeNewDbgInfoFormat)
+    {
+        // Register the translation to LLVM IR with the MLIR context.
+        mlir::registerBuiltinDialectTranslation(*module->getContext());
+        mlir::registerLLVMDialectTranslation(*module->getContext());
+
+        // Convert the module to LLVM IR in a new LLVM IR context.
+        llvm::LLVMContext llvmContext;
+        auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
+        if (!llvmModule)
+        {
+            llvm::errs() << "Failed to emit LLVM IR\n";
+            return -1;
+        }
+
+        // Initialize LLVM targets.
+        llvm::InitializeNativeTarget();
+        llvm::InitializeNativeTargetAsmPrinter();
+
+        // Configure the LLVM Module
+        auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
+        if (!tmBuilderOrError)
+        {
+            llvm::errs() << "Could not create JITTargetMachineBuilder\n";
+            return -1;
+        }
+
+        auto tmOrError = tmBuilderOrError->createTargetMachine();
+        if (!tmOrError)
+        {
+            llvm::errs() << "Could not create TargetMachine\n";
+            return -1;
+        }
+        mlir::ExecutionEngine::setupTargetTripleAndDataLayout(llvmModule.get(),
+                                                              tmOrError.get().get());
+
+        /// Optionally run an optimization pipeline over the llvm module.
+        auto optPipeline = mlir::makeOptimizingTransformer(
+            /*optLevel=*/runOptimizations ? 3 : 0, /*sizeLevel=*/0,
+                         /*targetMachine=*/nullptr);
+        if (auto err = optPipeline(llvmModule.get()))
+        {
+            llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";
+            return -1;
+        }
+        std::string llvm_str;
+        llvm::raw_string_ostream rso(llvm_str);
+        llvmModule->print(rso, nullptr);
+        rso.flush();
+        std::ofstream out(outputFilePath + ".ll");
+        out << rso.str();
+        out.close();
+
+        // Link the object file into an executable.
+        std::string bytecode_command = "llvm-as-18 " + outputFilePath + ".ll -o " + outputFilePath + ".bc";
+        if (system(bytecode_command.c_str()) != 0)
+        {
+            llvm::errs() << "Failed to emit bytecode\n";
+            return -1;
+        }
+
+        // Link the object file into an executable.
+        std::string compile_command = "clang-18 " + outputFilePath + ".bc -o " + outputFilePath;
+        if (system(compile_command.c_str()) != 0)
+        {
+            llvm::errs() << "Failed to link executable\n";
+            return -1;
+        }
+
+        llvm::outs() << "Executable emitted to " << outputFilePath << "\n";
         return 0;
     }
 }

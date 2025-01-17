@@ -144,7 +144,7 @@ namespace fsharpgrammar::compiler
             mlir::FunctionType funcType = builder.getFunctionType({}, {});
 
             // Create the function
-            auto func = builder.create<mlir::func::FuncOp>(fileModule.getLoc(), "entrypoint", funcType);
+            auto func = builder.create<mlir::func::FuncOp>(fileModule.getLoc(), "main", funcType);
 
             // Add a basic block to the function
             mlir::Block& entryBlock = *func.addEntryBlock();
