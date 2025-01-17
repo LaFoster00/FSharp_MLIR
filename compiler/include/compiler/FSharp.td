@@ -228,4 +228,52 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// Arithmetic Operations
+//===----------------------------------------------------------------------===//
+def FSharp_AddOp : FSharp_Op<"add"> {
+  let summary = "addition operation";
+  let description = [{
+    This operation performs element-wise addition of two tensors.
+  }];
+  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
+  let results = (outs AnyTensor);
+}
+
+def FSharp_SubOp : FSharp_Op<"sub"> {
+  let summary = "subtraction operation";
+  let description = [{
+    This operation performs element-wise subtraction of two tensors.
+  }];
+  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
+  let results = (outs AnyTensor);
+}
+
+def FSharp_MulOp : FSharp_Op<"mul"> {
+  let summary = "multiplication operation";
+  let description = [{
+    This operation performs element-wise multiplication of two tensors.
+  }];
+  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
+  let results = (outs AnyTensor);
+}
+
+def FSharp_DivOp : FSharp_Op<"div"> {
+  let summary = "division operation";
+  let description = [{
+    This operation performs element-wise division of two tensors.
+  }];
+  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
+  let results = (outs AnyTensor);
+}
+
+def FSharp_ModOp : FSharp_Op<"mod"> {
+  let summary = "modulo operation";
+  let description = [{
+    This operation performs element-wise modulo of two tensors.
+  }];
+  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
+  let results = (outs AnyTensor);
+}
+
 #endif // FSHARP_OPS
