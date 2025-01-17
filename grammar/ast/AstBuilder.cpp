@@ -4,6 +4,8 @@
 
 #include "AstBuilder.h"
 
+#include <boost/algorithm/string.hpp>
+
 #include "ASTNode.h"
 #include "ASTHelper.h"
 #include "utils/FunctionTimer.h"
@@ -891,6 +893,23 @@ namespace fsharpgrammar::ast
         return make_ast<Type>(Type::StaticNull(Range::create(context)));
     }
 
+    std::string escapeSpecialCharacters(std::string s)
+    {
+        boost::algorithm::replace_all(s, "\\t", "\t");
+        boost::algorithm::replace_all(s, "\\n", "\n");
+        boost::algorithm::replace_all(s, "\\r", "\r");
+        boost::algorithm::replace_all(s, "\\b", "\b");
+        boost::algorithm::replace_all(s, "\\f", "\f");
+        boost::algorithm::replace_all(s, "\\v", "\v");
+        boost::algorithm::replace_all(s, "\\a", "\a");
+        boost::algorithm::replace_all(s, "\\'", "\'");
+        boost::algorithm::replace_all(s, "\\\"", "\"");
+        boost::algorithm::replace_all(s, "\\\\", "\\");
+        boost::algorithm::replace_first(s, "\"", "");
+        boost::algorithm::replace_last(s, "\"", "");
+        return s;
+    }
+
     std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)
     {
         if (context->INTEGER())
@@ -898,7 +917,7 @@ namespace fsharpgrammar::ast
         if (context->FLOAT_NUMBER())
             return make_ast<Constant>(std::stof(context->FLOAT_NUMBER()->getText()), Range::create(context));
         if (context->STRING())
-            return make_ast<Constant>(context->STRING()->getText(), Range::create(context));
+            return make_ast<Constant>(escapeSpecialCharacters(context->STRING()->getText()), Range::create(context));
         if (context->CHARACTER())
             return make_ast<Constant>(context->CHARACTER()->getText()[0], Range::create(context));
         if (context->BOOL())
