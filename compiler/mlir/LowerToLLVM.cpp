@@ -32,26 +32,9 @@
 #include "llvm/Support/Casting.h"
 #include <memory>
 #include <utility>
+#include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 
 using namespace mlir;
-
-/// Generic print function lookupOrCreate helper.
-LLVM::LLVMFuncOp lookupOrCreateFn(PatternRewriter& rewriter,
-                                  ModuleOp moduleOp,
-                                  StringRef name,
-                                  ArrayRef<Type> paramTypes,
-                                  Type resultType, bool isVarArg)
-{
-    assert(moduleOp->hasTrait<OpTrait::SymbolTable>() &&
-        "expected SymbolTable operation");
-    auto func = llvm::dyn_cast_or_null<LLVM::LLVMFuncOp>(
-        SymbolTable::lookupSymbolIn(moduleOp, name));
-    if (func)
-        return func;
-    return rewriter.create<LLVM::LLVMFuncOp>(
-        moduleOp->getLoc(), name,
-        LLVM::LLVMFunctionType::get(resultType, paramTypes, isVarArg));
-}
 
 static LLVM::LLVMFunctionType getPrintfType(MLIRContext* context)
 {
@@ -116,8 +99,7 @@ namespace
             ModuleOp parentModule = op->getParentOfType<ModuleOp>();
 
             // Get a symbol reference to the printf function, inserting it if necessary.
-            auto printfRef = lookupOrCreateFn(rewriter,
-                                              parentModule,
+            auto printfRef = LLVM::lookupOrCreateFn(parentModule,
                                               "printf",
                                               getPrintfType(context).getParams(),
                                               getPrintfType(context).getReturnType(), true);

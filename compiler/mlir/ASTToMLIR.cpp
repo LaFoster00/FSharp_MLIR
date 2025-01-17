@@ -80,7 +80,6 @@ namespace fsharpgrammar::compiler
             // We create an empty MLIR module and codegen functions one at a time and
             // add them to the module.
             fileModule = mlir::ModuleOp::create(builder.getUnknownLoc(), filename);
-            createEntryPoint();
 
             for (auto& f : main_ast.modules_or_namespaces)
                 mlirGen(*f);
@@ -136,22 +135,31 @@ namespace fsharpgrammar::compiler
     private:
         mlir::func::FuncOp createEntryPoint()
         {
+            // Create a scope in the symbol table to hold variable declarations.
             llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
-            builder.setInsertionPointToEnd(fileModule.getBody());
-            mlir::func::FuncOp func_op = builder.create<mlir::func::FuncOp>(
-                builder.getUnknownLoc(), "entrypoint", builder.getFunctionType({}, {std::nullopt}));
-            if (!func_op)
-                return nullptr;
 
-            mlir::Block &entryBlock = func_op.front();
+            builder.setInsertionPointToEnd(fileModule.getBody());
+
+            // Define the function type (no arguments, no return values)
+            mlir::FunctionType funcType = builder.getFunctionType({}, {});
+
+            // Create the function
+            auto func = builder.create<mlir::func::FuncOp>(fileModule.getLoc(), "entrypoint", funcType);
+
+            // Add a basic block to the function
+            mlir::Block& entryBlock = *func.addEntryBlock();
+
+            // Set the insertion point to the start of the basic block
             builder.setInsertionPointToStart(&entryBlock);
 
-            return func_op;
+            return func;
         }
 
         mlir::ModuleOp mlirGen(const ast::ModuleOrNamespace& module_or_namespace)
         {
-            builder.setInsertionPointToEnd(fileModule.getBody());
+            // Create a scope in the symbol table to hold variable declarations.
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+
             mlir::ModuleOp m;
             switch (module_or_namespace.type)
             {
@@ -167,11 +175,17 @@ namespace fsharpgrammar::compiler
             }
             builder.setInsertionPointToEnd(m.getBody());
 
+            auto func = createEntryPoint();
+
             for (auto& module_decl : module_or_namespace.moduleDecls)
             {
                 std::visit([&](auto& obj) { mlirGen(obj); },
                            module_decl->declaration);
             }
+
+
+            builder.setInsertionPointToEnd(&func.getBlocks().back());
+            builder.create<mlir::func::ReturnOp>(builder.getUnknownLoc());
 
             builder.setInsertionPointToEnd(fileModule.getBody());
 
@@ -459,6 +473,7 @@ namespace fsharpgrammar::compiler
         mlir::DialectRegistry registry;
         mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
         mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
+        mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(registry);
         context.appendDialectRegistry(registry);
 
         context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
