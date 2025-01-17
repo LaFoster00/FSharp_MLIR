@@ -326,18 +326,54 @@ namespace fsharpgrammar::compiler
                 if (!arithmeticOps->empty()) {
                     auto arithmeticType = (*arithmeticOps)[0];  // Example: using the first element
 
+                    mlir::Type arithType;
+                    mlir::SmallVector<mlir::Value, 4> operands;
+                    for (auto &expression: op.expressions) {
+                        auto result = mlirGen(*expression);
+                        if (!result.has_value()) {
+                            mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                            return nullptr;
+                        }
+                        if (result.value().getType().dyn_cast<mlir::ShapedType>()) {
+                            mlir::emitError(loc(op.get_range()), "Can not use operand of tensor type for arithmetic operation!");
+                            return nullptr;
+                        }
+                        operands.push_back(result.value());
+                        if (arithType != result.value().getType()) {
+                            //TODO: When casting from int to float check if we need to cast to double
+                            if (arithType == nullptr ||
+                                    (arithType.dyn_cast<mlir::IntegerType>()
+                                    && arithType.getIntOrFloatBitWidth() < result.value().getType().getIntOrFloatBitWidth()) ||
+                                    (arithType.dyn_cast<mlir::IntegerType>()
+                                    && result.value().getType().dyn_cast<mlir::FloatType>()) ||
+                                    (arithType.dyn_cast<mlir::FloatType>()
+                                    && arithType.getIntOrFloatBitWidth() < result.value().getType().getIntOrFloatBitWidth())) {
+                                arithType = result.value().getType();
+                            }
+                        }
+                    }
+
+                    for (auto &operand: operands) {
+                        if (arithType != operand.getType()) {
+                            operand = genCast(builder, loc(op.get_range()), operand, arithType);
+                        }
+                    }
+                    // TODO: Mach mal fertig morgen!
                     switch (arithmeticType) {
                         case ast::Expression::OP::ArithmeticType::ADD:
                             return builder.create<mlir::arith::AddIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
                             break;
                         case ast::Expression::OP::ArithmeticType::SUBTRACT:
                             mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
+                            return builder.create<mlir::arith::SubIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
                             break;
                         case ast::Expression::OP::ArithmeticType::MULTIPLY:
                             mlir::emitError(loc(op.get_range()),
                                             "No initializer given to arithmetic operator MULTIPLY!");
+                            return builder.create<mlir::arith::MulIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
                             break;
                         case ast::Expression::OP::ArithmeticType::DIVIDE:
+                            return builder.create<mlir::arith::DivSIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
                             mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
                             break;
                         case ast::Expression::OP::ArithmeticType::MODULO:
