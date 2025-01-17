@@ -47,7 +47,7 @@
 
 namespace fsharp::compiler
 {
-    int FSharpCompiler::compileProgram(InputType inputType, std::string inputFilename, Action emitAction,
+    int FSharpCompiler::compileProgram(InputType inputType, std::string_view inputFilename, Action emitAction,
                                        bool runOptimizations)
     {
         FSharpCompiler::inputType = inputType;

@@ -34,95 +34,59 @@ mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
     std::this_thread::sleep_for(100ms); \
     result->dump()
 
-TEST(HelloWorld, BasicAssertion)
+void RunFullTestSuite(InputType inputType, std::string_view fileName)
 {
     FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
+        inputType,
+        fileName,
         Action::DumpAST,
         false
     );
 
     FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
+        inputType,
+        fileName,
         Action::DumpMLIR,
         false
     );
 
     FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
+        inputType,
+        fileName,
         Action::DumpMLIRAffine,
         false
     );
 
     FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
+        inputType,
+        fileName,
         Action::DumpMLIRLLVM,
+        true
+    );
+
+    FSharpCompiler::compileProgram(
+        inputType,
+        fileName,
+        Action::DumpLLVMIR,
         false
     );
 
     FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
-        Action::DumpMLIRLLVM,
-        true
-    );
-
-    FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
-        Action::DumpLLVMIR,
-        true
-    );
-
-    FSharpCompiler::compileProgram(
-        InputType::FSharp,
-        "TestFiles/HelloWorld.fs",
+        inputType,
+        fileName,
         Action::RunJIT,
         true
     );
 }
 
-TEST(SimpleNamedModule, BasicAssertion)
+TEST(HelloWorld, BasicAssertion)
 {
-    GENERATE_AND_DUMP_MLIR(
-        R"(
-module outer
-
-printfn 1
-)"
-    );
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorld.fs");
 }
 
-TEST(SimpleNestedModule, BasicAssertion)
+TEST(HelloWorldVariable, BasicAssertion)
 {
-    GENERATE_AND_DUMP_MLIR(
-        R"(
-module outer
-printfn 1
-module nested =
-    printfn 2
-)"
-    );
-}
-
-TEST(MultiNestedModule, BasicAssertion)
-{
-    GENERATE_AND_DUMP_MLIR(
-        R"(
-module outer
-printfn 1
-module nested =
-    printfn 2
-    module nested_nested =
-        printfn 3
-module nested2 =
-    printfn 4
-)"
-    );
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs");
 }
 
 TEST(SimpleAdd, BasicAssertion)

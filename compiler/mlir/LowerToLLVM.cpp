@@ -100,14 +100,15 @@ namespace
 
             // Get a symbol reference to the printf function, inserting it if necessary.
             auto printfRef = LLVM::lookupOrCreateFn(parentModule,
-                                              "printf",
-                                              getPrintfType(context).getParams(),
-                                              getPrintfType(context).getReturnType(), true);
+                                                    "printf",
+                                                    getPrintfType(context).getParams(),
+                                                    getPrintfType(context).getReturnType(), true);
 
             for (auto operand_type = std::next(op->operand_type_begin()); operand_type != op->operand_type_end(); ++
                  operand_type)
             {
-                if (mlir::isa<mlir::ShapedType>(*operand_type))
+                if (mlir::isa<mlir::ShapedType>(*operand_type) && mlir::dyn_cast<ShapedType>(*operand_type).
+                    getElementType() != mlir::IntegerType::get(context, 8))
                 {
                     mlir::emitError(loc, "Array support not implemented yet");
                     return failure();
@@ -169,8 +170,10 @@ namespace
                     continue;
                 }
                 auto pointer_index = rewriter.create<mlir::memref::ExtractAlignedPointerAsIndexOp>(loc, operand);
-                auto arith_index = rewriter.create<mlir::arith::IndexCastOp>(loc, IntegerType::get(context, 64), pointer_index);
-                auto llvm_pointer = rewriter.create<LLVM::IntToPtrOp>(loc, LLVM::LLVMPointerType::get(context), arith_index);
+                auto arith_index = rewriter.create<mlir::arith::IndexCastOp>(
+                    loc, IntegerType::get(context, 64), pointer_index);
+                auto llvm_pointer = rewriter.create<LLVM::IntToPtrOp>(loc, LLVM::LLVMPointerType::get(context),
+                                                                      arith_index);
                 updated_operands.push_back(llvm_pointer);
             }
             rewriter.create<LLVM::CallOp>(loc, printfRef, updated_operands);
