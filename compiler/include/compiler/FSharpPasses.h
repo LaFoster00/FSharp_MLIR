@@ -10,9 +10,15 @@ namespace mlir {
     class Pass;
 
     namespace fsharp {
-        /// Create a pass for lowering operations the remaining `Toy` operations, as
+        // Create a pass that lowers the fsharp.func ops to func.func ops since they are the ones we want to use going forward.
+        // This will also resolve nested functions and convert them to capturing global functions
+        std::unique_ptr<Pass> createLowerToFunctionPass();
+
+        /// Create a pass for lowering operations the remaining `fsharp` operations, as
         /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
         std::unique_ptr<Pass> createLowerToLLVMPass();
+
+
 
     } // namespace toy
 } // namespace mlir

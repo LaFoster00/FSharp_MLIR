@@ -185,7 +185,6 @@ namespace fsharp::compiler
         {
             // Partially lower the fsharp dialect.
             pm.addPass(mlir::bufferization::createOneShotBufferizePass());
-            //pm.addPass(mlir::fsharp::createBufferizationPass()); // TODO implement bufferization
 
             // Add a few cleanups post lowering.
             mlir::OpPassManager& optPM = pm.nest<mlir::func::FuncOp>();
