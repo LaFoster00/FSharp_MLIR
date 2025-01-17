@@ -52,8 +52,13 @@ project(
     LANGUAGES CXX C
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
+
 # CMAKE UTILITIES
 include(cmake/utils.cmake)
+
+# Boost Setup
+include(cmake/boost.cmake)
 
 # LLVM Setup
 include(cmake/llvm.cmake)

@@ -27,7 +27,7 @@ namespace fsharp::compiler
     class FSharpCompiler
     {
     public:
-        static int compileProgram(InputType inputType, std::string inputFilename, Action emitAction,
+        static int compileProgram(InputType inputType, std::string_view inputFilename, Action emitAction,
                                   bool runOptimizations);
 
     private:

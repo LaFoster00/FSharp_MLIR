@@ -15,6 +15,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.td"
+include "mlir/IR/CommonTypeConstraints.td"
 
 // Provide a definition of the 'fsharp' dialect in the ODS framework so that we
 // can define our operations.
@@ -70,109 +71,6 @@ def StringType : FSharp_Type<"String", "string"> {
 // FSharp Attributes
 //===----------------------------------------------------------------------===//
 
-def FSharp_StringAttr : FSharp_Attr<"FSharp_String", "fsharp_string", [ElementsAttrInterface],
-        "DenseElementsAttr"> {
-  let summary = "An Attribute containing a string";
-  let description = [{
-    Syntax:
-
-    ```
-    string-attribute ::= string-literal (`:` type)?
-    ```
-
-    A string attribute is an attribute that represents a string literal value.
-
-    Examples:
-
-    ```mlir
-    "An important string"
-    "string with a type" : !dialect.string
-    ```
-  }];
-  let parameters = (ins AttributeSelfTypeParameter<"", "ShapedType">:$type,
-                        StringRefParameter<"">:$value);
-  let builders = [
-    AttrBuilderWithInferredContext<(ins "const Twine &":$bytes, "Type":$type)>,
-  ];
-
-    let extraClassDeclaration = [{
-        using DenseElementsAttr::empty;
-        using DenseElementsAttr::getNumElements;
-        using DenseElementsAttr::getElementType;
-        using DenseElementsAttr::getValues;
-        using DenseElementsAttr::isSplat;
-        using DenseElementsAttr::size;
-        using DenseElementsAttr::value_begin;
-
-        /// The set of data types that can be iterated by this attribute.
-        using ContiguousIterableTypesT = std::tuple<
-            // Char types.
-            char8_t, char16_t, char32_t
-        >;
-        using NonContiguousIterableTypesT = std::tuple<
-            Attribute,
-            // Char types.
-            char8_t, char16_t, char32_t
-        >;
-
-        /// Provide a `try_value_begin_impl` to enable iteration within
-        /// ElementsAttr.
-        template <typename T>
-        auto try_value_begin_impl(OverloadToken<T>) const {
-          return try_value_begin<T>();
-        }
-
-        protected:
-            friend DenseElementsAttr;
-
-        public:
-        using ValueType = StringRef;
-
-        /// If the value of this string is prefixed with a dialect namespace,
-        /// returns the dialect corresponding to that namespace if it is loaded,
-        /// nullptr otherwise. For example, the string `llvm.fastmathflags` would
-        /// return the LLVM dialect, assuming it is loaded in the context.
-        Dialect *getReferencedDialect() const;
-
-        /// Enable conversion to StringRef.
-        operator StringRef() const { return getValue(); }
-
-        /// Returns the underlying string value
-        StringRef strref() const { return getValue(); }
-
-        /// Convert the underling value to an std::string.
-        std::string str() const { return getValue().str(); }
-
-        /// Return a pointer to the start of the string data.
-        const char *data() const { return getValue().data(); }
-
-        /// Return the number of bytes in this string.
-        size_t size() const { return getValue().size(); }
-
-        /// Return whether the string is empty.
-        bool empty() const { return getValue().empty(); }
-
-        /// Iterate over the underlying string data.
-        StringRef::iterator begin() const { return getValue().begin(); }
-        StringRef::iterator end() const { return getValue().end(); }
-
-        /// Compare the underlying string value to the one in `rhs`.
-        int compare(FSharp_StringAttr rhs) const {
-          if (*this == rhs)
-            return 0;
-          return getValue().compare(rhs.getValue());
-        }
-
-        private:
-        friend MLIRContext;
-        public:
-        }];
-    let genStorageClass = 1;
-    let skipDefaultBuilders = 1;
-}
-
-
-
 //===----------------------------------------------------------------------===//
 // FSharp Operations
 //===----------------------------------------------------------------------===//
@@ -181,7 +79,7 @@ def FSharp_StringAttr : FSharp_Attr<"FSharp_String", "fsharp_string", [ElementsA
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
+def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -189,7 +87,7 @@ def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
   }];
 
   // The print operation takes an input tensor to print.
-  let arguments = (ins Variadic<AnyType>:$operands);
+  let arguments = (ins Variadic<AnyType>:$fmt_operands);
 
   let extraClassDeclaration = [{
     bool bufferizesToMemoryRead(OpOperand &opOperand,
@@ -206,35 +104,9 @@ def PrintStringOp : FSharp_Op<"print_string", [BufferizableOpInterface]> {
   }];
 
 
-  let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
-}
-
-def PrintArrayOp : FSharp_Op<"print_array", [BufferizableOpInterface]> {
-  let summary = "print operation";
-  let description = [{
-    The "print" builtin operation prints a given input tensor, and produces
-    no results.
-  }];
-
-  // The print operation takes an input tensor to print.
-  let arguments = (ins Variadic<AnyType>:$operands);
-
-  let extraClassDeclaration = [{
-    bool bufferizesToMemoryRead(OpOperand &opOperand,
-                                const bufferization::AnalysisState &state)
-    { return true; }
-
-    bool bufferizesToMemoryWrite(OpOperand &opOperand,
-                                const bufferization::AnalysisState &state)
-    { return false; }
-
-    bufferization::AliasingValueList getAliasingValues(OpOperand & opOperand, const bufferization::AnalysisState & state);
-    LogicalResult bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options);
-
-  }];
-
-
-  let assemblyFormat = "`(` $operands `)` attr-dict`:` type($operands)";
+  let assemblyFormat = "`(` $fmt_operands `)` attr-dict `:` type($fmt_operands)";
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

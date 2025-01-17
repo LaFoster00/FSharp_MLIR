@@ -13,6 +13,7 @@ add_mlir_dialect_library(MLIRFSharpDialect
         MLIRIR
         MLIRInferTypeOpInterface
         MLIRFuncDialect
+        fmt::fmt
 )
 
 target_include_directories(MLIRFSharpDialect PRIVATE

@@ -10,3 +10,7 @@ add_library(Utils STATIC
 target_include_directories(Utils PUBLIC
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
+
+target_link_libraries(Utils PUBLIC
+        Boost::algorithm
+)

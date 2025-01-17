@@ -10,7 +10,6 @@ add_subdirectory(lib)
 add_library(FSharpCompiler STATIC
         mlir/Compiler.cpp
         mlir/ASTToMLIR.cpp
-        mlir/Bufferize.cpp
         mlir/LowerToLLVM.cpp
 )
 
@@ -27,10 +26,6 @@ target_link_libraries(FSharpCompiler
         ${dialect_libs}
         ${conversion_libs}
         ${extension_libs}
-        LLVMCore
-        LLVMSupport
-        LLVMCodeGen
-        LLVMOrcJIT
         MLIRAnalysis
         MLIRBuiltinToLLVMIRTranslation
         MLIRCallInterfaces
@@ -39,15 +34,19 @@ target_link_libraries(FSharpCompiler
         MLIRFunctionInterfaces
         MLIRIR
         MLIRLLVMCommonConversion
-        MLIRLLVMDialect
         MLIRLLVMToLLVMIRTranslation
         MLIRMemRefDialect
         MLIRParser
         MLIRPass
         MLIRSideEffectInterfaces
-        MLIRSupport
         MLIRTargetLLVMIRExport
         MLIRTransforms
+        MLIRSupport
+
+        LLVMCore
+        LLVMSupport
+        LLVMCodeGen
+        LLVMOrcJIT
 
         FSharpGrammar
 )
