@@ -86,12 +86,17 @@ TEST(HelloWorldVariable, BasicAssertion)
 
 TEST(HelloWorldBranchConstant, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchConstant.fs", false, "HelloWorldBranch");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchConstant.fs", false, "HelloWorldBranchConstant");
+}
+
+TEST(HelloWorldBranchNestedConstant, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchNestedConstant.fs", false, "HelloWorldBranchNestedConstant");
 }
 
 TEST(HelloWorldBranchRelation, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchRelation.fs", false, "HelloWorldBranch");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchRelation.fs", false, "HelloWorldBranchRelation");
 }
 
 TEST(SimpleAdd, BasicAssertion)
