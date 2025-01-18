@@ -129,7 +129,7 @@ namespace fsharp::compiler
             auto moduleAST = parseInputFile(inputFilename);
             if (!moduleAST)
                 return 6;
-            module = fsharpgrammar::compiler::MLIRGen::mlirGen(context, moduleAST);
+            module = fsharpgrammar::compiler::MLIRGen::mlirGen(context, moduleAST, inputFilename);
             return !module ? 1 : 0;
         }
 

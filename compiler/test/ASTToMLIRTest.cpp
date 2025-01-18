@@ -18,22 +18,6 @@
 using namespace fsharp::compiler;
 using namespace std::chrono_literals;
 
-mlir::OwningOpRef<mlir::ModuleOp> generate_mlir(std::string_view source,
-                                                mlir::MLIRContext& context)
-{
-    return fsharpgrammar::compiler::MLIRGen::mlirGen(
-        context,
-        source
-    );
-}
-
-#define GENERATE_AND_DUMP_MLIR(source) \
-    mlir::MLIRContext context; \
-    auto result = generate_mlir(source, context); \
-    std::cout << std::flush; \
-    std::this_thread::sleep_for(100ms); \
-    result->dump()
-
 void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitExe = false, std::optional<std::string> executableOutputPath = std::nullopt)
 {
     FSharpCompiler::compileProgram(
@@ -86,7 +70,7 @@ void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitE
         fileName,
         Action::EmitExecutable,
         true,
-        executableOutputPath
+        std::move(executableOutputPath)
     );
 }
 
@@ -100,14 +84,14 @@ TEST(HelloWorldVariable, BasicAssertion)
     RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs", true, "HelloWorldVariable");
 }
 
-TEST(AritTest, BasicAssertion)
+TEST(HelloWorldBranchConstant, BasicAssertion)
 {
-    GENERATE_AND_DUMP_MLIR(
-        R"(
-let a = 1 + 2
-print a
-)"
-    );
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchConstant.fs", false, "HelloWorldBranch");
+}
+
+TEST(HelloWorldBranchRelation, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchRelation.fs", false, "HelloWorldBranch");
 }
 
 TEST(SimpleAdd, BasicAssertion)

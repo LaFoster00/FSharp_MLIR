@@ -10,6 +10,7 @@
 #include <ast/Range.h>
 #include <mlir/InitAllDialects.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
+#include <mlir/Rewrite/FrozenRewritePatternSet.h>
 
 #include "Grammar.h"
 
@@ -32,6 +33,8 @@
 #include "llvm/ADT/Twine.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
+#include "mlir/IR/IntegerSet.h"
+
 #include "boost/algorithm/string.hpp"
 
 namespace fsharpgrammar::compiler
@@ -120,6 +123,16 @@ namespace fsharpgrammar::compiler
                 builder.getStringAttr(filename),
                 range.start_line(),
                 range.start_column());
+        }
+
+        mlir::Location loc(const ast::IASTNode& node)
+        {
+            return loc(node.get_range());
+        }
+
+        mlir::Location loc(const ast::INodeAlternative& node_alternative)
+        {
+            return loc(node_alternative.get_range());
         }
 
         /// Declare a variable in the current scope, return success if the variable
@@ -224,6 +237,8 @@ namespace fsharpgrammar::compiler
                 return mlirGen(std::get<ast::Expression::Ident>(expression.expression));
             if (std::holds_alternative<ast::Expression::OP>(expression.expression))
                 return mlirGen(std::get<ast::Expression::OP>(expression.expression));
+            if (std::holds_alternative<ast::Expression::IfThenElse>(expression.expression))
+                return mlirGen(std::get<ast::Expression::IfThenElse>(expression.expression));
 
             mlir::emitError(loc(expression.get_range()), "Expression not supported!");
         }
@@ -297,96 +312,185 @@ namespace fsharpgrammar::compiler
             return llvm::success();
         }
 
-        mlir::Value mlirGen(const ast::Expression::OP& op) {
-            switch (op.type) {
-                    case ast::Expression::OP::Type::LOGICAL:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::LOGICAL!");
-                        break;
-                        // return getLogicalType(std::get<0>(op));
-                    case ast::Expression::OP::Type::EQUALITY:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::EQUALITY!");
-                        break;
-                        // return getEqualityType(std::get<1>(operators));
-                    case ast::Expression::OP::Type::RELATION:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::RELATION!");
-                        break;
-                        // return getRelationType(std::get<2>(operators));
-                    case ast::Expression::OP::Type::ARITHMETIC:
-                        // mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::ARITHMETIC!");
-                        return getArithmeticType(op);
-                    default:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to op.type!");
-                        break;
-                }
-                return nullptr;
+        mlir::Value mlirGen(const ast::Expression::OP& op)
+        {
+            switch (op.type)
+            {
+            case ast::Expression::OP::Type::LOGICAL:
+                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::LOGICAL!");
+                break;
+            // return getLogicalType(std::get<0>(op));
+            case ast::Expression::OP::Type::EQUALITY:
+                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::EQUALITY!");
+                break;
+            // return getEqualityType(std::get<1>(operators));
+            case ast::Expression::OP::Type::RELATION:
+                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::RELATION!");
+                break;
+            // return getRelationType(std::get<2>(operators));
+            case ast::Expression::OP::Type::ARITHMETIC:
+                // mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::ARITHMETIC!");
+                return getArithmeticType(op);
+            default:
+                mlir::emitError(loc(op.get_range()), "No initializer given to op.type!");
+                break;
+            }
+            return nullptr;
         }
 
-        mlir::Value getArithmeticType(const ast::Expression::OP& op) {
-            if (auto arithmeticOps = std::get_if<std::vector<ast::Expression::OP::ArithmeticType>>(&op.ops)) {
-                if (!arithmeticOps->empty()) {
-                    auto arithmeticType = (*arithmeticOps)[0];  // Example: using the first element
+        std::optional<mlir::Value> mlirGen(const ast::Expression::IfThenElse& if_then_else)
+        {
+            // Create a scope in the symbol table to hold variable declarations.
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+
+            auto condition = mlirGen(*if_then_else.condition);
+            if (!condition.has_value())
+            {
+                mlir::emitError(loc(if_then_else), "Condition did not return value!");
+                return nullptr;
+            }
+            if (condition->getType() != builder.getI1Type())
+            {
+                mlir::emitError(loc(if_then_else), "Condition does not evaluate to a boolean value!");
+                return nullptr;
+            }
+
+            auto affine_if = builder.create<mlir::affine::AffineIfOp>(loc(if_then_else),
+                                                                      mlir::IntegerSet::, // TODO implement the correct logic for this
+                                                                      mlir::ValueRange{condition.value()},
+                                                                      if_then_else.else_expr.has_value());
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPointToStart(affine_if.getThenBlock());
+            mlir::SmallVector<std::optional<mlir::Value>, 4> then_results;
+            for (auto& then_expr : if_then_else.then)
+            {
+                then_results.emplace_back(mlirGen(*then_expr));
+            }
+            // If the last statement in the if block returns a value we need to yield it in case it is used as a return value
+            // e.g let a = if true then 1 else 2
+            const bool returning_value = then_results.back().has_value();
+            if (returning_value)
+                builder.create<mlir::affine::AffineYieldOp>(then_results.back()->getLoc(),
+                                                            mlir::ValueRange{then_results.back().value()});
+
+            if (if_then_else.else_expr.has_value())
+            {
+                builder.setInsertionPointToStart(affine_if.getElseBlock());
+                mlir::SmallVector<std::optional<mlir::Value>, 4> else_results;
+                for (auto& else_expr : if_then_else.else_expr.value())
+                {
+                    else_results.emplace_back(mlirGen(*else_expr));
+                }
+                // If the last statement in the else block returns a value we need to yield it in case it is used as a return value
+                // e.g let a = if true then 1 else 2
+                // Check if this branch is actually returning a value. If not we need to throw an error
+                if (returning_value && (else_results.empty() || !else_results.back().has_value()))
+                {
+                    mlir::emitError(loc(if_then_else), "Either both branches or none of the branches must return a value!");
+                    return nullptr;
+                }
+
+                if (returning_value)
+                    builder.create<mlir::affine::AffineYieldOp>(else_results.back()->getLoc(),
+                                                                mlir::ValueRange{else_results.back().value()});
+            }
+            if (returning_value)
+                return affine_if.getResult(0);
+            return {};
+        }
+
+        mlir::Value getArithmeticType(const ast::Expression::OP& op)
+        {
+            if (auto arithmeticOps = std::get_if<std::vector<ast::Expression::OP::ArithmeticType>>(&op.ops))
+            {
+                if (!arithmeticOps->empty())
+                {
+                    auto arithmeticType = (*arithmeticOps)[0]; // Example: using the first element
 
                     mlir::Type arithType;
                     mlir::SmallVector<mlir::Value, 4> operands;
-                    for (auto &expression: op.expressions) {
+                    for (auto& expression : op.expressions)
+                    {
                         auto result = mlirGen(*expression);
-                        if (!result.has_value()) {
+                        if (!result.has_value())
+                        {
                             mlir::emitError(loc(op.get_range()), "Operand did not return value!");
                             return nullptr;
                         }
-                        if (result.value().getType().dyn_cast<mlir::ShapedType>()) {
-                            mlir::emitError(loc(op.get_range()), "Can not use operand of tensor type for arithmetic operation!");
+                        if (result.value().getType().dyn_cast<mlir::ShapedType>())
+                        {
+                            mlir::emitError(loc(op.get_range()),
+                                            "Can not use operand of tensor type for arithmetic operation!");
                             return nullptr;
                         }
                         operands.push_back(result.value());
-                        if (arithType != result.value().getType()) {
+                        if (arithType != result.value().getType())
+                        {
                             //TODO: When casting from int to float check if we need to cast to double
                             if (arithType == nullptr ||
-                                    (arithType.dyn_cast<mlir::IntegerType>()
-                                    && arithType.getIntOrFloatBitWidth() < result.value().getType().getIntOrFloatBitWidth()) ||
-                                    (arithType.dyn_cast<mlir::IntegerType>()
+                                (arithType.dyn_cast<mlir::IntegerType>()
+                                    && arithType.getIntOrFloatBitWidth() < result.value().getType().
+                                    getIntOrFloatBitWidth()) ||
+                                (arithType.dyn_cast<mlir::IntegerType>()
                                     && result.value().getType().dyn_cast<mlir::FloatType>()) ||
-                                    (arithType.dyn_cast<mlir::FloatType>()
-                                    && arithType.getIntOrFloatBitWidth() < result.value().getType().getIntOrFloatBitWidth())) {
+                                (arithType.dyn_cast<mlir::FloatType>()
+                                    && arithType.getIntOrFloatBitWidth() < result.value().getType().
+                                    getIntOrFloatBitWidth()))
+                            {
                                 arithType = result.value().getType();
                             }
                         }
                     }
 
-                    for (auto &operand: operands) {
-                        if (arithType != operand.getType()) {
+                    for (auto& operand : operands)
+                    {
+                        if (arithType != operand.getType())
+                        {
                             operand = genCast(builder, loc(op.get_range()), operand, arithType);
                         }
                     }
                     // TODO: Mach mal fertig morgen!
-                    switch (arithmeticType) {
-                        case ast::Expression::OP::ArithmeticType::ADD:
-                            return builder.create<mlir::arith::AddIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            break;
-                        case ast::Expression::OP::ArithmeticType::SUBTRACT:
-                            mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
-                            return builder.create<mlir::arith::SubIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            break;
-                        case ast::Expression::OP::ArithmeticType::MULTIPLY:
-                            mlir::emitError(loc(op.get_range()),
-                                            "No initializer given to arithmetic operator MULTIPLY!");
-                            return builder.create<mlir::arith::MulIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            break;
-                        case ast::Expression::OP::ArithmeticType::DIVIDE:
-                            return builder.create<mlir::arith::DivSIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
-                            break;
-                        case ast::Expression::OP::ArithmeticType::MODULO:
-                            mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MODULO!");
-                            break;
-                        default:
-                            mlir::emitError(loc(op.get_range()), "Unknown arithmetic operator!");
-                            break;
+                    switch (arithmeticType)
+                    {
+                    case ast::Expression::OP::ArithmeticType::ADD:
+                        return builder.create<mlir::arith::AddIOp>(loc(op.get_range()),
+                                                                   mlirGen(*op.expressions[0]).value(),
+                                                                   mlirGen(*op.expressions[1]).value());
+                        break;
+                    case ast::Expression::OP::ArithmeticType::SUBTRACT:
+                        mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
+                        return builder.create<mlir::arith::SubIOp>(loc(op.get_range()),
+                                                                   mlirGen(*op.expressions[0]).value(),
+                                                                   mlirGen(*op.expressions[1]).value());
+                        break;
+                    case ast::Expression::OP::ArithmeticType::MULTIPLY:
+                        mlir::emitError(loc(op.get_range()),
+                                        "No initializer given to arithmetic operator MULTIPLY!");
+                        return builder.create<mlir::arith::MulIOp>(loc(op.get_range()),
+                                                                   mlirGen(*op.expressions[0]).value(),
+                                                                   mlirGen(*op.expressions[1]).value());
+                        break;
+                    case ast::Expression::OP::ArithmeticType::DIVIDE:
+                        return builder.create<mlir::arith::DivSIOp>(loc(op.get_range()),
+                                                                    mlirGen(*op.expressions[0]).value(),
+                                                                    mlirGen(*op.expressions[1]).value());
+                        mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
+                        break;
+                    case ast::Expression::OP::ArithmeticType::MODULO:
+                        mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MODULO!");
+                        break;
+                    default:
+                        mlir::emitError(loc(op.get_range()), "Unknown arithmetic operator!");
+                        break;
                     }
-                } else {
+                }
+                else
+                {
                     mlir::emitError(loc(op.get_range()), "Arithmetic operator vector is empty!");
                 }
-            } else {
+            }
+            else
+            {
                 mlir::emitError(loc(op.get_range()), "No arithmetic operator found in OP!");
             }
             return nullptr;
@@ -514,7 +618,7 @@ namespace fsharpgrammar::compiler
                                               },
                                               [&](const bool&)
                                               {
-                                                  return builder.getI8Type();
+                                                  return builder.getI1Type();
                                               },
                                           }, value);
         }
@@ -546,7 +650,7 @@ namespace fsharpgrammar::compiler
                                                [&](const bool& b)
                                                {
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getI8IntegerAttr(b));
+                                                       loc(constant.get_range()), type, builder.getIntegerAttr(builder.getI1Type(), b));
                                                },
                                            }, value);
         }
