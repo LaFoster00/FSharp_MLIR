@@ -239,6 +239,9 @@ namespace fsharpgrammar::compiler
                 return mlirGen(std::get<ast::Expression::OP>(expression.expression));
             if (std::holds_alternative<ast::Expression::IfThenElse>(expression.expression))
                 return mlirGen(std::get<ast::Expression::IfThenElse>(expression.expression));
+            // Paren expressions can be skipped since we only care about the inner expression
+            if (std::holds_alternative<ast::Expression::Paren>(expression.expression))
+                return mlirGen(*std::get<ast::Expression::Paren>(expression.expression).expression);
 
             mlir::emitError(loc(expression.get_range()), "Expression not supported!");
         }
