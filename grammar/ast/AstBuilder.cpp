@@ -14,6 +14,7 @@ namespace fsharpgrammar::ast
 {
     std::unique_ptr<Main> AstBuilder::BuildAst(FSharpParser::MainContext* ctx)
     {
+        utils::FunctionTimer timer("BuildAst");
         return std::unique_ptr<Main>(std::any_cast<Main*>(visitMain(ctx)));
     }
 
