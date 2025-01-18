@@ -324,7 +324,7 @@ namespace fsharpgrammar::compiler
         mlir::Value getArithmeticType(const ast::Expression::OP& op) {
             if (auto arithmeticOps = std::get_if<std::vector<ast::Expression::OP::ArithmeticType>>(&op.ops)) {
                 if (!arithmeticOps->empty()) {
-                    auto arithmeticType = (*arithmeticOps)[0];  // Example: using the first element
+                    // auto arithmeticType = (*arithmeticOps)[0];  // Example: using the first element
 
                     mlir::Type arithType;
                     mlir::SmallVector<mlir::Value, 4> operands;
@@ -358,31 +358,35 @@ namespace fsharpgrammar::compiler
                             operand = genCast(builder, loc(op.get_range()), operand, arithType);
                         }
                     }
+                    mlir::Value result = mlirGen(*op.expressions[0]).value();
                     // TODO: Mach mal fertig morgen!
-                    switch (arithmeticType) {
-                        case ast::Expression::OP::ArithmeticType::ADD:
-                            return builder.create<mlir::arith::AddIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            break;
-                        case ast::Expression::OP::ArithmeticType::SUBTRACT:
-                            mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
-                            return builder.create<mlir::arith::SubIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            break;
-                        case ast::Expression::OP::ArithmeticType::MULTIPLY:
-                            mlir::emitError(loc(op.get_range()),
-                                            "No initializer given to arithmetic operator MULTIPLY!");
-                            return builder.create<mlir::arith::MulIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            break;
-                        case ast::Expression::OP::ArithmeticType::DIVIDE:
-                            return builder.create<mlir::arith::DivSIOp>(loc(op.get_range()), mlirGen(*op.expressions[0]).value(), mlirGen(*op.expressions[1]).value());
-                            mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
-                            break;
-                        case ast::Expression::OP::ArithmeticType::MODULO:
-                            mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MODULO!");
-                            break;
-                        default:
-                            mlir::emitError(loc(op.get_range()), "Unknown arithmetic operator!");
-                            break;
+                    for (int i = 1; i < operands.size(); i++) {
+                        switch (arithType) {
+                            case ast::Expression::OP::ArithmeticType::ADD:
+                                result = builder.create<mlir::arith::AddIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());
+                                break;
+                            case ast::Expression::OP::ArithmeticType::SUBTRACT:
+                                mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
+                                return builder.create<mlir::arith::SubIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());
+                                break;
+                            case ast::Expression::OP::ArithmeticType::MULTIPLY:
+                                mlir::emitError(loc(op.get_range()),
+                                                "No initializer given to arithmetic operator MULTIPLY!");
+                                return builder.create<mlir::arith::MulIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());
+                                break;
+                            case ast::Expression::OP::ArithmeticType::DIVIDE:
+                                return builder.create<mlir::arith::DivSIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());;
+                                mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
+                                break;
+                            case ast::Expression::OP::ArithmeticType::MODULO:
+                                mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MODULO!");
+                                break;
+                            default:
+                                mlir::emitError(loc(op.get_range()), "Unknown arithmetic operator!");
+                                break;
+                        }
                     }
+                    return result;
                 } else {
                     mlir::emitError(loc(op.get_range()), "Arithmetic operator vector is empty!");
                 }
@@ -391,7 +395,6 @@ namespace fsharpgrammar::compiler
             }
             return nullptr;
         }
-
 
         mlir::Value mlirGen(const ast::Expression::Constant& constant)
         {
