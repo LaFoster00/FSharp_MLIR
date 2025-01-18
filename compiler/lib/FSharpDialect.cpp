@@ -27,6 +27,13 @@
 #include <llvm/ADT/MapVector.h>
 #include <mlir/IR/IRMapping.h>
 
+#include "../../grammar/ast/ASTNode.h"
+
+namespace fsharpgrammar::ast
+{
+    class Type;
+}
+
 using namespace mlir;
 using namespace mlir::fsharp;
 
@@ -228,18 +235,7 @@ std::string getTypeString(mlir::Type type)
     return rso.str();
 }
 
-mlir::Type getMLIRType(mlir::OpBuilder b, const std::string& type_name)
-{
-    if (type_name == "int")
-        return b.getI32Type();
-    if (type_name == "float")
-        return b.getF32Type();
-    if (type_name == "bool")
-        return b.getI8Type();
-    if (type_name == "string")
-        return mlir::UnrankedTensorType::get(b.getI8Type());
-    assert(false && "Type not supported!");
-}
+
 
 
 //===----------------------------------------------------------------------===//
