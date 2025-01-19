@@ -324,7 +324,6 @@ namespace fsharpgrammar::compiler
         mlir::Value getArithmeticType(const ast::Expression::OP& op) {
             if (auto arithmeticOps = std::get_if<std::vector<ast::Expression::OP::ArithmeticType>>(&op.ops)) {
                 if (!arithmeticOps->empty()) {
-                    // auto arithmeticType = (*arithmeticOps)[0];  // Example: using the first element
 
                     mlir::Type arithType;
                     mlir::SmallVector<mlir::Value, 4> operands;
@@ -358,28 +357,69 @@ namespace fsharpgrammar::compiler
                             operand = genCast(builder, loc(op.get_range()), operand, arithType);
                         }
                     }
-                    mlir::Value result = mlirGen(*op.expressions[0]).value();
-                    // TODO: Mach mal fertig morgen!
+                    mlir::Value result = operands[0];
                     for (int i = 1; i < operands.size(); i++) {
-                        switch (arithType) {
+                        switch ((*arithmeticOps)[i-1]) {
                             case ast::Expression::OP::ArithmeticType::ADD:
-                                result = builder.create<mlir::arith::AddIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());
+                                if (result.getType().isa<mlir::IntegerType>()) {
+                                    result = builder.create<mlir::arith::AddIOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                    result = builder.create<mlir::arith::AddFOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else {
+                                    mlir::emitError(loc(op.get_range()), "Unknown arithmetic type in ADDITION!");
+                                }
+                                // mlir::emitError(loc(op.get_range()),
+                                //                 "No initializer given to arithmetic operator ADDITION!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::SUBTRACT:
-                                mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
-                                return builder.create<mlir::arith::SubIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());
+                                    if (result.getType().isa<mlir::IntegerType>()) {
+                                        result = builder.create<mlir::arith::SubIOp>(
+                                            loc(op.get_range()), result, operands[i]);
+                                    } else if (result.getType().isa<mlir::FloatType>()) {
+                                        result = builder.create<mlir::arith::SubFOp>(
+                                            loc(op.get_range()), result, operands[i]);
+                                    } else {
+                                        mlir::emitError(loc(op.get_range()), "Unknown arithmetic type in SUBTRACT!");
+                                    }
+                                // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::MULTIPLY:
-                                mlir::emitError(loc(op.get_range()),
-                                                "No initializer given to arithmetic operator MULTIPLY!");
-                                return builder.create<mlir::arith::MulIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());
+                                if (result.getType().isa<mlir::IntegerType>()) {
+                                    result = builder.create<mlir::arith::MulIOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                    result = builder.create<mlir::arith::MulFOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else {
+                                    mlir::emitError(loc(op.get_range()), "Unknown arithmetic type in MULTIPLY!");
+                                }
+                                // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MULTIPLY!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::DIVIDE:
-                                return builder.create<mlir::arith::DivSIOp>(loc(op.get_range()), result, mlirGen(*op.expressions[i]).value());;
-                                mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
+                                if (result.getType().isa<mlir::IntegerType>()) {
+                                    result = builder.create<mlir::arith::DivSIOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                    result = builder.create<mlir::arith::DivFOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else {
+                                    mlir::emitError(loc(op.get_range()), "Unknown arithmetic type in DIVIDE!");
+                                }
+                                // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::MODULO:
-                                mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MODULO!");
+                                if (result.getType().isa<mlir::IntegerType>()) {
+                                    result = builder.create<mlir::arith::RemSIOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                    result = builder.create<mlir::arith::RemFOp>(
+                                        loc(op.get_range()), result, operands[i]);
+                                } else {
+                                    mlir::emitError(loc(op.get_range()), "Unknown arithmetic type in MODULO!");
+                                }
+                                // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MODULO!");
                                 break;
                             default:
                                 mlir::emitError(loc(op.get_range()), "Unknown arithmetic operator!");
