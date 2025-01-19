@@ -93,7 +93,7 @@ TEST(AritTest, BasicAssertion)
 {
     GENERATE_AND_DUMP_MLIR(
         R"(
-let a = 1 + 2
+let a = 1 + 2 + 3 - 3
 print a
 )"
     );
