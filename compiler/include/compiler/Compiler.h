@@ -19,7 +19,8 @@ enum class Action
     DumpMLIRAffine,
     DumpMLIRLLVM,
     DumpLLVMIR,
-    RunJIT
+    RunJIT,
+    EmitExecutable
 };
 
 namespace fsharp::compiler
@@ -28,7 +29,7 @@ namespace fsharp::compiler
     {
     public:
         static int compileProgram(InputType inputType, std::string_view inputFilename, Action emitAction,
-                                  bool runOptimizations);
+                                  bool runOptimizations, std::optional<std::string> executableOutputPath = std::nullopt);
 
     private:
         static inline InputType inputType = InputType::FSharp;
@@ -46,5 +47,6 @@ namespace fsharp::compiler
         static int dumpAST();
         static int dumpLLVMIR(mlir::ModuleOp module);
         static int runJit(mlir::ModuleOp module);
+        static int emitExecutable(mlir::ModuleOp module, const std::string& outputFilePath, bool writeNewDbgInfoFormat=true);
     };
 }

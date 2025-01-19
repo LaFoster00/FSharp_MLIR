@@ -33,6 +33,7 @@ namespace fsharpgrammar
 
     void lex_source(const bool print_lexer_output, antlr4::CommonTokenStream& tokens)
     {
+        utils::FunctionTimer timer("lex_source");
         tokens.fill();
         if (print_lexer_output)
         {
@@ -50,6 +51,7 @@ namespace fsharpgrammar
 
     antlr4::tree::ParseTree* parse_source(const bool print_parser_output, FSharpParser& parser)
     {
+        utils::FunctionTimer timer("parse_source");
         FSharpErrorListener error_listener;
         parser.removeErrorListeners();
         parser.addErrorListener(&error_listener);

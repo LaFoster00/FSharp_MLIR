@@ -10,6 +10,7 @@ add_subdirectory(lib)
 add_library(FSharpCompiler STATIC
         mlir/Compiler.cpp
         mlir/ASTToMLIR.cpp
+        mlir/LowerToFunc.cpp
         mlir/LowerToLLVM.cpp
 )
 

@@ -35,7 +35,7 @@ IF          : 'if';
 THEN        : 'then';
 ELIF        : 'elif';
 ELSE        : 'else';
-BOOL        : 'True' | 'False';
+BOOL        : 'true' | 'false';
 FOR         : 'for';
 IN          : 'in';
 TO          : 'to';

@@ -10,6 +10,7 @@
 #include <ast/Range.h>
 #include <mlir/InitAllDialects.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
+#include <mlir/Rewrite/FrozenRewritePatternSet.h>
 
 #include "Grammar.h"
 
@@ -32,6 +33,8 @@
 #include "llvm/ADT/Twine.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
+#include "mlir/IR/IntegerSet.h"
+
 #include "boost/algorithm/string.hpp"
 
 namespace fsharpgrammar::compiler
@@ -144,7 +147,7 @@ namespace fsharpgrammar::compiler
             mlir::FunctionType funcType = builder.getFunctionType({}, {});
 
             // Create the function
-            auto func = builder.create<mlir::func::FuncOp>(fileModule.getLoc(), "entrypoint", funcType);
+            auto func = builder.create<mlir::func::FuncOp>(fileModule.getLoc(), "main", funcType);
 
             // Add a basic block to the function
             mlir::Block& entryBlock = *func.addEntryBlock();
@@ -224,6 +227,11 @@ namespace fsharpgrammar::compiler
                 return mlirGen(std::get<ast::Expression::Ident>(expression.expression));
             if (std::holds_alternative<ast::Expression::OP>(expression.expression))
                 return mlirGen(std::get<ast::Expression::OP>(expression.expression));
+            if (std::holds_alternative<ast::Expression::IfThenElse>(expression.expression))
+                return mlirGen(std::get<ast::Expression::IfThenElse>(expression.expression));
+            // Paren expressions can be skipped since we only care about the inner expression
+            if (std::holds_alternative<ast::Expression::Paren>(expression.expression))
+                return mlirGen(*std::get<ast::Expression::Paren>(expression.expression).expression);
 
             mlir::emitError(loc(expression.get_range()), "Expression not supported!");
         }
@@ -297,28 +305,181 @@ namespace fsharpgrammar::compiler
             return llvm::success();
         }
 
-        mlir::Value mlirGen(const ast::Expression::OP& op) {
-            switch (op.type) {
-                    case ast::Expression::OP::Type::LOGICAL:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::LOGICAL!");
-                        break;
-                        // return getLogicalType(std::get<0>(op));
-                    case ast::Expression::OP::Type::EQUALITY:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::EQUALITY!");
-                        break;
-                        // return getEqualityType(std::get<1>(operators));
-                    case ast::Expression::OP::Type::RELATION:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::RELATION!");
-                        break;
-                        // return getRelationType(std::get<2>(operators));
-                    case ast::Expression::OP::Type::ARITHMETIC:
-                        // mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::ARITHMETIC!");
-                        return getArithmeticType(op);
-                    default:
-                        mlir::emitError(loc(op.get_range()), "No initializer given to op.type!");
-                        break;
+        mlir::Value mlirGen(const ast::Expression::OP& op)
+        {
+            switch (op.type)
+            {
+            case ast::Expression::OP::Type::LOGICAL:
+                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::LOGICAL!");
+                break;
+            // return getLogicalType(std::get<0>(op));
+            case ast::Expression::OP::Type::EQUALITY:
+                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::EQUALITY!");
+                break;
+            // return getEqualityType(std::get<1>(operators));
+            case ast::Expression::OP::Type::RELATION:
+                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::RELATION!");
+                break;
+            // return getRelationType(std::get<2>(operators));
+            case ast::Expression::OP::Type::ARITHMETIC:
+                // mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::ARITHMETIC!");
+                return getArithmeticType(op);
+            default:
+                mlir::emitError(loc(op.get_range()), "No initializer given to op.type!");
+                break;
+            }
+            return nullptr;
+        }
+
+        static bool isAffineContext(mlir::Block* block)
+        {
+            // Traverse up the parent operations to check for an affine context.
+            for (mlir::Operation* op = block->getParentOp(); op != nullptr; op = op->getParentOp())
+            {
+                // Check if the operation is an affine construct.
+                if (llvm::isa<mlir::affine::AffineForOp>(op) || llvm::isa<mlir::affine::AffineIfOp>(op))
+                {
+                    return true; // Found an affine context.
                 }
+            }
+            return false; // No affine context found.
+        }
+
+        // Returns true if the branch returns a value
+        static bool ProcessThenBranch(mlir::OpBuilder& builder, const ast::Expression::IfThenElse& if_then_else,
+                                      bool is_affine_context, MLIRGenImpl& mlirGen)
+        {
+            mlir::SmallVector<std::optional<mlir::Value>, 4> then_results;
+            for (auto& then_expr : if_then_else.then)
+            {
+                then_results.emplace_back(mlirGen.mlirGen(*then_expr));
+            }
+
+            bool returning_value = then_results.back().has_value();
+            if (returning_value || !is_affine_context)
+            {
+                if (is_affine_context)
+                    builder.create<mlir::affine::AffineYieldOp>(then_results.back()->getLoc(),
+                                                                mlir::ValueRange{then_results.back().value()});
+                else
+                    builder.create<mlir::scf::YieldOp>(
+                        returning_value
+                            ? then_results.back()->getLoc()
+                            : mlirGen.loc(if_then_else),
+                        returning_value
+                            ? mlir::ValueRange{then_results.back().value()}
+                            : mlir::ValueRange{});
+            }
+            return returning_value;
+        }
+
+        // Returns false on failure
+        static llvm::LogicalResult ProcessElseBranch(mlir::OpBuilder& builder,
+                                                     const ast::Expression::IfThenElse& if_then_else,
+                                                     bool returning_value,
+                                                     bool is_affine_context,
+                                                     MLIRGenImpl& mlirGen)
+        {
+            mlir::SmallVector<std::optional<mlir::Value>, 4> else_results;
+            for (auto& else_expr : if_then_else.else_expr.value())
+            {
+                else_results.emplace_back(mlirGen.mlirGen(*else_expr));
+            }
+            // If the last statement in the else block returns a value we need to yield it in case it is used as a return value
+            // e.g let a = if true then 1 else 2
+            // Check if this branch is actually returning a value. If not we need to throw an error
+            if (returning_value && (else_results.empty() || !else_results.back().has_value()))
+            {
+                mlir::emitError(mlirGen.loc(if_then_else),
+                                "Either both branches or none of the branches must return a value!");
+                return llvm::failure();
+            }
+
+            if (returning_value || !is_affine_context)
+                if (is_affine_context)
+                    builder.create<mlir::affine::AffineYieldOp>(else_results.back()->getLoc(),
+                                                                mlir::ValueRange{else_results.back().value()});
+                else
+                    builder.create<mlir::scf::YieldOp>(returning_value
+                                                           ? else_results.back()->getLoc()
+                                                           : mlirGen.loc(if_then_else),
+                                                       returning_value
+                                                           ? mlir::ValueRange{else_results.back().value()}
+                                                           : mlir::ValueRange{});
+            return llvm::success();
+        }
+
+        std::optional<mlir::Value> mlirGen(const ast::Expression::IfThenElse& if_then_else)
+        {
+            // Create a scope in the symbol table to hold variable declarations.
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+
+            auto condition = mlirGen(*if_then_else.condition);
+            if (!condition.has_value())
+            {
+                mlir::emitError(loc(if_then_else), "Condition did not return value!");
                 return nullptr;
+            }
+            if (condition->getType() != builder.getI1Type())
+            {
+                mlir::emitError(loc(if_then_else), "Condition does not evaluate to a boolean value!");
+                return nullptr;
+            }
+
+            const bool is_affine_context = isAffineContext(builder.getBlock());
+
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            if (is_affine_context)
+            {
+                auto affine_if = builder.create<mlir::affine::AffineIfOp>(loc(if_then_else),
+                                                                          mlir::IntegerSet::getEmptySet(
+                                                                              0, 0, builder.getContext()),
+                                                                          // TODO implement the correct logic for this
+                                                                          mlir::ValueRange{condition.value()},
+                                                                          if_then_else.else_expr.has_value());
+
+
+                builder.setInsertionPointToStart(affine_if.getThenBlock());
+                const bool returning_value = ProcessThenBranch(builder, if_then_else, true, *this);
+
+                if (if_then_else.else_expr.has_value())
+                {
+                    builder.setInsertionPointToStart(affine_if.getElseBlock());
+                    if (llvm::failed(ProcessElseBranch(builder, if_then_else, returning_value, true, *this)))
+                        return nullptr;
+                }
+
+                if (returning_value)
+                {
+                    return affine_if.getResult(0);
+                }
+                return {};
+            }
+            else
+            {
+                bool returning_value;
+                llvm::LogicalResult else_result = llvm::success();
+                auto scf_if = builder.create<mlir::scf::IfOp>(
+                    loc(if_then_else),
+                    condition.value(),
+                    // Then builder with inferred return type
+                    [&](mlir::OpBuilder& builder, mlir::Location loc)
+                    {
+                        returning_value = ProcessThenBranch(builder, if_then_else, false, *this);
+                    },
+                    [&](mlir::OpBuilder& builder, mlir::Location loc)
+                    {
+                        else_result = ProcessElseBranch(builder, if_then_else, returning_value, false, *this);
+                    }
+                );
+                // Check if the construction worked as expected
+                if (llvm::failed(else_result))
+                    return nullptr;
+
+                if (returning_value)
+                    return scf_if.getResult(0);
+                return {};
+            }
         }
 
         mlir::Value getArithmeticType(const ast::Expression::OP& op) {
@@ -426,7 +587,6 @@ namespace fsharpgrammar::compiler
                                 break;
                         }
                     }
-                    return result;
                 } else {
                     mlir::emitError(loc(op.get_range()), "Arithmetic operator vector is empty!");
                 }
@@ -557,7 +717,7 @@ namespace fsharpgrammar::compiler
                                               },
                                               [&](const bool&)
                                               {
-                                                  return builder.getI8Type();
+                                                  return builder.getI1Type();
                                               },
                                           }, value);
         }
@@ -589,7 +749,8 @@ namespace fsharpgrammar::compiler
                                                [&](const bool& b)
                                                {
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getI8IntegerAttr(b));
+                                                       loc(constant.get_range()), type,
+                                                       builder.getIntegerAttr(builder.getI1Type(), b));
                                                },
                                            }, value);
         }
@@ -610,11 +771,13 @@ namespace fsharpgrammar::compiler
         context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
         context.getOrLoadDialect<mlir::func::FuncDialect>();
         context.getOrLoadDialect<mlir::bufferization::BufferizationDialect>();
+        context.getOrLoadDialect<mlir::scf::SCFDialect>();
 
         mlir::DialectRegistry registry;
         mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
         mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
         mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(registry);
+        mlir::scf::registerBufferizableOpInterfaceExternalModels(registry);
         context.appendDialectRegistry(registry);
 
         context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
