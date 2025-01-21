@@ -39,7 +39,7 @@
 
 namespace fsharpgrammar::compiler
 {
-    mlir::Value convertTensorToDType(mlir::OpBuilder& b, mlir::Location loc, mlir::Value value, mlir::Type toType)
+    mlir::Value convertTensorToDType(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value, mlir::Type toType)
     {
         if (!mlir::tensor::CastOp::areCastCompatible(value.getType(), toType))
         {
@@ -48,7 +48,7 @@ namespace fsharpgrammar::compiler
             return value;
         }
 
-        return b.create<mlir::tensor::CastOp>(loc, toType, value);
+        return builder.create<mlir::tensor::CastOp>(loc, toType, value);
     }
 
     mlir::Value genCast(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value,
@@ -133,6 +133,74 @@ namespace fsharpgrammar::compiler
                 return mlir::failure();
             symbolTable.insert(var, value);
             return mlir::success();
+        }
+
+        mlir::Type getMLIRType(const std::string& type_name)
+        {
+            if (type_name == "int")
+                return builder.getI32Type();
+            if (type_name == "float")
+                return builder.getF32Type();
+            if (type_name == "bool")
+                return builder.getI8Type();
+            if (type_name == "string")
+                return mlir::UnrankedTensorType::get(builder.getI8Type());
+            assert(false && "Type not supported!");
+        }
+
+        mlir::Type getMLIRType(const fsharpgrammar::ast::Type& type)
+        {
+            std::visit<mlir::Type>(
+                utils::overloaded{
+                    [&](const fsharpgrammar::ast::Type::Fun& t)
+                    {
+                        mlir::emitError(loc(t), "Parameters with function types not supported!");
+                        return builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::Tuple& t)
+                    {
+                        mlir::emitError(loc(t), "Tuples not supported!");
+                        builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::Postfix& t)
+                    {
+                        mlir::emitError(loc(t), "Postfix types not supported!");
+                        builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::Array& t)
+                    {
+                        mlir::emitError(loc(t), "Arrays not supported!");
+                        builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::Paren& t)
+                    {
+                        return getMLIRType(*t.type);
+                    },
+                    [&](const fsharpgrammar::ast::Type::Var& t)
+                    {
+                        return getMLIRType(t.ident->ident);
+                    },
+                    [&](const fsharpgrammar::ast::Type::LongIdent& t)
+                    {
+                        mlir::emitError(loc(t), "Namespace- and module-types not supported!");
+                        builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::Anon& t)
+                    {
+                        mlir::emitError(loc(t), "Anonymous types not supported!");
+                        builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::StaticConstant& t)
+                    {
+                        mlir::emitError(loc(t), "Static constants not supported!");
+                        builder.getNoneType();
+                    },
+                    [&](const fsharpgrammar::ast::Type::StaticNull& t)
+                    {
+                        mlir::emitError(loc(t), "Static null not supported!");
+                        builder.getNoneType();
+                    }
+                }, type.type);
         }
 
     private:
@@ -222,7 +290,16 @@ namespace fsharpgrammar::compiler
             if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
                 return mlirGen(std::get<ast::Expression::Constant>(expression.expression));
             if (std::holds_alternative<ast::Expression::Let>(expression.expression))
-                return mlirGen(std::get<ast::Expression::Let>(expression.expression));
+            {
+                auto result = mlirGen(std::get<ast::Expression::Let>(expression.expression));
+                // If the function definition was not successful return the invalid state nullptr
+                if (std::holds_alternative<llvm::LogicalResult>(result))
+                    return llvm::succeeded(std::get<llvm::LogicalResult>(result))
+                               ? std::optional<mlir::Value>{}
+                               : mlir::Value(nullptr);
+                else
+                    return std::get<mlir::Value>(result);
+            }
             if (std::holds_alternative<ast::Expression::Ident>(expression.expression))
                 return mlirGen(std::get<ast::Expression::Ident>(expression.expression));
             if (std::holds_alternative<ast::Expression::OP>(expression.expression))
@@ -280,9 +357,9 @@ namespace fsharpgrammar::compiler
             }
             else
             {
-                return mlirGen(*append.expressions.front()).value();
+                mlir::emitError(loc(append.get_range()), "Append not supported for anything but function invocations!");
+                return mlir::Value(nullptr);
             }
-            return mlir::Value(nullptr);
         }
 
         mlir::Value declareFunctionCall(const ast::Expression::Append& append, const std::string& func_name)
@@ -627,6 +704,93 @@ namespace fsharpgrammar::compiler
             }
         }
 
+        // We can get the name like this since a function must always have a name that only consists of one identifier
+        const std::string& getFuncName(const ast::Pattern::Typed& typed_pattern)
+        {
+            auto& idents = std::get<ast::Pattern::LongIdent>(typed_pattern.pattern->pattern).ident;
+            if (idents->idents.size() > 1)
+                mlir::emitError(loc(typed_pattern), "Function names do not allow for nested identifiers!");
+            return idents->idents.front()->ident;
+        }
+
+        // We can get the name like this since a function must always have a name that only consists of one identifier
+        const std::string& getFuncName(const ast::Pattern::LongIdent& typed_pattern)
+        {
+            auto& idents = typed_pattern.ident;
+            if (idents->idents.size() > 1)
+                mlir::emitError(loc(typed_pattern), "Function names do not allow for nested identifiers!");
+            return idents->idents.front()->ident;
+        }
+
+        std::tuple<mlir::StringRef, mlir::Type> getFunctionArg(const ast::Pattern& pattern)
+        {
+            if (std::holds_alternative<ast::Pattern::Paren>(pattern.pattern))
+                return getFunctionArg(*std::get<ast::Pattern::Paren>(pattern.pattern).pattern);
+            if (std::holds_alternative<ast::Pattern::Typed>(pattern.pattern))
+            {
+                auto& typed = std::get<ast::Pattern::Typed>(pattern.pattern);
+                if (!std::holds_alternative<ast::Pattern::Named>(typed.pattern->pattern))
+                {
+                    mlir::emitError(loc(pattern), "Invalid function arg name. Only non nested names allowed!");
+                    return {"", nullptr};
+                }
+                return {std::get<ast::Pattern::Named>(typed.pattern->pattern).ident->ident, getMLIRType(*typed.type)};
+            }
+            if (std::holds_alternative<ast::Pattern::Named>(pattern.pattern))
+                return {std::get<ast::Pattern::Named>(pattern.pattern).ident->ident, builder.getNoneType()};
+
+            mlir::emitError(loc(pattern), "Invalid function arg pattern.");
+            return {"", nullptr};
+        }
+
+        mlir::SmallVector<std::tuple<mlir::StringRef, mlir::Type>, 4> getFunctionSignature(const ast::Pattern& pattern)
+        {
+            // If we are looking at a long ident pattern we only want to look at the patterns following the identifier
+            if (std::holds_alternative<ast::Pattern::LongIdent>(pattern.pattern))
+            {
+                auto& long_ident = std::get<ast::Pattern::LongIdent>(pattern.pattern);
+                mlir::SmallVector<std::tuple<mlir::StringRef, mlir::Type>, 4> arg_types;
+                for (auto p : long_ident.patterns)
+                {
+                    arg_types.push_back(getFunctionArg(*p));
+                }
+                return arg_types;
+            }
+            // If we are looking at a typed pattern for the function definition we only want to look at the enclosed pattern
+            if (std::holds_alternative<ast::Pattern::Typed>(pattern.pattern))
+            {
+                return getFunctionSignature(*std::get<ast::Pattern::Typed>(pattern.pattern).pattern);
+            }
+
+            mlir::emitError(loc(pattern), "Invalid function definition pattern.");
+            return {};
+        }
+
+        llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
+        {
+            // Create a scope in the symbol table to hold variable declarations.
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
+
+            mlir::StringRef func_name;
+            mlir::Type return_type = mlir::NoneType::get(builder.getContext());
+            // If the return-type of the function is specified we should save the return-type for later
+            if (std::holds_alternative<ast::Pattern::Typed>(let.args->pattern))
+            {
+                auto& typed_pattern = std::get<ast::Pattern::Typed>(let.args->pattern);
+                func_name = getFuncName(typed_pattern);
+                return_type = getMLIRType(*typed_pattern.type);
+            }
+            else
+            {
+                auto& long_ident = std::get<ast::Pattern::LongIdent>(let.args->pattern);
+                func_name = getFuncName(long_ident);
+            }
+
+
+            llvm::SmallVector<mlir::Type, 4> arg_types;
+            llvm::SmallVector<mlir::StringRef, 4> arg_names;
+        }
+
 
         mlir::Value generateVariable(const ast::Expression::Let& let)
         {
@@ -648,7 +812,7 @@ namespace fsharpgrammar::compiler
 
             if (type.get() != "")
             {
-                genCast(builder, loc(let.get_range()), value, getMLIRType(builder, type));
+                genCast(builder, loc(let.get_range()), value, getMLIRType(type));
             }
 
 
@@ -657,12 +821,17 @@ namespace fsharpgrammar::compiler
             return value;
         }
 
-        mlir::Value mlirGen(const ast::Expression::Let& let)
+        // Value is returned if the let expression defines a variable, LogicalResult is returned if it defines a function
+        std::variant<mlir::Value, llvm::LogicalResult> mlirGen(const ast::Expression::Let& let)
         {
             // Check if this is a function definition
-            if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern))
+            if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern) ||
+                // If the pattern is a typed pattern, for it to be a function definition the enclosed pattern must be a long ident
+                (std::holds_alternative<ast::Pattern::Typed>(let.args->pattern) &&
+                    std::holds_alternative<ast::LongIdent>(
+                        std::get<ast::Pattern::Typed>(let.args->pattern).pattern->pattern)))
             {
-                mlir::emitError(loc(let.get_range()), "Function definitions not supported!");
+                return declareFunction(let);
             }
             return generateVariable(let);
         }
