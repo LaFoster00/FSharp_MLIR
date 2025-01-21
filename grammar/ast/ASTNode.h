@@ -182,7 +182,7 @@ namespace fsharpgrammar::ast
     public:
         using Type = std::variant<
             int32_t,
-            float_t,
+            double_t,
             std::string,
             bool>;
 

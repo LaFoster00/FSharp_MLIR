@@ -963,9 +963,9 @@ namespace fsharpgrammar::compiler
                                               {
                                                   return builder.getI32Type();
                                               },
-                                              [&](const float_t&)
+                                              [&](const double_t&)
                                               {
-                                                  return builder.getF32Type();
+                                                  return builder.getF64Type();
                                               },
                                               [&](const std::string& s)
                                               {
@@ -989,10 +989,10 @@ namespace fsharpgrammar::compiler
                                                    return builder.create<mlir::arith::ConstantOp>(
                                                        loc(constant.get_range()), type, builder.getI32IntegerAttr(i));
                                                },
-                                               [&](const float_t& f)
+                                               [&](const double_t& f)
                                                {
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getF32FloatAttr(f));
+                                                       loc(constant.get_range()), type, builder.getF64FloatAttr(f));
                                                },
                                                [&](const std::string& s)
                                                {

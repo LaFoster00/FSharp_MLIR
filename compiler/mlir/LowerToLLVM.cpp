@@ -202,21 +202,8 @@ namespace
                     }
                     else if (mlir::isa<mlir::FloatType>(type))
                     {
-                        auto floatType = mlir::cast<mlir::FloatType>(type);
-                        if (floatType.getWidth() < 64)
-                        {
-                            // Promote float (f32) to double (f64).
-                            auto promoted = rewriter.create<mlir::arith::ExtFOp>(
-                                loc, mlir::FloatType::getF64(context), operand);
-                            updated_operands.push_back(promoted);
-                            continue;
-                        }
-                        else if (floatType.getWidth() == 64)
-                        {
-                            // f64 remains unchanged.
-                            updated_operands.push_back(operand);
-                            continue;
-                        }
+                        updated_operands.push_back(operand);
+                        continue;
                     }
                     else if (mlir::isa<mlir::IndexType>(type))
                     {
