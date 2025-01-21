@@ -125,6 +125,16 @@ namespace fsharpgrammar::compiler
                 range.start_column());
         }
 
+        mlir::Location loc(const ast::IASTNode& node)
+        {
+            return loc(node.get_range());
+        }
+
+        mlir::Location loc(const ast::INodeAlternative& node_alternative)
+        {
+            return loc(node_alternative.get_range());
+        }
+
         /// Declare a variable in the current scope, return success if the variable
         /// wasn't declared yet.
         llvm::LogicalResult declare(const llvm::StringRef var, mlir::Value value)
