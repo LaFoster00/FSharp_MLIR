@@ -27,8 +27,6 @@
 #include <llvm/ADT/MapVector.h>
 #include <mlir/IR/IRMapping.h>
 
-#include "../../grammar/ast/ASTNode.h"
-
 namespace fsharpgrammar::ast
 {
     class Type;
