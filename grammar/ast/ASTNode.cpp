@@ -169,7 +169,7 @@ namespace fsharpgrammar::ast
         {
             auto value = std::visit(utils::overloaded{
                                         [](const int32_t i) { return std::to_string(i); },
-                                        [](const float_t f) { return std::to_string(f); },
+                                        [](const double_t f) { return std::to_string(f); },
                                         [](const std::string& s) { return s; },
                                         [](const bool b) { return std::to_string(b); },
                                     }, constant.value.value());

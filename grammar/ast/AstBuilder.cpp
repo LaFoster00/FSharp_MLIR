@@ -916,7 +916,7 @@ namespace fsharpgrammar::ast
         if (context->INTEGER())
             return make_ast<Constant>(std::stoi(context->INTEGER()->getText()), Range::create(context));
         if (context->FLOAT_NUMBER())
-            return make_ast<Constant>(std::stof(context->FLOAT_NUMBER()->getText()), Range::create(context));
+            return make_ast<Constant>(std::stod(context->FLOAT_NUMBER()->getText()), Range::create(context));
         if (context->STRING())
             return make_ast<Constant>(escapeSpecialCharacters(context->STRING()->getText()), Range::create(context));
         if (context->CHARACTER())

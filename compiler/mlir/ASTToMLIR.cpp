@@ -160,7 +160,7 @@ namespace fsharpgrammar::compiler
 
         mlir::Type getMLIRType(const fsharpgrammar::ast::Type& type)
         {
-            std::visit<mlir::Type>(
+            return std::visit<mlir::Type>(
                 utils::overloaded{
                     [&](const fsharpgrammar::ast::Type::Fun& t)
                     {
@@ -170,17 +170,17 @@ namespace fsharpgrammar::compiler
                     [&](const fsharpgrammar::ast::Type::Tuple& t)
                     {
                         mlir::emitError(loc(t), "Tuples not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Postfix& t)
                     {
                         mlir::emitError(loc(t), "Postfix types not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Array& t)
                     {
                         mlir::emitError(loc(t), "Arrays not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Paren& t)
                     {
@@ -193,24 +193,51 @@ namespace fsharpgrammar::compiler
                     [&](const fsharpgrammar::ast::Type::LongIdent& t)
                     {
                         mlir::emitError(loc(t), "Namespace- and module-types not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Anon& t)
                     {
                         mlir::emitError(loc(t), "Anonymous types not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::StaticConstant& t)
                     {
                         mlir::emitError(loc(t), "Static constants not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::StaticNull& t)
                     {
                         mlir::emitError(loc(t), "Static null not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     }
                 }, type.type);
+        }
+
+        mlir::Type getSmallestCommonType(mlir::ArrayRef<mlir::Value> values)
+        {
+            mlir::Type smallest_type = nullptr;
+            for (auto value : values)
+            {
+                // If the value is of type None, and no type was found yet, set the smallest type to i32
+                if (mlir::isa<mlir::NoneType>(value.getType()) && smallest_type == nullptr)
+                {
+                    smallest_type = builder.getI32Type();
+                    continue;
+                }
+                // Check if we need to upcast the results to a larger type
+                if (smallest_type == nullptr ||
+                    (smallest_type.dyn_cast<mlir::IntegerType>()
+                        && smallest_type.getIntOrFloatBitWidth() < value.getType().getIntOrFloatBitWidth()) ||
+                    (smallest_type.dyn_cast<mlir::IntegerType>()
+                        && smallest_type.dyn_cast<mlir::FloatType>())
+                    ||
+                    (smallest_type.dyn_cast<mlir::FloatType>()
+                        && smallest_type.getIntOrFloatBitWidth() < value.getType().getIntOrFloatBitWidth()))
+                {
+                    smallest_type = value.getType();
+                }
+            }
+            return smallest_type;
         }
 
     private:
@@ -286,6 +313,21 @@ namespace fsharpgrammar::compiler
         std::optional<mlir::Value> mlirGen(const ast::ModuleDeclaration::Expression& expression)
         {
             return mlirGen(*expression.expression);
+        }
+
+        std::optional<mlir::Value> mlirGen(const std::vector<ast::ast_ptr<ast::Expression>>& expressions)
+        {
+            std::optional<mlir::Value> value{};
+            for (auto& expression : expressions)
+            {
+                value = mlirGen(*expression);
+                if (!value.has_value())
+                    continue;
+
+                if (value.value() == nullptr)
+                    return nullptr;
+            }
+            return value;
         }
 
         std::optional<mlir::Value> mlirGen(const ast::Expression& expression)
@@ -755,18 +797,22 @@ namespace fsharpgrammar::compiler
             return {"", nullptr};
         }
 
-        mlir::SmallVector<std::tuple<mlir::StringRef, mlir::Type>, 4> getFunctionSignature(const ast::Pattern& pattern)
+        std::tuple<mlir::SmallVector<mlir::StringRef, 4>, mlir::SmallVector<mlir::Type, 4>> getFunctionSignature(
+            const ast::Pattern& pattern)
         {
             // If we are looking at a long ident pattern we only want to look at the patterns following the identifier
             if (std::holds_alternative<ast::Pattern::LongIdent>(pattern.pattern))
             {
                 auto& long_ident = std::get<ast::Pattern::LongIdent>(pattern.pattern);
-                mlir::SmallVector<std::tuple<mlir::StringRef, mlir::Type>, 4> arg_types;
-                for (auto p : long_ident.patterns)
+                mlir::SmallVector<mlir::StringRef, 4> arg_names;
+                mlir::SmallVector<mlir::Type, 4> arg_types;
+                for (auto& p : long_ident.patterns)
                 {
-                    arg_types.push_back(getFunctionArg(*p));
+                    auto [name, type] = getFunctionArg(*p);
+                    arg_names.push_back(name);
+                    arg_types.push_back(type);
                 }
-                return arg_types;
+                return {arg_names, arg_types};
             }
             // If we are looking at a typed pattern for the function definition we only want to look at the enclosed pattern
             if (std::holds_alternative<ast::Pattern::Typed>(pattern.pattern))
@@ -778,11 +824,8 @@ namespace fsharpgrammar::compiler
             return {};
         }
 
-        llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
+        mlir::func::FuncOp getFuncProto(const ast::Expression::Let& let)
         {
-            // Create a scope in the symbol table to hold variable declarations.
-            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
-
             mlir::StringRef func_name;
             mlir::Type return_type = mlir::NoneType::get(builder.getContext());
             // If the return-type of the function is specified we should save the return-type for later
@@ -792,15 +835,66 @@ namespace fsharpgrammar::compiler
                 func_name = getFuncName(typed_pattern);
                 return_type = getMLIRType(*typed_pattern.type);
             }
-            else
+            else if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern))
             {
                 auto& long_ident = std::get<ast::Pattern::LongIdent>(let.args->pattern);
                 func_name = getFuncName(long_ident);
             }
+            else
+            {
+                mlir::emitError(loc(let), "Invalid function definition pattern.");
+                return nullptr;
+            }
+
+            auto [sig_names, sig_types] = getFunctionSignature(*let.args);
+
+            auto funcType = builder.getFunctionType(sig_types, return_type);
+            auto function = builder.create<mlir::func::FuncOp>(loc(let), func_name, funcType);
+            if (!function)
+                return nullptr;
+
+            mlir::Block& entryBlock = *function.addEntryBlock();
+
+            // Declare all the function arguments in the symbol table.
+            for (const auto nameValue :
+                 llvm::zip(sig_names, entryBlock.getArguments()))
+            {
+                if (failed(declare(std::get<0>(nameValue),
+                                   std::get<1>(nameValue))))
+                    return nullptr;
+            }
+
+            return function;
+        }
+
+        llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
+        {
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPointToStart(fileModule.getBody());
+            // Create a scope in the symbol table to hold variable declarations.
+            llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
 
 
-            llvm::SmallVector<mlir::Type, 4> arg_types;
-            llvm::SmallVector<mlir::StringRef, 4> arg_names;
+            mlir::func::FuncOp function = getFuncProto(let);
+            if (!function)
+                return llvm::failure();
+
+            mlir::Block& entry_block = function.front();
+
+            // Set the insertion point in the builder to the beginning of the function
+            // body, it will be used throughout the codegen to create operations in this
+            // function.
+            builder.setInsertionPointToStart(&entry_block);
+
+            // Emit the body of the function.
+            auto body_result = mlirGen(let.expressions);
+            if (body_result.has_value() && body_result.value() == nullptr)
+            {
+                return llvm::failure();
+            }
+
+
+            return llvm::success();
         }
 
 
@@ -840,7 +934,7 @@ namespace fsharpgrammar::compiler
             if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern) ||
                 // If the pattern is a typed pattern, for it to be a function definition the enclosed pattern must be a long ident
                 (std::holds_alternative<ast::Pattern::Typed>(let.args->pattern) &&
-                    std::holds_alternative<ast::LongIdent>(
+                    std::holds_alternative<ast::Pattern::LongIdent>(
                         std::get<ast::Pattern::Typed>(let.args->pattern).pattern->pattern)))
             {
                 return declareFunction(let);
@@ -887,9 +981,9 @@ namespace fsharpgrammar::compiler
                                               {
                                                   return builder.getI32Type();
                                               },
-                                              [&](const float_t&)
+                                              [&](const double_t&)
                                               {
-                                                  return builder.getF32Type();
+                                                  return builder.getF64Type();
                                               },
                                               [&](const std::string& s)
                                               {
@@ -913,10 +1007,10 @@ namespace fsharpgrammar::compiler
                                                    return builder.create<mlir::arith::ConstantOp>(
                                                        loc(constant.get_range()), type, builder.getI32IntegerAttr(i));
                                                },
-                                               [&](const float_t& f)
+                                               [&](const double_t& f)
                                                {
                                                    return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getF32FloatAttr(f));
+                                                       loc(constant.get_range()), type, builder.getF64FloatAttr(f));
                                                },
                                                [&](const std::string& s)
                                                {
