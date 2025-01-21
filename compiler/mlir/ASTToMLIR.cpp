@@ -508,6 +508,7 @@ namespace fsharpgrammar::compiler
                             mlir::emitError(loc(op.get_range()), "Can not use operand of tensor type for arithmetic operation!");
                             return nullptr;
                         }
+                        //TODO: if mlir::NoneType dann int!
                         operands.push_back(result.value());
                         if (arithType != result.value().getType()) {
                             //TODO: When casting from int to float check if we need to cast to double
@@ -532,10 +533,10 @@ namespace fsharpgrammar::compiler
                     for (int i = 1; i < operands.size(); i++) {
                         switch ((*arithmeticOps)[i-1]) {
                             case ast::Expression::OP::ArithmeticType::ADD:
-                                if (result.getType().isa<mlir::IntegerType>()) {
+                                if (arithType.dyn_cast<mlir::IntegerType>()) {
                                     result = builder.create<mlir::arith::AddIOp>(
                                         loc(op.get_range()), result, operands[i]);
-                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                } else if (arithType.dyn_cast<mlir::FloatType>()) {
                                     result = builder.create<mlir::arith::AddFOp>(
                                         loc(op.get_range()), result, operands[i]);
                                 } else {
@@ -545,10 +546,10 @@ namespace fsharpgrammar::compiler
                                 //                 "No initializer given to arithmetic operator ADDITION!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::SUBTRACT:
-                                    if (result.getType().isa<mlir::IntegerType>()) {
+                                    if (arithType.dyn_cast<mlir::IntegerType>()) {
                                         result = builder.create<mlir::arith::SubIOp>(
                                             loc(op.get_range()), result, operands[i]);
-                                    } else if (result.getType().isa<mlir::FloatType>()) {
+                                    } else if (arithType.dyn_cast<mlir::FloatType>()) {
                                         result = builder.create<mlir::arith::SubFOp>(
                                             loc(op.get_range()), result, operands[i]);
                                     } else {
@@ -557,10 +558,10 @@ namespace fsharpgrammar::compiler
                                 // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator SUBTRACT!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::MULTIPLY:
-                                if (result.getType().isa<mlir::IntegerType>()) {
+                                if (arithType.dyn_cast<mlir::IntegerType>()) {
                                     result = builder.create<mlir::arith::MulIOp>(
                                         loc(op.get_range()), result, operands[i]);
-                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                } else if (arithType.dyn_cast<mlir::FloatType>()) {
                                     result = builder.create<mlir::arith::MulFOp>(
                                         loc(op.get_range()), result, operands[i]);
                                 } else {
@@ -569,10 +570,10 @@ namespace fsharpgrammar::compiler
                                 // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator MULTIPLY!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::DIVIDE:
-                                if (result.getType().isa<mlir::IntegerType>()) {
+                                if (arithType.dyn_cast<mlir::IntegerType>()) {
                                     result = builder.create<mlir::arith::DivSIOp>(
                                         loc(op.get_range()), result, operands[i]);
-                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                } else if (arithType.dyn_cast<mlir::FloatType>()) {
                                     result = builder.create<mlir::arith::DivFOp>(
                                         loc(op.get_range()), result, operands[i]);
                                 } else {
@@ -581,10 +582,10 @@ namespace fsharpgrammar::compiler
                                 // mlir::emitError(loc(op.get_range()), "No initializer given to arithmetic operator DIVIDE!");
                                 break;
                             case ast::Expression::OP::ArithmeticType::MODULO:
-                                if (result.getType().isa<mlir::IntegerType>()) {
+                                if (arithType.dyn_cast<mlir::IntegerType>()) {
                                     result = builder.create<mlir::arith::RemSIOp>(
                                         loc(op.get_range()), result, operands[i]);
-                                } else if (result.getType().isa<mlir::FloatType>()) {
+                                } else if (arithType.dyn_cast<mlir::FloatType>()) {
                                     result = builder.create<mlir::arith::RemFOp>(
                                         loc(op.get_range()), result, operands[i]);
                                 } else {
@@ -597,6 +598,7 @@ namespace fsharpgrammar::compiler
                                 break;
                         }
                     }
+                    return result;
                 } else {
                     mlir::emitError(loc(op.get_range()), "Arithmetic operator vector is empty!");
                 }

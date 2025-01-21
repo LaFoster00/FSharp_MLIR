@@ -101,5 +101,5 @@ TEST(HelloWorldBranchRelation, BasicAssertion)
 
 TEST(SimpleAdd, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/SimpleAdd.fs");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/SimpleAdd.fs", false, "SimpleAdd");
 }
