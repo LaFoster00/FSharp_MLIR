@@ -1150,8 +1150,7 @@ namespace fsharpgrammar::ast
             LongIdent,
             Record,
             Array,
-            Null,
-            PlaceholderNodeAlternative
+            Null
         >;
 
     public:
@@ -1335,8 +1334,7 @@ namespace fsharpgrammar::ast
             LongIdent,
             Anon,
             StaticConstant,
-            StaticNull,
-            PlaceholderNodeAlternative
+            StaticNull
         >;
 
     public:
