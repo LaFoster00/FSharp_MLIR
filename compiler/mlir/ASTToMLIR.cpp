@@ -170,17 +170,17 @@ namespace fsharpgrammar::compiler
                     [&](const fsharpgrammar::ast::Type::Tuple& t)
                     {
                         mlir::emitError(loc(t), "Tuples not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Postfix& t)
                     {
                         mlir::emitError(loc(t), "Postfix types not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Array& t)
                     {
                         mlir::emitError(loc(t), "Arrays not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Paren& t)
                     {
@@ -193,24 +193,51 @@ namespace fsharpgrammar::compiler
                     [&](const fsharpgrammar::ast::Type::LongIdent& t)
                     {
                         mlir::emitError(loc(t), "Namespace- and module-types not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::Anon& t)
                     {
                         mlir::emitError(loc(t), "Anonymous types not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::StaticConstant& t)
                     {
                         mlir::emitError(loc(t), "Static constants not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     },
                     [&](const fsharpgrammar::ast::Type::StaticNull& t)
                     {
                         mlir::emitError(loc(t), "Static null not supported!");
-                        builder.getNoneType();
+                        return builder.getNoneType();
                     }
                 }, type.type);
+        }
+
+        mlir::Type getSmallestCommonType(mlir::ArrayRef<mlir::Value> values)
+        {
+            mlir::Type smallest_type = nullptr;
+            for (auto value : values)
+            {
+                // If the value is of type None, and no type was found yet, set the smallest type to i32
+                if (mlir::isa<mlir::NoneType>(value.getType()) && smallest_type == nullptr)
+                {
+                    smallest_type = builder.getI32Type();
+                    continue;
+                }
+                // Check if we need to upcast the results to a larger type
+                if (smallest_type == nullptr ||
+                    (smallest_type.dyn_cast<mlir::IntegerType>()
+                        && smallest_type.getIntOrFloatBitWidth() < value.getType().getIntOrFloatBitWidth()) ||
+                    (smallest_type.dyn_cast<mlir::IntegerType>()
+                        && smallest_type.dyn_cast<mlir::FloatType>())
+                    ||
+                    (smallest_type.dyn_cast<mlir::FloatType>()
+                        && smallest_type.getIntOrFloatBitWidth() < value.getType().getIntOrFloatBitWidth()))
+                {
+                    smallest_type = value.getType();
+                }
+            }
+            return smallest_type;
         }
 
     private:
@@ -760,6 +787,11 @@ namespace fsharpgrammar::compiler
             return {};
         }
 
+        mlir::func::FuncOp getFuncProto(const ast::Expression::Let& let)
+        {
+            mlir::func::FuncOp func;
+        }
+
         llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
         {
             // Create a scope in the symbol table to hold variable declarations.
@@ -822,7 +854,7 @@ namespace fsharpgrammar::compiler
             if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern) ||
                 // If the pattern is a typed pattern, for it to be a function definition the enclosed pattern must be a long ident
                 (std::holds_alternative<ast::Pattern::Typed>(let.args->pattern) &&
-                    std::holds_alternative<ast::LongIdent>(
+                    std::holds_alternative<ast::Pattern::LongIdent>(
                         std::get<ast::Pattern::Typed>(let.args->pattern).pattern->pattern)))
             {
                 return declareFunction(let);
