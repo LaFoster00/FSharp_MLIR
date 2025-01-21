@@ -830,7 +830,7 @@ namespace fsharpgrammar::compiler
 
             auto [sig_names, sig_types] = getFunctionSignature(*let.args);
 
-            auto funcType = builder.getFunctionType(sig_types, std::nullopt);
+            auto funcType = builder.getFunctionType(sig_types, return_type);
             auto function = builder.create<mlir::func::FuncOp>(loc(let), func_name, funcType);
             if (!function)
                 return nullptr;
@@ -851,6 +851,8 @@ namespace fsharpgrammar::compiler
 
         llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
         {
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPointToStart(fileModule.getBody());
             // Create a scope in the symbol table to hold variable declarations.
             llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
 
@@ -861,7 +863,6 @@ namespace fsharpgrammar::compiler
 
             mlir::Block& entry_block = function.front();
 
-            mlir::OpBuilder::InsertionGuard guard(builder);
             // Set the insertion point in the builder to the beginning of the function
             // body, it will be used throughout the codegen to create operations in this
             // function.
