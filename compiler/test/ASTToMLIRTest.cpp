@@ -99,6 +99,11 @@ TEST(HelloWorldBranchRelation, BasicAssertion)
     RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchRelation.fs", false, "HelloWorldBranchRelation");
 }
 
+TEST(FunctionDefinition, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/FunctionDefinition.fs");
+}
+
 TEST(SimpleAdd, BasicAssertion)
 {
     RunFullTestSuite(InputType::FSharp, "TestFiles/SimpleAdd.fs", false, "SimpleAdd");
