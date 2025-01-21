@@ -163,19 +163,84 @@ namespace
             mlir::SmallVector<mlir::Value, 4> updated_operands;
             for (auto operand : op->getOperands())
             {
-                // If the oprand isn't a shaped type, we can just add it to the updated operands.
-                if (!operand.getType().isa<mlir::ShapedType>())
+                // If the operand isn't a shaped type, we may need to promote it based on its type.
+                if (!mlir::isa<mlir::ShapedType>(operand.getType()))
                 {
+                    auto type = operand.getType();
+
+                    if (mlir::isa<mlir::IntegerType>(type))
+                    {
+                        auto intType = mlir::cast<mlir::IntegerType>(type);
+                        if (intType.getWidth() < 32)
+                        {
+                            // Promote smaller integer types to i32.
+                            auto promoted = rewriter.create<mlir::arith::ExtUIOp>(
+                                loc, mlir::IntegerType::get(context, 32), operand);
+                            updated_operands.push_back(promoted);
+                            continue;
+                        }
+                        else if (intType.getWidth() == 32)
+                        {
+                            // i32 remains unchanged.
+                            updated_operands.push_back(operand);
+                            continue;
+                        }
+                        else if (intType.getWidth() > 32 && intType.getWidth() <= 64)
+                        {
+                            // i64 remains unchanged.
+                            updated_operands.push_back(operand);
+                            continue;
+                        }
+                        else
+                        {
+                            // Larger integers may need truncation to i64 for compatibility with LLVM IR.
+                            auto truncated = rewriter.create<mlir::arith::TruncIOp>(
+                                loc, mlir::IntegerType::get(context, 64), operand);
+                            updated_operands.push_back(truncated);
+                            continue;
+                        }
+                    }
+                    else if (mlir::isa<mlir::FloatType>(type))
+                    {
+                        auto floatType = mlir::cast<mlir::FloatType>(type);
+                        if (floatType.getWidth() < 64)
+                        {
+                            // Promote float (f32) to double (f64).
+                            auto promoted = rewriter.create<mlir::arith::ExtFOp>(
+                                loc, mlir::FloatType::getF64(context), operand);
+                            updated_operands.push_back(promoted);
+                            continue;
+                        }
+                        else if (floatType.getWidth() == 64)
+                        {
+                            // f64 remains unchanged.
+                            updated_operands.push_back(operand);
+                            continue;
+                        }
+                    }
+                    else if (mlir::isa<mlir::IndexType>(type))
+                    {
+                        // Promote IndexType to i64 for LLVM compatibility.
+                        auto promoted = rewriter.create<mlir::arith::IndexCastOp>(
+                            loc, mlir::IntegerType::get(context, 64), operand);
+                        updated_operands.push_back(promoted);
+                        continue;
+                    }
+
+                    // If no promotion is needed, add the operand as-is.
                     updated_operands.push_back(operand);
                     continue;
                 }
+
+                // For shaped types, extract the pointer and convert to LLVM-compatible type.
                 auto pointer_index = rewriter.create<mlir::memref::ExtractAlignedPointerAsIndexOp>(loc, operand);
                 auto arith_index = rewriter.create<mlir::arith::IndexCastOp>(
-                    loc, IntegerType::get(context, 64), pointer_index);
-                auto llvm_pointer = rewriter.create<LLVM::IntToPtrOp>(loc, LLVM::LLVMPointerType::get(context),
-                                                                      arith_index);
+                    loc, mlir::IntegerType::get(context, 64), pointer_index);
+                auto llvm_pointer = rewriter.create<LLVM::IntToPtrOp>(
+                    loc, LLVM::LLVMPointerType::get(context), arith_index);
                 updated_operands.push_back(llvm_pointer);
             }
+
             rewriter.create<LLVM::CallOp>(loc, printfRef, updated_operands);
 
             // Notify the rewriter that this operation has been removed.
