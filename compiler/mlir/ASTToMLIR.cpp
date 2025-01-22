@@ -612,6 +612,42 @@ namespace fsharpgrammar::compiler
             }
         }
 
+        mlir::Value getLogicalOp(const ast::Expression::OP& op)
+        {
+            if (auto logicalOps = std::get_if<std::vector<ast::Expression::OP::LogicalType>>(&op.ops))
+            {
+                mlir::SmallVector<mlir::Value, 4> operands;
+                for (auto& expression : op.expressions)
+                {
+                    auto result = mlirGen(*expression);
+                    if (!result.has_value())
+                    {
+                        mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                        return nullptr;
+                    }
+                    operands.push_back(result.value());
+                }
+
+                mlir::Value result = operands[0];
+                for (auto [index, logical_op] : std::ranges::views::enumerate(*logicalOps))
+                {
+                    switch (logical_op)
+                    {
+                    case ast::Expression::OP::LogicalType::AND:
+                        //TODO: Implement the AND operation
+                        result = builder.create<mlir::fsharp::AndOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    case ast::Expression::OP::LogicalType::OR:
+                        //TODO: Implement the OR operation
+                        result = builder.create<mlir::fsharp::OrOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    }
+                }
+
+                return result;
+            }
+        }
+
         mlir::Value getArithmeticOp(const ast::Expression::OP& op)
         {
             if (auto arithmeticOps = std::get_if<std::vector<ast::Expression::OP::ArithmeticType>>(&op.ops))
