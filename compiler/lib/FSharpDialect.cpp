@@ -237,23 +237,28 @@ std::string getTypeString(mlir::Type type)
 // FuncOp
 //===----------------------------------------------------------------------===//
 
-void ClosureOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                   llvm::StringRef name, mlir::FunctionType type,
-                   llvm::ArrayRef<mlir::NamedAttribute> attrs) {
+void ClosureOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
+                      llvm::StringRef name, mlir::FunctionType type,
+                      llvm::ArrayRef<mlir::NamedAttribute> attrs)
+{
     // FunctionOpInterface provides a convenient `build` method that will populate
     // the state of our FuncOp, and create an entry block.
     buildWithEntryBlock(builder, state, name, type, attrs, type.getInputs());
 }
 
-mlir::ParseResult ClosureOp::parse(mlir::OpAsmParser &parser,
-                                mlir::OperationState &result) {
+mlir::ParseResult ClosureOp::parse(mlir::OpAsmParser& parser,
+                                   mlir::OperationState& result)
+{
     // Dispatch to the FunctionOpInterface provided utility method that parses the
     // function operation.
     auto buildFuncType =
-        [](mlir::Builder &builder, llvm::ArrayRef<mlir::Type> argTypes,
+        [](mlir::Builder& builder, llvm::ArrayRef<mlir::Type> argTypes,
            llvm::ArrayRef<mlir::Type> results,
            mlir::function_interface_impl::VariadicFlag,
-           std::string &) { return builder.getFunctionType(argTypes, results); };
+           std::string&)
+    {
+        return builder.getFunctionType(argTypes, results);
+    };
 
     return mlir::function_interface_impl::parseFunctionOp(
         parser, result, /*allowVariadic=*/false,
@@ -261,7 +266,8 @@ mlir::ParseResult ClosureOp::parse(mlir::OpAsmParser &parser,
         getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
 }
 
-void ClosureOp::print(mlir::OpAsmPrinter &p) {
+void ClosureOp::print(mlir::OpAsmPrinter& p)
+{
     // Dispatch to the FunctionOpInterface provided utility method that prints the
     // function operation.
     mlir::function_interface_impl::printFunctionOp(
@@ -273,11 +279,111 @@ void ClosureOp::print(mlir::OpAsmPrinter &p) {
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
-void CallOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                          StringRef callee, ArrayRef<mlir::Value> arguments) {
+void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
+                   StringRef callee, ArrayRef<mlir::Value> arguments)
+{
     // Generic call always returns an unranked Tensor initially.
     state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
     state.addOperands(arguments);
     state.addAttribute("callee",
                        mlir::SymbolRefAttr::get(builder.getContext(), callee));
+}
+
+//===----------------------------------------------------------------------===//
+// ArtihmeticOps
+//===----------------------------------------------------------------------===//
+
+static llvm::LogicalResult verifyArithOp(mlir::Value lhs, mlir::Value rhs)
+{
+    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
+        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
+            NoneType>(rhs.getType())))
+    )
+    {
+        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
+        return llvm::failure();
+    }
+    return llvm::success();
+}
+
+static mlir::Type getArithOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
+{
+    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
+        return lhs.getType();
+    return rhs.getType();
+}
+
+//===----------------------------------------------------------------------===//
+// AddOp
+//===----------------------------------------------------------------------===//
+
+void AddOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getArithOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult AddOp::verify()
+{
+    return verifyArithOp(getLhs(), getRhs());
+}
+
+//===----------------------------------------------------------------------===//
+// SubOp
+//===----------------------------------------------------------------------===//
+
+void SubOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getArithOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult SubOp::verify()
+{
+    return verifyArithOp(getLhs(), getRhs());
+}
+
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+void MulOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getArithOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult MulOp::verify()
+{
+    return verifyArithOp(getLhs(), getRhs());
+}
+
+//===----------------------------------------------------------------------===//
+// DivOp
+//===----------------------------------------------------------------------===//
+
+void DivOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getArithOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult DivOp::verify()
+{
+    return verifyArithOp(getLhs(), getRhs());
+}
+
+//===----------------------------------------------------------------------===//
+// ModOp
+//===----------------------------------------------------------------------===//
+
+void ModOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getArithOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult ModOp::verify()
+{
+    return verifyArithOp(getLhs(), getRhs());
 }

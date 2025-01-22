@@ -197,42 +197,99 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
 }
 
 //===----------------------------------------------------------------------===//
-// Arithmetic Operations
+// AddOp
 //===----------------------------------------------------------------------===//
-def FSharp_AddOp : FSharp_Op<"add"> {
+
+def AddOp : FSharp_Op<"add"> {
   let summary = "addition operation";
   let description = [{
-    This operation performs element-wise addition of two tensors.
+    The "add" operation performs addition of any two types that are compatible.
   }];
-  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
-  let results = (outs AnyTensor);
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
 }
 
-def FSharp_SubOp : FSharp_Op<"sub"> {
+//===----------------------------------------------------------------------===//
+// SubOp
+//===----------------------------------------------------------------------===//
+
+def SubOp : FSharp_Op<"sub"> {
   let summary = "subtraction operation";
   let description = [{
-    This operation performs element-wise subtraction of two tensors.
+    The "sub" operation performs subtraction of any two types that are compatible.
   }];
-  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
-  let results = (outs AnyTensor);
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
 }
 
-def FSharp_MulOp : FSharp_Op<"mul"> {
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+def MulOp : FSharp_Op<"mul"> {
   let summary = "multiplication operation";
   let description = [{
-    This operation performs element-wise multiplication of two tensors.
+    The "sub" operation performs multiplication of any two types that are compatible.
   }];
-  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
-  let results = (outs AnyTensor);
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
 }
 
-def FSharp_DivOp : FSharp_Op<"div"> {
+//===----------------------------------------------------------------------===//
+// DivOp
+//===----------------------------------------------------------------------===//
+
+def DivOp : FSharp_Op<"div"> {
   let summary = "division operation";
   let description = [{
-    This operation performs element-wise division of two tensors.
+    The "sub" operation performs division of any two types that are compatible.
   }];
-  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
-  let results = (outs AnyTensor);
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
 }
 
 def FSharp_ModOp : FSharp_Op<"mod"> {
@@ -240,8 +297,19 @@ def FSharp_ModOp : FSharp_Op<"mod"> {
   let description = [{
     This operation performs element-wise modulo of two tensors.
   }];
-  let arguments = (ins AnyTensor:$lhs, AnyTensor:$rhs);
-  let results = (outs AnyTensor);
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
 }
 
 #endif // FSHARP_OPS
