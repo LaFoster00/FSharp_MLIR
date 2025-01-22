@@ -377,8 +377,6 @@ namespace fsharpgrammar::compiler
             for (auto& expr : getFunctionArgs(append))
             {
                 const auto arg = mlirGen(*expr);
-                if (!arg)
-                    return {};
                 if (!arg.has_value())
                 {
                     fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}",
@@ -421,8 +419,8 @@ namespace fsharpgrammar::compiler
             auto args = getFunctionArgValues(append);
             if (!args.has_value())
                 return nullptr;
-            return builder.create<mlir::func::CallOp>(location, mlir::StringRef(func_name),
-                                                      mlir::ValueRange(args.value()))->getResult(0);
+            mlir::ValueRange arg_values = args.value();
+            return builder.create<mlir::func::CallOp>(location, mlir::StringRef(func_name), arg_values)->getResult(0);
         }
 
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
@@ -890,9 +888,11 @@ namespace fsharpgrammar::compiler
             auto body_result = mlirGen(let.expressions);
             if (body_result.has_value() && body_result.value() == nullptr)
             {
+                mlir::emitError(loc(let), "Last statement in a function definition must return a value!");
                 return llvm::failure();
             }
 
+            builder.create<mlir::func::ReturnOp>(body_result->getLoc(), body_result.value());
 
             return llvm::success();
         }

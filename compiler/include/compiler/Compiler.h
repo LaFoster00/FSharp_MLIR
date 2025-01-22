@@ -16,7 +16,7 @@ enum class Action
     DumpST,
     DumpAST,
     DumpMLIR,
-    DumpMLIRAffine,
+    DumpMLIRFirstLower,
     DumpMLIRLLVM,
     DumpLLVMIR,
     RunJIT,

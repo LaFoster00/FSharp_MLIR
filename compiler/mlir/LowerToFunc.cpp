@@ -39,28 +39,121 @@
 
 using namespace mlir;
 
-namespace
+//===----------------------------------------------------------------------===//
+// LowerToFunc RewritePatterns: Closure operations
+//===----------------------------------------------------------------------===//
+
+struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
 {
-    /// Lowers fsharp.func to func.func operations.
-    class FuncOpLowering : public mlir::ConversionPattern
+    using OpConversionPattern<fsharp::ClosureOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(fsharp::ClosureOp closure_op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter& rewriter) const final
     {
-    public:
-        explicit FuncOpLowering(MLIRContext* context)
-            : ConversionPattern(fsharp::FuncOp::getOperationName(), 1, context)
+        OpBuilder builder(closure_op);
+        auto loc = closure_op.getLoc();
+
+        // Extract the explicit function type.
+        FunctionType funcType = closure_op.getFunctionType();
+
+        // Traverse the closure body to identify implicit captures.
+        SetVector<Value> implicitCaptures;
+        closure_op.getBody().walk([&](Operation* op)
         {
+            for (Value operand : op->getOperands())
+            {
+                // Skip values already defined inside the closure region.
+                if (closure_op->isAncestor(operand.getParentRegion()->getParentOp()))
+                    continue;
+
+                // Add operands from the outer scope as implicit captures.
+                implicitCaptures.insert(operand);
+            }
+        });
+
+        // Build the argument types for the generated function.
+        SmallVector<Type, 4> capturedArgTypes, explicitArgTypes;
+        for (Value capture : implicitCaptures)
+            capturedArgTypes.push_back(capture.getType());
+        explicitArgTypes.append(funcType.getInputs().begin(), funcType.getInputs().end());
+
+        SmallVector<Type, 4> allArgTypes(capturedArgTypes);
+        allArgTypes.append(explicitArgTypes.begin(), explicitArgTypes.end());
+
+        // Create the new function type with captures and explicit arguments.
+        auto newFuncType = builder.getFunctionType(allArgTypes, funcType.getResults());
+
+        // Generate a unique symbol name for the new function.
+        std::string funcName = (closure_op.getSymName() + "_lowered").str();
+
+        // Create the new `func.func` operation.
+        auto funcOp = builder.create<func::FuncOp>(loc, funcName, newFuncType);
+
+        // Inline the closure body into the function region.
+        Region& funcRegion = funcOp.getBody();
+        rewriter.inlineRegionBefore(closure_op.getBody(), funcRegion, funcRegion.end());
+
+        // Replace block arguments in the inlined body.
+        Block& entryBlock = funcRegion.front();
+        SmallVector<Value, 4> funcArgs;
+        funcArgs.append(implicitCaptures.begin(), implicitCaptures.end());
+        funcArgs.append(entryBlock.getArguments().begin(), entryBlock.getArguments().end());
+
+        for (auto [blockArg, funcArg] : llvm::zip(entryBlock.getArguments(), funcArgs))
+        {
+            blockArg.replaceAllUsesWith(funcArg);
+        }
+        entryBlock.eraseArguments([](BlockArgument) { return true; });
+
+        // Replace `ClosureOp` with a symbol reference to the new function.
+        builder.setInsertionPointAfter(closure_op);
+        //closure_op->replaceAllUsesWith(SymbolRefAttr::get(builder.getContext(), funcName));
+        rewriter.eraseOp(closure_op);
+        return success();
+    }
+};
+
+//===----------------------------------------------------------------------===//
+// LowerToFunc RewritePatterns: Call operations
+//===----------------------------------------------------------------------===//
+
+struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
+{
+    using OpConversionPattern<fsharp::CallOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(fsharp::CallOp call_op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter& rewriter) const final
+    {
+        OpBuilder builder(call_op);
+        auto loc = call_op.getLoc();
+        auto module = call_op->getParentOfType<ModuleOp>();
+
+        // Get the symbol of the callee.
+        auto calleeSymbol = call_op.getCalleeAttr();
+        auto funcOp = dyn_cast_or_null<func::FuncOp>(SymbolTable::lookupSymbolIn(module, calleeSymbol));
+        if (!funcOp)
+        {
+            call_op.emitError("Callee function not found in symbol table");
+            return failure();
         }
 
-        LogicalResult matchAndRewrite(Operation* op, ArrayRef<Value> operands,
-                                      ConversionPatternRewriter& rewriter) const override
-        {
-        }
-    };
-}
+        // Get the arguments for the `CallOp`.
+        SmallVector<Value, 4> callArgs = call_op.getInputs();
+
+        // Replace `CallOp` with `func.call`.
+        auto call = builder.create<func::CallOp>(loc, funcOp.getName(), funcOp.getFunctionType().getResults(),
+                                                 callArgs);
+        call_op->replaceAllUsesWith(call.getResults());
+        rewriter.eraseOp(call_op);
+        return success();
+    }
+};
 
 //===----------------------------------------------------------------------===//
 // FSharpToFuncLoweringPass
 //===----------------------------------------------------------------------===//
 
+/// This is a partial lowering to func ops for the fsharp operations
 namespace
 {
     struct FSharpToFuncLoweringPass
@@ -70,7 +163,8 @@ namespace
 
         void getDependentDialects(DialectRegistry& registry) const override
         {
-            registry.insert<LLVM::LLVMDialect, scf::SCFDialect>();
+            registry.insert<affine::AffineDialect, func::FuncDialect,
+                            memref::MemRefDialect>();
         }
 
         void runOnOperation() final;
@@ -88,12 +182,14 @@ void FSharpToFuncLoweringPass::runOnOperation()
     target.addLegalDialect<affine::AffineDialect, mlir::BuiltinDialect,
                            arith::ArithDialect, func::FuncDialect,
                            memref::MemRefDialect, fsharp::FSharpDialect>();
-    target.addIllegalOp<fsharp::FuncOp>();
+    target.addIllegalOp<fsharp::ClosureOp>();
+    target.addIllegalOp<fsharp::CallOp>();
 
     RewritePatternSet patterns(&getContext());
 
     // We only want to lower the 'fsharp.func' operations
-    patterns.add<FuncOpLowering>(&getContext());
+    patterns.add<ClosureOpLowering>(&getContext());
+    patterns.add<CallOpLowering>(&getContext());
 
     // We want to completely lower to LLVM, so we use a `FullConversion`. This
     // ensures that only legal operations will remain after the conversion.
@@ -102,7 +198,10 @@ void FSharpToFuncLoweringPass::runOnOperation()
         signalPassFailure();
 }
 
-std::unique_ptr<mlir::Pass> createLowerToFunctionPass()
+namespace mlir::fsharp
 {
-    return std::make_unique<FSharpToFuncLoweringPass>();
+    std::unique_ptr<mlir::Pass> createLowerToFunctionPass()
+    {
+        return std::make_unique<FSharpToFuncLoweringPass>();
+    }
 }
