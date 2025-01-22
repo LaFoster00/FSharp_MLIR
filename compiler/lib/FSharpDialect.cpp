@@ -236,7 +236,7 @@ std::string getTypeString(mlir::Type type)
 }
 
 //===----------------------------------------------------------------------===//
-// FuncOp
+// ClosureOp
 //===----------------------------------------------------------------------===//
 
 void ClosureOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
@@ -276,6 +276,18 @@ void ClosureOp::print(mlir::OpAsmPrinter& p)
         p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),
         getArgAttrsAttrName(), getResAttrsAttrName());
 }
+
+int ClosureOp::inferTypes()
+{
+    return 0;
+}
+
+void ClosureOp::assumeTypes()
+{
+
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // GenericCallOp
@@ -325,7 +337,7 @@ int CallOp::inferTypes()
 
     // If the return type of this function is specified but the return value of the called function isnt we can infer it
     // to the return type of this call
-    if (!mlir::isa<NoneType>(getResult() && mlir::isa<NoneType>(function_type.getResult(0))))
+    if (!mlir::isa<NoneType>(getResult().getType()) && mlir::isa<NoneType>(function_type.getResult(0)))
     {
         // Copy the input types and set the return type to the type of the closure to this return type
         closureOp.setFunctionType(mlir::FunctionType::get(getContext(), function_type.getInputs(), getResult().getType()));
@@ -335,7 +347,7 @@ int CallOp::inferTypes()
     {
 
     }
-
+    return 0;
 }
 
 void CallOp::assumeTypes()
