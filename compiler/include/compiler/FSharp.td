@@ -303,4 +303,47 @@ def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpIn
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// LogicalOps
+//===----------------------------------------------------------------------===//
+def FSharp_AndOp : FSharp_Op<"and", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "logical and operation";
+  let description = [{
+    This operation performs element-wise logical and of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
+def FSharp_OrOp : FSharp_Op<"or", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "logical or operation";
+  let description = [{
+    This operation performs element-wise logical or of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
 #endif // FSHARP_OPS
