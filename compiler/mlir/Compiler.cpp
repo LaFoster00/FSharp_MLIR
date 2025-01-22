@@ -165,7 +165,7 @@ namespace fsharp::compiler
             return 4;
 
         // Check to see what granularity of MLIR we are compiling to.
-        bool isLoweringToAffine = emitAction >= Action::DumpMLIRAffine;
+        bool isLoweringToAffine = emitAction >= Action::DumpMLIRFirstLower;
         bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
         if (runOptimizations || isLoweringToAffine)
@@ -184,7 +184,7 @@ namespace fsharp::compiler
         if (isLoweringToAffine)
         {
             // Partially lower the fsharp dialect.
-            pm.addPass(mlir::bufferization::createOneShotBufferizePass());
+            pm.addPass(mlir::fsharp::createLowerToFunctionPass());
 
             // Add a few cleanups post lowering.
             mlir::OpPassManager& optPM = pm.nest<mlir::func::FuncOp>();
@@ -197,6 +197,8 @@ namespace fsharp::compiler
                 optPM.addPass(mlir::affine::createLoopFusionPass());
                 optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
             }
+
+            pm.addPass(mlir::bufferization::createOneShotBufferizePass());
         }
 
         if (isLoweringToLLVM)

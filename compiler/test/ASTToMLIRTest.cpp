@@ -37,7 +37,7 @@ void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitE
     FSharpCompiler::compileProgram(
         inputType,
         fileName,
-        Action::DumpMLIRAffine,
+        Action::DumpMLIRFirstLower,
         false
     );
 
