@@ -22,6 +22,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 
 #include <algorithm>
+#include <ranges>
 #include <string>
 #include <fmt/format.h>
 #include <llvm/ADT/MapVector.h>
@@ -35,6 +36,7 @@ namespace fsharpgrammar::ast
 using namespace mlir;
 using namespace mlir::fsharp;
 
+#include "compiler/FSharpInterfacesDefs.cpp.inc"
 
 #include "compiler/FSharpDialect.cpp.inc"
 
@@ -279,6 +281,26 @@ void ClosureOp::print(mlir::OpAsmPrinter& p)
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
+ClosureOp getClosureOpFromCallOp(CallOp callOp) {
+    // Get the symbol reference attribute from the callee attribute
+    auto calleeAttr = callOp->getAttrOfType<SymbolRefAttr>("callee");
+    if (!calleeAttr)
+        return nullptr;
+
+    // Get the parent operation, which should be a module or a symbol table
+    Operation *parentOp = callOp->getParentOp();
+    while (parentOp && !isa<ModuleOp>(parentOp))
+        parentOp = parentOp->getParentOp();
+
+    if (!parentOp)
+        return nullptr;
+
+    // Use the SymbolTable to lookup the ClosureOp
+    SymbolTable symbolTable(parentOp);
+    Operation *calleeOp = symbolTable.lookup(calleeAttr.getLeafReference());
+    return dyn_cast_or_null<ClosureOp>(calleeOp);
+}
+
 void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
                    StringRef callee, ArrayRef<mlir::Value> arguments)
 {
@@ -287,6 +309,38 @@ void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
     state.addOperands(arguments);
     state.addAttribute("callee",
                        mlir::SymbolRefAttr::get(builder.getContext(), callee));
+}
+
+int CallOp::inferTypes()
+{
+    // Get the ClosureOp from the CallOp
+    ClosureOp closureOp = getClosureOpFromCallOp(*this);
+    if (!closureOp)
+    {
+        mlir::emitError(getLoc(), "Unable to find callee");
+        return 0;
+    }
+
+    auto function_type = closureOp.getFunctionType();
+
+    // If the return type of this function is specified but the return value of the called function isnt we can infer it
+    // to the return type of this call
+    if (!mlir::isa<NoneType>(getResult() && mlir::isa<NoneType>(function_type.getResult(0))))
+    {
+        // Copy the input types and set the return type to the type of the closure to this return type
+        closureOp.setFunctionType(mlir::FunctionType::get(getContext(), function_type.getInputs(), getResult().getType()));
+    }
+
+    for (auto [index, input_type] : std::ranges::views::enumerate(function_type.getInputs()))
+    {
+
+    }
+
+}
+
+void CallOp::assumeTypes()
+{
+
 }
 
 //===----------------------------------------------------------------------===//
@@ -313,6 +367,24 @@ static mlir::Type getArithOpReturnType(const mlir::Value &lhs, const mlir::Value
     return rhs.getType();
 }
 
+// Returns true if both operands have been inferred.
+static int inferArithOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
+        lhs.get().setType(rhs.get().getType());
+    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
+        rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(lhs.get().getType());
+    return mlir::isa<NoneType>(lhs.get().getType()) ? 0 : 2;
+}
+
+static void assumeArithOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(rhs.get().getType());
+}
+
 //===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
@@ -326,6 +398,16 @@ void AddOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsStat
 llvm::LogicalResult AddOp::verify()
 {
     return verifyArithOp(getLhs(), getRhs());
+}
+
+int AddOp::inferTypes()
+{
+    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void AddOp::assumeTypes()
+{
+    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }
 
 //===----------------------------------------------------------------------===//
@@ -343,6 +425,16 @@ llvm::LogicalResult SubOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
+int SubOp::inferTypes()
+{
+    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void SubOp::assumeTypes()
+{
+    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
 //===----------------------------------------------------------------------===//
 // MulOp
 //===----------------------------------------------------------------------===//
@@ -356,6 +448,16 @@ void MulOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsStat
 llvm::LogicalResult MulOp::verify()
 {
     return verifyArithOp(getLhs(), getRhs());
+}
+
+int MulOp::inferTypes()
+{
+    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void MulOp::assumeTypes()
+{
+    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }
 
 //===----------------------------------------------------------------------===//
@@ -373,6 +475,16 @@ llvm::LogicalResult DivOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
+int DivOp::inferTypes()
+{
+    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void DivOp::assumeTypes()
+{
+    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
 //===----------------------------------------------------------------------===//
 // ModOp
 //===----------------------------------------------------------------------===//
@@ -386,4 +498,14 @@ void ModOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsStat
 llvm::LogicalResult ModOp::verify()
 {
     return verifyArithOp(getLhs(), getRhs());
+}
+
+int ModOp::inferTypes()
+{
+    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void ModOp::assumeTypes()
+{
+    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }

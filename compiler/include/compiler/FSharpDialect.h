@@ -13,6 +13,8 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 
+#include "compiler/FSharpInterfacesDefs.h.inc"
+
 /// Include the auto-generated header file containing the declaration of the fsharp
 /// dialect.
 #include "compiler/FSharpDialect.h.inc"

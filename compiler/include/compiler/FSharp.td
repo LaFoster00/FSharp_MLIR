@@ -53,28 +53,19 @@ class FSharp_Attr<string name, string attrMnemonic, list<Trait> traits = [],
   let attrName = "fsharp." # attrMnemonic;
   }
 
-//===----------------------------------------------------------------------===//
-// FSharp Types
-//===----------------------------------------------------------------------===//
+def TypeInferenceOpInterface : OpInterface<"TypeInference"> {
+    let description = [{
+        Interface to access a registered method to infer the return types for an
+        operation that can be used during type inference.
+    }];
 
-def StringType : FSharp_Type<"String", "string"> {
-  let summary = "A simple type for storing tensors filled with characters, but prettier printing.";
-  let description = [{
-    Strings represent a tensor<*xI8> with appropriate printing.
-  }];
-
-  /// Here we define the textual format of the type declaratively, which will
-  /// automatically generate parser and printer logic. This will allow for
-  /// instances of the type to be output as, for example:
-  ///
-  ///    !fsharp.string // a string.
-  ///
-  let assemblyFormat = "";
+    let methods = [
+        InterfaceMethod<"Infer and set the output shape for the current operation. Returns 0 if not all of the types could be inferred, 1 if some could be inferred and 2 if all could be inferred..",
+                        "int", "inferTypes">,
+        InterfaceMethod<"Set all the unknown types to int.",
+                        "void", "assumeTypes">
+    ];
 }
-
-//===----------------------------------------------------------------------===//
-// FSharp Attributes
-//===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
 // FSharp Operations
@@ -84,7 +75,7 @@ def StringType : FSharp_Type<"String", "string"> {
 // ClosureOp
 //===----------------------------------------------------------------------===//
 
-def ClosureOp : FSharp_Op<"closure", [FunctionOpInterface, IsolatedFromAbove]> {
+def ClosureOp : FSharp_Op<"closure", [FunctionOpInterface, IsolatedFromAbove, DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "Represents a closure with implicit captures and explicit arguments.";
   let description = [{
     This operation represents a closure that captures variables from its
@@ -127,7 +118,7 @@ def ClosureOp : FSharp_Op<"closure", [FunctionOpInterface, IsolatedFromAbove]> {
 // CallOp
 //===----------------------------------------------------------------------===//
 
-def CallOp : FSharp_Op<"call"> {
+def CallOp : FSharp_Op<"call", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "Call operation";
   let description = [{
     Calls represent calls to a user defined function that needs to
@@ -200,7 +191,7 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : FSharp_Op<"add"> {
+def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "addition operation";
   let description = [{
     The "add" operation performs addition of any two types that are compatible.
@@ -224,7 +215,7 @@ def AddOp : FSharp_Op<"add"> {
 // SubOp
 //===----------------------------------------------------------------------===//
 
-def SubOp : FSharp_Op<"sub"> {
+def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "subtraction operation";
   let description = [{
     The "sub" operation performs subtraction of any two types that are compatible.
@@ -248,7 +239,7 @@ def SubOp : FSharp_Op<"sub"> {
 // MulOp
 //===----------------------------------------------------------------------===//
 
-def MulOp : FSharp_Op<"mul"> {
+def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "multiplication operation";
   let description = [{
     The "sub" operation performs multiplication of any two types that are compatible.
@@ -272,7 +263,7 @@ def MulOp : FSharp_Op<"mul"> {
 // DivOp
 //===----------------------------------------------------------------------===//
 
-def DivOp : FSharp_Op<"div"> {
+def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "division operation";
   let description = [{
     The "sub" operation performs division of any two types that are compatible.
@@ -292,7 +283,7 @@ def DivOp : FSharp_Op<"div"> {
   let hasVerifier = 1;
 }
 
-def FSharp_ModOp : FSharp_Op<"mod"> {
+def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "modulo operation";
   let description = [{
     This operation performs element-wise modulo of two tensors.
