@@ -287,46 +287,67 @@ void ClosureOp::assumeTypes()
 
 }
 
+//===----------------------------------------------------------------------===//
+// ReturnOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult fsharp::ReturnOp::verify() {
+    auto function = cast<ClosureOp>((*this)->getParentOp());
+
+    // The operand number and types must match the function signature.
+    const auto &results = function.getFunctionType().getResults();
+    if (getNumOperands() != results.size())
+        return emitOpError("has ")
+               << getNumOperands() << " operands, but enclosing function (@"
+               << function.getName() << ") returns " << results.size();
+
+    for (unsigned i = 0, e = results.size(); i != e; ++i)
+        if (getOperand().getType() != results[i])
+            return emitError() << "type of return operand " << i << " ("
+                               << getOperand().getType()
+                               << ") doesn't match function result type ("
+                               << results[i] << ")"
+                               << " in function @" << function.getName();
+
+    return success();
+}
+
 
 
 //===----------------------------------------------------------------------===//
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
-ClosureOp getClosureOpFromCallOp(CallOp callOp) {
-    // Get the symbol reference attribute from the callee attribute
-    auto calleeAttr = callOp->getAttrOfType<SymbolRefAttr>("callee");
-    if (!calleeAttr)
+ClosureOp resolveCallee(CallOp &callOp, ModuleOp module) {
+    // Step 1: Get the callable for the callee from the CallOpInterface
+    auto callable = callOp.getCallableForCallee();
+
+    // Step 2: Check if the callable is a SymbolRefAttr
+    auto symbolRef = callable.dyn_cast<SymbolRefAttr>();
+    if (!symbolRef) {
+        // If it's not a SymbolRefAttr, the CallOp might be calling an inline region or something else
+        llvm::errs() << "CallOp does not reference a function symbol.\n";
         return nullptr;
+    }
 
-    // Get the parent operation, which should be a module or a symbol table
-    Operation *parentOp = callOp->getParentOp();
-    while (parentOp && !isa<ModuleOp>(parentOp))
-        parentOp = parentOp->getParentOp();
+    // Step 3: Get the function name from the SymbolRefAttr
+    StringRef funcName = symbolRef.getRootReference();
 
-    if (!parentOp)
+    // Step 4: Use the SymbolTable to resolve the FuncOp by name
+    auto closureOp = module.lookupSymbol<ClosureOp>(funcName);
+    if (!closureOp) {
+        llvm::errs() << "Function " << funcName << " not found in the module.\n";
         return nullptr;
+    }
 
-    // Use the SymbolTable to lookup the ClosureOp
-    SymbolTable symbolTable(parentOp);
-    Operation *calleeOp = symbolTable.lookup(calleeAttr.getLeafReference());
-    return dyn_cast_or_null<ClosureOp>(calleeOp);
-}
-
-void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                   StringRef callee, ArrayRef<mlir::Value> arguments)
-{
-    // Generic call always returns an unranked Tensor initially.
-    state.addTypes(UnrankedTensorType::get(builder.getF64Type()));
-    state.addOperands(arguments);
-    state.addAttribute("callee",
-                       mlir::SymbolRefAttr::get(builder.getContext(), callee));
+    return closureOp;
 }
 
 int CallOp::inferTypes()
 {
     // Get the ClosureOp from the CallOp
-    ClosureOp closureOp = getClosureOpFromCallOp(*this);
+
+    ClosureOp closureOp = resolveCallee(*this, this->getOperation()->getParentOfType<ModuleOp>());
     if (!closureOp)
     {
         mlir::emitError(getLoc(), "Unable to find callee");

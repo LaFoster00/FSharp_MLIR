@@ -1,4 +1,4 @@
 
-let add (a: int) (b: int) :int = a + b
+let add a b = a + b
 
 printf "%d\n" (add 1 2)

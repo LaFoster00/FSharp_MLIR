@@ -244,7 +244,7 @@ namespace fsharpgrammar::compiler
         }
 
     private:
-        mlir::func::FuncOp createEntryPoint()
+        mlir::fsharp::ClosureOp createEntryPoint()
         {
             // Create a scope in the symbol table to hold variable declarations.
             llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
@@ -255,10 +255,10 @@ namespace fsharpgrammar::compiler
             mlir::FunctionType funcType = builder.getFunctionType({}, {});
 
             // Create the function
-            auto func = builder.create<mlir::func::FuncOp>(fileModule.getLoc(), "main", funcType);
+            auto func = builder.create<mlir::fsharp::ClosureOp>(fileModule.getLoc(), "main", funcType);
 
             // Add a basic block to the function
-            mlir::Block& entryBlock = *func.addEntryBlock();
+            mlir::Block& entryBlock = func.front();
 
             // Set the insertion point to the start of the basic block
             builder.setInsertionPointToStart(&entryBlock);
@@ -296,7 +296,7 @@ namespace fsharpgrammar::compiler
 
 
             builder.setInsertionPointToEnd(&func.getBlocks().back());
-            builder.create<mlir::func::ReturnOp>(builder.getUnknownLoc());
+            builder.create<mlir::fsharp::ReturnOp>(builder.getUnknownLoc());
 
             builder.setInsertionPointToEnd(fileModule.getBody());
 
@@ -415,6 +415,29 @@ namespace fsharpgrammar::compiler
             }
         }
 
+        /// Find a closure with the given name in the current scope or parent scopes.
+        mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::StringRef closureName) {
+            mlir::Operation *currentOp = startOp;
+
+            // Traverse up through parent operations (or regions) to find the closure
+            while (currentOp) {
+                // Check if the current operation has a SymbolTable
+                if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>()) {
+                    // Try to lookup the closure in the current SymbolTable
+                    mlir::Operation *closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
+                    if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure)) {
+                        return closure_op; // Found the closure
+                    }
+                }
+
+                // Move to the parent operation
+                currentOp = currentOp->getParentOp();
+            }
+
+            // If no closure was found, return nullptr
+            return nullptr;
+        }
+
         mlir::Value declareFunctionCall(const ast::Expression::Append& append, const std::string& func_name)
         {
             auto location = loc(append.get_range());
@@ -423,7 +446,17 @@ namespace fsharpgrammar::compiler
             if (!args.has_value())
                 return nullptr;
             mlir::ValueRange arg_values = args.value();
-            return builder.create<mlir::func::CallOp>(location, mlir::StringRef(func_name), arg_values)->getResult(0);
+            auto closureOp = findClosureInScope(builder.getBlock()->getParentOp(), mlir::StringRef(func_name));
+            if (closureOp)
+                return builder.create<mlir::fsharp::CallOp>(
+                    location, closureOp, arg_values)->getResult(0);
+            else
+            {
+                mlir::emitError(loc(append), "Could not find function with name: " + func_name + "in the current scope!");
+                return nullptr;
+            }
+
+
         }
 
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
@@ -755,7 +788,7 @@ namespace fsharpgrammar::compiler
             return {};
         }
 
-        mlir::func::FuncOp getFuncProto(const ast::Expression::Let& let)
+        mlir::fsharp::ClosureOp getFuncProto(const ast::Expression::Let& let)
         {
             mlir::StringRef func_name;
             mlir::Type return_type = mlir::NoneType::get(builder.getContext());
@@ -780,11 +813,11 @@ namespace fsharpgrammar::compiler
             auto [sig_names, sig_types] = getFunctionSignature(*let.args);
 
             auto funcType = builder.getFunctionType(sig_types, return_type);
-            auto function = builder.create<mlir::func::FuncOp>(loc(let), func_name, funcType);
+            auto function = builder.create<mlir::fsharp::ClosureOp>(loc(let), func_name, funcType);
             if (!function)
                 return nullptr;
 
-            mlir::Block& entryBlock = *function.addEntryBlock();
+            mlir::Block& entryBlock = function.front();
 
             // Declare all the function arguments in the symbol table.
             for (const auto nameValue :
@@ -801,12 +834,11 @@ namespace fsharpgrammar::compiler
         llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
         {
             mlir::OpBuilder::InsertionGuard guard(builder);
-            builder.setInsertionPointToStart(fileModule.getBody());
             // Create a scope in the symbol table to hold variable declarations.
             llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
 
 
-            mlir::func::FuncOp function = getFuncProto(let);
+            mlir::fsharp::ClosureOp function = getFuncProto(let);
             if (!function)
                 return llvm::failure();
 
@@ -825,7 +857,7 @@ namespace fsharpgrammar::compiler
                 return llvm::failure();
             }
 
-            builder.create<mlir::func::ReturnOp>(body_result->getLoc(), body_result.value());
+            builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
 
             return llvm::success();
         }
