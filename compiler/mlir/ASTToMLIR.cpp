@@ -629,16 +629,14 @@ namespace fsharpgrammar::compiler
                 }
 
                 mlir::Value result = operands[0];
-                for (auto [index, logical_op] : std::ranges::views::enumerate(*logicalOps))
+                for (auto [index, logical_op] : llvm::enumerate(*logicalOps))
                 {
                     switch (logical_op)
                     {
                     case ast::Expression::OP::LogicalType::AND:
-                        //TODO: Implement the AND operation
                         result = builder.create<mlir::fsharp::AndOp>(loc(op), result, operands[index + 1]);
                         break;
                     case ast::Expression::OP::LogicalType::OR:
-                        //TODO: Implement the OR operation
                         result = builder.create<mlir::fsharp::OrOp>(loc(op), result, operands[index + 1]);
                         break;
                     }
@@ -665,7 +663,7 @@ namespace fsharpgrammar::compiler
                 }
 
                 mlir::Value result = operands[0];
-                for (auto [index, arith_op] : std::ranges::views::enumerate(*arithmeticOps))
+                for (auto [index, arith_op] : llvm::enumerate(*arithmeticOps))
                 {
                     switch (arith_op)
                     {

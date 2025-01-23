@@ -343,7 +343,7 @@ int CallOp::inferTypes()
         closureOp.setFunctionType(mlir::FunctionType::get(getContext(), function_type.getInputs(), getResult().getType()));
     }
 
-    for (auto [index, input_type] : std::ranges::views::enumerate(function_type.getInputs()))
+    for (auto [index, input_type] : llvm::enumerate(function_type.getInputs()))
     {
 
     }
@@ -520,4 +520,97 @@ int ModOp::inferTypes()
 void ModOp::assumeTypes()
 {
     assumeArithOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// LogicalOps
+//===----------------------------------------------------------------------===//
+static llvm::LogicalResult verifyLogicalOp(mlir::Value lhs, mlir::Value rhs)
+{
+    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
+        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
+            NoneType>(rhs.getType())))
+    )
+    {
+        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
+        return llvm::failure();
+    }
+    return llvm::success();
+}
+
+/// Returns the type of the logical operation. If the type of the left-hand side (lhs)
+/// operand is not NoneType, it returns the type of lhs. Otherwise, it returns the type
+/// of the right-hand side (rhs) operand.
+static mlir::Type getLogicalOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
+{
+    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
+        return lhs.getType();
+    return rhs.getType();
+}
+
+// Returns true if both operands have been inferred.
+static bool inferLogicalOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
+        lhs.get().setType(rhs.get().getType());
+    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
+        rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(lhs.get().getType());
+    return mlir::isa<NoneType>(lhs.get().getType());
+}
+
+// TODO: Implement this
+static void assumeLogicalOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(rhs.get().getType());
+}
+
+//===----------------------------------------------------------------------===//
+// AndOp
+//===----------------------------------------------------------------------===//
+void AndOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getLogicalOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult AndOp::verify()
+{
+    return verifyLogicalOp(getLhs(), getRhs());
+}
+
+int AndOp::inferTypes()
+{
+    return inferLogicalOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void AndOp::assumeTypes()
+{
+    assumeLogicalOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// OrOp
+//===----------------------------------------------------------------------===//
+void OrOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getLogicalOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult OrOp::verify()
+{
+    return verifyLogicalOp(getLhs(), getRhs());
+}
+
+int OrOp::inferTypes()
+{
+    return inferLogicalOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void OrOp::assumeTypes()
+{
+    assumeLogicalOp(*this, getLhsMutable(), getRhsMutable());
 }

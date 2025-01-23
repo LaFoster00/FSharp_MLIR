@@ -307,9 +307,9 @@ def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpIn
 // LogicalOps
 //===----------------------------------------------------------------------===//
 def FSharp_AndOp : FSharp_Op<"and", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
-  let summary = "logical and operation";
+  let summary = "and operation";
   let description = [{
-    This operation performs element-wise logical and of two tensors.
+    This operation performs element-wise adn of two tensors.
   }];
 
   let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -319,7 +319,7 @@ def FSharp_AndOp : FSharp_Op<"and", [DeclareOpInterfaceMethods<TypeInferenceOpIn
     $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
   }];
 
-  // Allow building an AddOp with from the two input operands.
+  // Allow building an AndOp with from the two input operands.
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
