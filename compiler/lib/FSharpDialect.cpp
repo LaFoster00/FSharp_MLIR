@@ -4,6 +4,8 @@
 
 #include "compiler/FSharpDialect.h"
 
+#include <compiler/CompilerUtils.h>
+
 namespace fsharpgrammar::ast
 {
     class Type;
@@ -201,58 +203,69 @@ void ClosureOp::print(mlir::OpAsmPrinter& p)
         getArgAttrsAttrName(), getResAttrsAttrName());
 }
 
-int ClosureOp::inferTypes()
+void ClosureOp::inferFromOperands()
 {
-    return 0;
+    auto &entry_block = front();
+    for (auto [i, arg] : llvm::enumerate(entry_block.getArguments()))
+    {
+        arg.setType(getArgumentTypes()[i]);
+    }
 }
 
-void ClosureOp::assumeTypes()
+void ClosureOp::inferFromReturnType()
 {
+}
 
+void ClosureOp::inferFromUnknown()
+{
 }
 
 //===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult fsharp::ReturnOp::verify() {
+LogicalResult fsharp::ReturnOp::verify()
+{
     auto function = cast<ClosureOp>((*this)->getParentOp());
 
     // The operand number and types must match the function signature.
-    const auto &results = function.getFunctionType().getResults();
+    const auto& results = function.getFunctionType().getResults();
     if (getNumOperands() != results.size())
         return emitOpError("has ")
-               << getNumOperands() << " operands, but enclosing function (@"
-               << function.getName() << ") returns " << results.size();
+            << getNumOperands() << " operands, but enclosing function (@"
+            << function.getName() << ") returns " << results.size();
 
     for (unsigned i = 0, e = results.size(); i != e; ++i)
         if (getOperand().getType() != results[i])
             return emitError() << "type of return operand " << i << " ("
-                               << getOperand().getType()
-                               << ") doesn't match function result type ("
-                               << results[i] << ")"
-                               << " in function @" << function.getName();
+                << getOperand().getType()
+                << ") doesn't match function result type ("
+                << results[i] << ")"
+                << " in function @" << function.getName();
 
     return success();
 }
 
 
-
 //===----------------------------------------------------------------------===//
-// GenericCallOp
+// CallOp
 //===----------------------------------------------------------------------===//
 
 /// Find a closure with the given name in the current scope or parent scopes.
-mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::StringRef closureName) {
-    mlir::Operation *currentOp = startOp;
+mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::StringRef closureName)
+{
+    mlir::Operation* currentOp = startOp;
 
     // Traverse up through parent operations (or regions) to find the closure
-    while (currentOp) {
+    while (currentOp)
+    {
         // Check if the current operation has a SymbolTable
-        if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>()) {
+        if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>())
+        {
             // Try to lookup the closure in the current SymbolTable
-            mlir::Operation *closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-            if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure)) {
+            mlir::Operation* closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
+            if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure))
+            {
                 return closure_op; // Found the closure
             }
         }
@@ -265,7 +278,51 @@ mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::Strin
     return nullptr;
 }
 
-int CallOp::inferTypes()
+//===----------------------------------------------------------------------===//
+// ReturnOp
+//===----------------------------------------------------------------------===//
+
+// This is the only one that actually matters for our purposes since we only care about the type of the returned object
+void ReturnOp::inferFromOperands()
+{
+    auto previous_function_type = getParentOp().getFunctionType();
+    if (!previous_function_type)
+    {
+        mlir::emitError(getLoc(), "Cant access parent closure op!");
+        return;
+    }
+
+    getParentOp().setFunctionType(mlir::FunctionType::get(getContext(), previous_function_type.getInputs(), getOperandTypes()));
+    // Now that the function type has been updated we need to update the types of the call ops that use this function
+    auto function_uses = getParentOp().getSymbolUses(getParentOp()->getParentOp());
+    if (function_uses.has_value())
+    {
+        for (auto symbol_use : function_uses.value())
+        {
+            auto user = symbol_use.getUser();
+            if (auto call_op = mlir::dyn_cast<CallOp>(user))
+            {
+                call_op.getResult().setType(getOperand().getType());
+            }
+        }
+    }
+}
+
+// Return ops wont be resolved by this step since they take their type from the returned object which is not known at this point
+void ReturnOp::inferFromReturnType()
+{
+
+}
+
+void ReturnOp::inferFromUnknown()
+{
+
+}
+
+
+
+
+void CallOp::inferFromOperands()
 {
     // Get the ClosureOp from the CallOp
 
@@ -273,29 +330,43 @@ int CallOp::inferTypes()
     if (!closureOp)
     {
         mlir::emitError(getLoc(), "Unable to find callee");
-        return 0;
+        return;
     }
 
-    auto function_type = closureOp.getFunctionType();
+    auto closure_type = closureOp.getFunctionType();
 
-    // If the return type of this function is specified but the return value of the called function isnt we can infer it
-    // to the return type of this call
-    if (!mlir::isa<NoneType>(getResult().getType()) && mlir::isa<NoneType>(function_type.getResult(0)))
+    auto operands = getOperands();
+    // In case we infer any of the types of the targeted closure we need to update the closure types inputs later on
+    llvm::SmallVector<mlir::Type, 4> new_closure_types;
+    bool operands_inferred = false;
+    for (auto [index, input_type] : std::ranges::views::enumerate(closure_type.getInputs()))
     {
-        // Copy the input types and set the return type to the type of the closure to this return type
-        closureOp.setFunctionType(mlir::FunctionType::get(getContext(), function_type.getInputs(), getResult().getType()));
+        // If the operand types are not the same as the input types of the closure we can substitute them for this calls types
+        if (operands[index].getType() != input_type)
+        {
+            new_closure_types.push_back(operands[index].getType());
+            operands_inferred = true;
+        }
+        // If both types are the same we just copy previously defined type of the closure
+        else
+        {
+            new_closure_types.push_back(input_type);
+        }
     }
-
-    for (auto [index, input_type] : std::ranges::views::enumerate(function_type.getInputs()))
+    if (operands_inferred)
     {
-
+        closureOp.setFunctionType(mlir::FunctionType::get(getContext(), new_closure_types, closure_type.getResult(0)));
+        return;
     }
-    return 0;
 }
 
-void CallOp::assumeTypes()
+void CallOp::inferFromReturnType()
 {
+}
 
+
+void CallOp::inferFromUnknown()
+{
 }
 
 //===----------------------------------------------------------------------===//
@@ -315,7 +386,7 @@ static llvm::LogicalResult verifyArithOp(mlir::Value lhs, mlir::Value rhs)
     return llvm::success();
 }
 
-static mlir::Type getArithOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
+static mlir::Type getArithOpReturnType(const mlir::Value& lhs, const mlir::Value& rhs)
 {
     if (!mlir::isa<mlir::NoneType>(lhs.getType()))
         return lhs.getType();
@@ -323,17 +394,12 @@ static mlir::Type getArithOpReturnType(const mlir::Value &lhs, const mlir::Value
 }
 
 // Returns true if both operands have been inferred.
-static int inferArithOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+static void inferArithOpFromOperands(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
-        lhs.get().setType(rhs.get().getType());
-    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
-        rhs.get().setType(lhs.get().getType());
     op->getResult(0).setType(lhs.get().getType());
-    return mlir::isa<NoneType>(lhs.get().getType()) ? 0 : 2;
 }
 
-static void assumeArithOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
     lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
     rhs.get().setType(lhs.get().getType());
@@ -355,12 +421,16 @@ llvm::LogicalResult AddOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
-int AddOp::inferTypes()
+void AddOp::inferFromOperands()
 {
-    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
 }
 
-void AddOp::assumeTypes()
+void AddOp::inferFromReturnType()
+{
+}
+
+void AddOp::inferFromUnknown()
 {
     assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }
@@ -380,12 +450,16 @@ llvm::LogicalResult SubOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
-int SubOp::inferTypes()
+void SubOp::inferFromOperands()
 {
-    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
 }
 
-void SubOp::assumeTypes()
+void SubOp::inferFromReturnType()
+{
+}
+
+void SubOp::inferFromUnknown()
 {
     assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }
@@ -405,12 +479,16 @@ llvm::LogicalResult MulOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
-int MulOp::inferTypes()
+void MulOp::inferFromOperands()
 {
-    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
 }
 
-void MulOp::assumeTypes()
+void MulOp::inferFromReturnType()
+{
+}
+
+void MulOp::inferFromUnknown()
 {
     assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }
@@ -430,12 +508,16 @@ llvm::LogicalResult DivOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
-int DivOp::inferTypes()
+void DivOp::inferFromOperands()
 {
-    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
 }
 
-void DivOp::assumeTypes()
+void DivOp::inferFromReturnType()
+{
+}
+
+void DivOp::inferFromUnknown()
 {
     assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }
@@ -455,12 +537,16 @@ llvm::LogicalResult ModOp::verify()
     return verifyArithOp(getLhs(), getRhs());
 }
 
-int ModOp::inferTypes()
+void ModOp::inferFromOperands()
 {
-    return inferArithOp(*this, getLhsMutable(), getRhsMutable());
+    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
 }
 
-void ModOp::assumeTypes()
+void ModOp::inferFromReturnType()
+{
+}
+
+void ModOp::inferFromUnknown()
 {
     assumeArithOp(*this, getLhsMutable(), getRhsMutable());
 }

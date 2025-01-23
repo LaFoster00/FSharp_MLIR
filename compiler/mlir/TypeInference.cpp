@@ -2,6 +2,8 @@
 // Created by lasse on 22/01/2025.
 //
 
+#include <compiler/CompilerUtils.h>
+
 #include "compiler/FSharpDialect.h"
 #include "compiler/FSharpPasses.h"
 
@@ -28,92 +30,43 @@ namespace
         {
             auto f = getOperation();
 
-            // Populate the worklist with the operations that need shape inference:
-            // these are operations that return a dynamic shape.
-            llvm::SmallPtrSet<mlir::Operation*, 16> opWorklist;
-            f.walk([&](mlir::Operation* op)
+            // Infer the operations with all inferred operands first
             {
-                if (returnsUnknownType(op))
-                    opWorklist.insert(op);
-            });
-
-            // Iterate on the operations in the worklist until all operations have been
-            // inferred or no change happened (fix point).
-            while (!opWorklist.empty())
-            {
-                // Find the next operation ready for inference, that is an operation
-                // with all operands already resolved (non-generic).
-                auto nextop = llvm::find_if(opWorklist, allOperandsInferred);
-                if (nextop == opWorklist.end())
-                    break;
-
-                Operation* op = *nextop;
-                // Ask the operation to infer its output shapes.
-                if (auto shapeOp = dyn_cast<TypeInference>(op))
+                // Populate the worklist with the operations that need shape inference:
+                // these are operations that return a dynamic shape.
+                fsharp::ClosureOp bla;
+                llvm::SmallPtrSet<mlir::Operation*, 16> unknown_return_work_list;
+                f.walk([&](mlir::Operation* op)
                 {
-                    switch (int result = shapeOp.inferTypes())
+                    if (fsharp::utils::returnsUnknownType(op))
+                        unknown_return_work_list.insert(op);
+                });
+
+                // Infer all the types that we can from the defined operands.
+                while (!unknown_return_work_list.empty())
+                {
+                    // Find the next operation ready for inference, that is an operation
+                    // with all operands already resolved (non-generic).
+                    auto nextop = llvm::find_if(unknown_return_work_list, fsharp::utils::allOperandsInferred);
+                    if (nextop == unknown_return_work_list.end())
+                        break;
+
+                    Operation* op = *nextop;
+                    unknown_return_work_list.erase(op);
+                    // Ask the operation to infer its output shapes.
+                    if (auto shapeOp = dyn_cast<TypeInference>(op))
                     {
-                    case 0: // No types were resolved
-                    case 1: // Some types were resolved
-                        break;
-                    case 2: // All types were resolved
-                        opWorklist.erase(op);
-                        break;
+                        shapeOp.inferFromOperands();
+                    }
+                    else
+                    {
+                        op->emitError("Unable to infer type of operation without type inference interface. \n"
+                            "This op is likely not compatible with type inference. All types should be resolved prior"
+                            "to this op.");
+                        return signalPassFailure();
                     }
                 }
-                else
-                {
-                    op->emitError("Unable to infer type of operation without type inference interface. \n"
-                        "This op is likely not compatible with type inference. All types should be resolved prior"
-                        "to this op.");
-                    return signalPassFailure();
-                }
             }
-
-            // In case all possible types have been inferred we can now assume that the remaining types should be integers.
-            while (!opWorklist.empty())
-            {
-                // Find the next operation ready for inference, that is an operation
-                // with all operands already resolved (non-generic).
-                auto nextop = llvm::find_if(opWorklist, allOperandsInferred);
-                if (nextop == opWorklist.end())
-                    break;
-
-                Operation* op = *nextop;
-
-                // Ask the operation to infer its output shapes.
-                if (auto shapeOp = dyn_cast<TypeInference>(op))
-                {
-                    shapeOp.assumeTypes();
-                }
-                else
-                {
-                    op->emitError("Unable to infer type of operation without type inference interface. \n"
-                        "This op is likely not compatible with type inference. All types should be resolved prior"
-                        "to this op.");
-                    return signalPassFailure();
-                }
-            }
-        }
-
-        /// A utility method that returns if the given operation has all of its
-        /// operands inferred.
-        static bool allOperandsInferred(Operation* op)
-        {
-            return llvm::all_of(op->getOperandTypes(), [](Type operandType)
-            {
-                return !llvm::isa<NoneType>(operandType);
-            });
-        }
-
-        /// A utility method that returns if the given operation has a dynamically
-        /// shaped result.
-        static bool returnsUnknownType(Operation* op)
-        {
-            return llvm::any_of(op->getResultTypes(), [](Type resultType)
-            {
-                return llvm::isa<NoneType>(resultType);
-            });
         }
     };
 } // namespace

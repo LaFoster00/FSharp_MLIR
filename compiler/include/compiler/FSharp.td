@@ -60,10 +60,12 @@ def TypeInferenceOpInterface : OpInterface<"TypeInference"> {
     }];
 
     let methods = [
-        InterfaceMethod<"Infer and set the output shape for the current operation. Returns 0 if not all of the types could be inferred, 1 if some could be inferred and 2 if all could be inferred..",
-                        "int", "inferTypes">,
+        InterfaceMethod<"Infer the output shape for the current operation based on the operands which are all typed. ",
+                        "void", "inferFromOperands">,
+        InterfaceMethod<"Infer the operand types from the return type of the operation.",
+                        "void", "inferFromReturnType">,
         InterfaceMethod<"Set all the unknown types to int.",
-                        "void", "assumeTypes">
+                        "void", "inferFromUnknown">
     ];
 }
 
@@ -204,7 +206,7 @@ def CallOp : FSharp_Op<"call", [CallOpInterface, DeclareOpInterfaceMethods<TypeI
 // ReturnOp
 //===----------------------------------------------------------------------===//
 
-def ReturnOp : FSharp_Op<"return", [Pure, HasParent<"ClosureOp">, Terminator]> {
+def ReturnOp : FSharp_Op<"return", [Pure, HasParent<"ClosureOp">, DeclareOpInterfaceMethods<TypeInferenceOpInterface>, Terminator]> {
   let summary = "Function return operation";
   let description = [{
     The `FSharp.return` operation represents a return operation within a function.
