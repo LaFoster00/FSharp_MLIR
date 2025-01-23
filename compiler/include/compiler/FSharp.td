@@ -306,6 +306,9 @@ def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpIn
 //===----------------------------------------------------------------------===//
 // LogicalOps
 //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// AndOp
+//===----------------------------------------------------------------------===//
 def FSharp_AndOp : FSharp_Op<"and", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "and operation";
   let description = [{
@@ -326,10 +329,62 @@ def FSharp_AndOp : FSharp_Op<"and", [DeclareOpInterfaceMethods<TypeInferenceOpIn
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// OrOp
+//===----------------------------------------------------------------------===//
 def FSharp_OrOp : FSharp_Op<"or", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "logical or operation";
   let description = [{
     This operation performs element-wise logical or of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// EqualityOps
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// EqualOp
+//===----------------------------------------------------------------------===//
+def FSharp_EqualOp : FSharp_Op<"equal", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "equality equal operation";
+  let description = [{
+    This operation performs element-wise equality equal of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// NotEqualOp
+//===----------------------------------------------------------------------===//
+def FSharp_NotEqualOp : FSharp_Op<"notequal", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "equality not equal operation";
+  let description = [{
+    This operation performs element-wise equality not equal of two tensors.
   }];
 
   let arguments = (ins AnyType:$lhs, AnyType:$rhs);

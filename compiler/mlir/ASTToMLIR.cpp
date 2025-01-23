@@ -612,6 +612,40 @@ namespace fsharpgrammar::compiler
             }
         }
 
+        mlir::Value getEqualityOp(const ast::Expression::OP& op)
+        {
+            if (auto equalityOps = std::get_if<std::vector<ast::Expression::OP::EqualityType>>(&op.ops))
+            {
+                mlir::SmallVector<mlir::Value, 4> operands;
+                for (auto& expression : op.expressions)
+                {
+                    auto result = mlirGen(*expression);
+                    if (!result.has_value())
+                    {
+                        mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                        return nullptr;
+                    }
+                    operands.push_back(result.value());
+                }
+
+                mlir::Value result = operands[0];
+                for (auto [index, equality_op] : llvm::enumerate(*equalityOps))
+                {
+                    switch (equality_op)
+                    {
+                    case ast::Expression::OP::EqualityType::EQUAL:
+                        result = builder.create<mlir::fsharp::EqualOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    case ast::Expression::OP::EqualityType::NOT_EQUAL:
+                        result = builder.create<mlir::fsharp::NotEqualOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    }
+                }
+
+                return result;
+            }
+        }
+
         mlir::Value getLogicalOp(const ast::Expression::OP& op)
         {
             if (auto logicalOps = std::get_if<std::vector<ast::Expression::OP::LogicalType>>(&op.ops))

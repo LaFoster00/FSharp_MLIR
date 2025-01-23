@@ -559,7 +559,6 @@ static bool inferLogicalOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
     return mlir::isa<NoneType>(lhs.get().getType());
 }
 
-// TODO: Implement this
 static void assumeLogicalOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
 {
     lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
@@ -613,4 +612,96 @@ int OrOp::inferTypes()
 void OrOp::assumeTypes()
 {
     assumeLogicalOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// EqualityOps
+//===----------------------------------------------------------------------===//
+static llvm::LogicalResult verifyEqualityOp(mlir::Value lhs, mlir::Value rhs)
+{
+    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
+        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
+            NoneType>(rhs.getType())))
+    )
+    {
+        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
+        return llvm::failure();
+    }
+    return llvm::success();
+}
+
+/// Returns the type of the logical operation. If the type of the left-hand side (lhs)
+/// operand is not NoneType, it returns the type of lhs. Otherwise, it returns the type
+/// of the right-hand side (rhs) operand.
+static mlir::Type getEqualityOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
+{
+    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
+        return lhs.getType();
+    return rhs.getType();
+}
+
+// Returns true if both operands have been inferred.
+static bool inferEqualityOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
+        lhs.get().setType(rhs.get().getType());
+    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
+        rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(lhs.get().getType());
+    return mlir::isa<NoneType>(lhs.get().getType());
+}
+
+static void assumeEqualityOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(rhs.get().getType());
+}
+
+//===----------------------------------------------------------------------===//
+// EqualOp
+//===----------------------------------------------------------------------===//
+void EqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getEqualityOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult EqualOp::verify()
+{
+    return verifyEqualityOp(getLhs(), getRhs());
+}
+
+int EqualOp::inferTypes()
+{
+    return inferEqualityOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void EqualOp::assumeTypes()
+{
+    assumeEqualityOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// NotEqualOp
+//===----------------------------------------------------------------------===//
+void NotEqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getEqualityOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult NotEqualOp::verify()
+{
+    return verifyEqualityOp(getLhs(), getRhs());
+}
+
+int NotEqualOp::inferTypes()
+{
+    return inferEqualityOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void NotEqualOp::assumeTypes()
+{
+    assumeEqualityOp(*this, getLhsMutable(), getRhsMutable());
 }
