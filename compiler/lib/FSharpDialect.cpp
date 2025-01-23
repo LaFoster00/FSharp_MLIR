@@ -399,6 +399,32 @@ static void inferArithOpFromOperands(Operation* op, OpOperand& lhs, OpOperand& r
     op->getResult(0).setType(lhs.get().getType());
 }
 
+static void inferArithOpFromResultType(Operation* op, OpOperand& lhs, OpOperand& rhs)
+{
+    if (mlir::isa<NoneType>(lhs.get().getType()))
+    {
+        lhs.get().setType(op->getResultTypes()[0]);
+    }
+    if (mlir::isa<NoneType>(rhs.get().getType()))
+    {
+        rhs.get().setType(op->getResultTypes()[0]);
+    }
+    // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
+    if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
+    {
+        mlir::SmallVector<mlir::Type, 4> func_args;
+        auto closure_type = closure.getFunctionType();
+        for (auto [i, block_args] : llvm::enumerate(closure.front().getArguments()))
+        {
+            if (mlir::isa<NoneType>(closure_type.getInput(i)))
+                func_args.push_back(block_args.getType());
+            else
+                func_args.push_back(closure_type.getInput(i));
+        }
+        closure.setType(mlir::FunctionType::get(closure.getContext(), func_args, closure_type.getResults()));
+    }
+}
+
 static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
     lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
@@ -428,6 +454,7 @@ void AddOp::inferFromOperands()
 
 void AddOp::inferFromReturnType()
 {
+    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
 }
 
 void AddOp::inferFromUnknown()
@@ -457,6 +484,7 @@ void SubOp::inferFromOperands()
 
 void SubOp::inferFromReturnType()
 {
+    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
 }
 
 void SubOp::inferFromUnknown()
@@ -486,6 +514,7 @@ void MulOp::inferFromOperands()
 
 void MulOp::inferFromReturnType()
 {
+    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
 }
 
 void MulOp::inferFromUnknown()
@@ -515,6 +544,7 @@ void DivOp::inferFromOperands()
 
 void DivOp::inferFromReturnType()
 {
+    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
 }
 
 void DivOp::inferFromUnknown()
@@ -544,6 +574,7 @@ void ModOp::inferFromOperands()
 
 void ModOp::inferFromReturnType()
 {
+    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
 }
 
 void ModOp::inferFromUnknown()

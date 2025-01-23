@@ -839,6 +839,8 @@ namespace fsharpgrammar::compiler
                 return llvm::failure();
             }
 
+            if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
+                body_result.value().setType(function.getFunctionType().getResult(0));
             builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
 
             return llvm::success();

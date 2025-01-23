@@ -31,66 +31,77 @@ namespace mlir::fsharp::utils
         return nullptr;
     }
 
+    TypeRange getOperands(mlir::Operation* op)
+    {
+        if (auto function = mlir::dyn_cast_or_null<mlir::FunctionOpInterface>(op))
+        {
+            return function.getArgumentTypes();
+        }
+        if (auto returnOp = mlir::dyn_cast_or_null<ReturnOp>(op))
+        {
+            if (returnOp.getOperand())
+                return returnOp.getOperandTypes();
+            else
+                return {};
+        }
+        else
+        {
+            return op->getOperandTypes();
+        }
+    }
+
+    TypeRange getReturnTypes(mlir::Operation* op)
+    {
+        if (auto function = mlir::dyn_cast_or_null<mlir::FunctionOpInterface>(op))
+        {
+            return function.getResultTypes();
+        }
+        if (auto returnOp = mlir::dyn_cast_or_null<ReturnOp>(op))
+        {
+            return returnOp->getOperandTypes();
+        }
+        else
+        {
+            return op->getResultTypes();
+        }
+    }
+
     bool someOperandsInferred(Operation* op)
     {
-        return llvm::any_of(op->getOperandTypes(), [](Type operandType)
+        return llvm::any_of(getOperands(op), [](Type operandType)
         {
             return !llvm::isa<NoneType>(operandType);
         });
     }
 
-
     bool allOperandsInferred(Operation* op)
     {
-        ;
-        if (op->hasTrait<FunctionOpInterface::Trait>())
+        return llvm::all_of(getOperands(op), [](Type operandType)
         {
-            auto function = mlir::dyn_cast_or_null<FunctionOpInterface>(op);
-            return llvm::all_of(function.getArgumentTypes(), [](Type operandType)
-            {
-                return !llvm::isa<NoneType>(operandType);
-            });
-        }
-        else if (auto returnOp = mlir::dyn_cast_or_null<ReturnOp>(op))
+            bool result = !llvm::isa<NoneType>(operandType);
+            return result;
+        });
+    }
+
+    bool noOperandsInferred(Operation* op)
+    {
+        return llvm::all_of(getOperands(op), [](Type operandType)
         {
-            return llvm::all_of(returnOp.getOperandTypes(), [](Type operandType)
-            {
-                return !llvm::isa<NoneType>(operandType);
-            });
-        }
-        else
-        {
-            return llvm::all_of(op->getOperandTypes(), [](Type operandType)
-            {
-                bool result = !llvm::isa<NoneType>(operandType);
-                return result;
-            });
-        }
+            return llvm::isa<NoneType>(operandType);
+        });
     }
 
     bool returnsUnknownType(Operation* op)
     {
-        if (op->hasTrait<FunctionOpInterface::Trait>())
+        return llvm::any_of(getReturnTypes(op), [](Type resultType)
         {
-            auto function = mlir::dyn_cast_or_null<FunctionOpInterface>(op);
-            return llvm::all_of(function.getResultTypes(), [](Type operandType)
-            {
-                return llvm::isa<NoneType>(operandType);
-            });
-        }
-        else if (auto returnOp = mlir::dyn_cast_or_null<ReturnOp>(op))
-        {
-            return llvm::all_of(returnOp.getOperandTypes(), [](Type operandType)
-            {
-                return llvm::isa<NoneType>(operandType);
-            });
-        }
-        else
-        {
-            return llvm::any_of(op->getResultTypes(), [](Type resultType)
-            {
-                return llvm::isa<NoneType>(resultType);
-            });
-        }
+            bool result = llvm::isa<NoneType>(resultType);
+            return result;
+        });
+    }
+
+    bool returnsKnownType(Operation* op)
+    {
+        return !returnsUnknownType(op);
     }
 }

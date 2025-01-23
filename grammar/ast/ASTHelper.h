@@ -63,6 +63,21 @@ namespace fsharpgrammar::ast
         }
     }
 
+    template<typename ParentT>
+    ParentT* find_parent(antlr4::tree::ParseTree* node)
+    {
+        using antlr4::tree::ParseTree;
+        ParseTree* parent = node->parent;
+        while (parent)
+        {
+            if (dynamic_cast<ParentT*>(parent))
+            {
+                return parent;
+            }
+        }
+        return nullptr;
+    }
+
     // Returns false if t1 is found first and true if t2 is found first
     template <typename T1, typename T2>
     std::optional<bool> find_closest_parent(antlr4::tree::ParseTree* node)
