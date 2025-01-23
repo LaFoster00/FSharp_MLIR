@@ -34,7 +34,7 @@ namespace
             llvm::SmallPtrSet<mlir::Operation*, 16> unknown_return_work_list;
             module_op.walk([&](mlir::Operation* op)
             {
-                if (fsharp::utils::returnsUnknownType(op))
+                if (!fsharp::utils::isImplicitTypeInferred(op) && fsharp::utils::returnsUnknownType(op))
                     unknown_return_work_list.insert(op);
             });
 
@@ -60,7 +60,7 @@ namespace
                 {
                     op->emitError("Unable to infer type of operation without type inference interface. \n"
                         "This op is likely not compatible with type inference. All types should be resolved prior"
-                        "to this op.");
+                        "to this op.") << op;
                     return signalPassFailure();
                 }
             }
@@ -75,7 +75,9 @@ namespace
             llvm::SmallPtrSet<mlir::Operation*, 16> unknown_return_work_list;
             module_op.walk([&](mlir::Operation* op)
             {
-                if (!fsharp::utils::allOperandsInferred(op) && fsharp::utils::returnsKnownType(op))
+                if (!fsharp::utils::isImplicitTypeInferred(op)
+                    && !fsharp::utils::allOperandsInferred(op)
+                    && fsharp::utils::returnsKnownType(op))
                 {
                     unknown_return_work_list.insert(op);
                     //mlir::emitError(op->getLoc(), "Inferring from return type: ") << op;
@@ -111,8 +113,8 @@ namespace
         void runOnOperation() final
         {
             auto f = getOperation();
-            inferFromOperands(f);
             inferFromReturnType(f);
+            inferFromOperands(f);
         }
     };
 } // namespace

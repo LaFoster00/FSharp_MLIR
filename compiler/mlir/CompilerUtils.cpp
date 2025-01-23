@@ -66,6 +66,11 @@ namespace mlir::fsharp::utils
         }
     }
 
+    bool isImplicitTypeInferred(Operation *op)
+    {
+        return mlir::dyn_cast<ImplicitTypeInference>(op) != nullptr;
+    }
+
     bool someOperandsInferred(Operation* op)
     {
         return llvm::any_of(getOperands(op), [](Type operandType)
