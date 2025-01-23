@@ -5,37 +5,7 @@
 #include "compiler/FSharpDialect.h"
 #include "compiler/FSharpPasses.h"
 
-#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
-#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/Support/LLVM.h"
-#include "mlir/Support/TypeID.h"
-
-#include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
-#include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
-#include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
-#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
-#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
-#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
-#include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
-#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/IR/BuiltinDialect.h>
-#include "mlir/Pass/Pass.h"
-#include "mlir/Transforms/DialectConversion.h"
-#include "llvm/Support/Casting.h"
-#include <memory>
-#include <utility>
-
+#include "compiler/CompilerUtils.h"
 
 using namespace mlir;
 
@@ -133,29 +103,6 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
 // LowerToFunc RewritePatterns: Call operations
 //===----------------------------------------------------------------------===//
 
-/// Find a closure with the given name in the current scope or parent scopes.
-mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::StringRef closureName) {
-    mlir::Operation *currentOp = startOp;
-
-    // Traverse up through parent operations (or regions) to find the closure
-    while (currentOp) {
-        // Check if the current operation has a SymbolTable
-        if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>()) {
-            // Try to lookup the closure in the current SymbolTable
-            mlir::Operation *closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-            if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure)) {
-                return closure_op; // Found the closure
-            }
-        }
-
-        // Move to the parent operation
-        currentOp = currentOp->getParentOp();
-    }
-
-    // If no closure was found, return nullptr
-    return nullptr;
-}
-
 struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
 {
     using OpConversionPattern<fsharp::CallOp>::OpConversionPattern;
@@ -168,10 +115,10 @@ struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
 
         // Get the symbol of the callee.
         auto calleeSymbol = call_op.getCalleeAttr();
-        auto funcOp = findClosureInScope(call_op, calleeSymbol.getValue());
+        auto funcOp = fsharp::utils::findClosureInScope(call_op, calleeSymbol.getValue());
         if (!funcOp)
         {
-            call_op.emitError("Callee function not found in symbol table");
+            mlir::emitError(call_op.getLoc(), "Callee function not found in symbol table");
             return failure();
         }
 

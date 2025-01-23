@@ -20,3 +20,7 @@ target_include_directories(MLIRFSharpDialect PRIVATE
         ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_BINARY_DIR}/include
 )
+
+target_precompile_headers(MLIRFSharpDialect PRIVATE
+        ${PROJECT_SOURCE_DIR}/include/compiler/PrecompileHeaders.h
+)

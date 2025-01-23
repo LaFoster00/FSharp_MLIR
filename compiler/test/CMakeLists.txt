@@ -14,6 +14,8 @@ target_link_libraries(FSharpCompilerTest
         FSharpCompiler
 )
 
+target_precompile_headers(FSharpCompilerTest REUSE_FROM FSharpCompiler)
+
 include(GoogleTest)
 gtest_discover_tests(FSharpCompilerTest)
 

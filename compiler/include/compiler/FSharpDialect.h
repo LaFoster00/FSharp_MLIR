@@ -3,15 +3,7 @@
 //
 #pragma once
 
-#include "mlir/Bytecode/BytecodeOpInterface.h"
-#include "mlir/IR/Dialect.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/SymbolTable.h"
-#include "mlir/IR/OpDefinition.h"
-#include "mlir/Interfaces/CallInterfaces.h"
-#include "mlir/Interfaces/FunctionInterfaces.h"
-#include "mlir/Interfaces/SideEffectInterfaces.h"
-#include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
+#include "compiler/PrecompileHeaders.h"
 
 #include "compiler/FSharpInterfacesDefs.h.inc"
 

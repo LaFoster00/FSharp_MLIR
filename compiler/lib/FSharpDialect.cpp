@@ -4,30 +4,6 @@
 
 #include "compiler/FSharpDialect.h"
 
-#include "mlir/IR/DialectImplementation.h"
-#include "mlir/IR/Attributes.h"
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/OpImplementation.h"
-#include "mlir/IR/Operation.h"
-#include "mlir/IR/OperationSupport.h"
-#include "mlir/IR/Value.h"
-#include "mlir/Interfaces/FunctionImplementation.h"
-#include "mlir/Support/LLVM.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/TypeSwitch.h"
-#include "llvm/Support/Casting.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-
-#include <algorithm>
-#include <ranges>
-#include <string>
-#include <fmt/format.h>
-#include <llvm/ADT/MapVector.h>
-#include <mlir/IR/IRMapping.h>
-
 namespace fsharpgrammar::ast
 {
     class Type;
@@ -168,58 +144,6 @@ LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::Bu
     return success();
 }
 
-/// A generalized parser for binary operations. This parses the different forms
-/// of 'printBinaryOp' below.
-static mlir::ParseResult parseBinaryOp(mlir::OpAsmParser& parser,
-                                       mlir::OperationState& result)
-{
-    SmallVector<mlir::OpAsmParser::UnresolvedOperand, 2> operands;
-    SMLoc operandsLoc = parser.getCurrentLocation();
-    Type type;
-    if (parser.parseOperandList(operands, /*requiredOperandCount=*/2) ||
-        parser.parseOptionalAttrDict(result.attributes) ||
-        parser.parseColonType(type))
-        return mlir::failure();
-
-    // If the type is a function type, it contains the input and result types of
-    // this operation.
-    if (FunctionType funcType = llvm::dyn_cast<FunctionType>(type))
-    {
-        if (parser.resolveOperands(operands, funcType.getInputs(), operandsLoc,
-                                   result.operands))
-            return mlir::failure();
-        result.addTypes(funcType.getResults());
-        return mlir::success();
-    }
-
-    // Otherwise, the parsed type is the type of both operands and results.
-    if (parser.resolveOperands(operands, type, result.operands))
-        return mlir::failure();
-    result.addTypes(type);
-    return mlir::success();
-}
-
-/// A generalized printer for binary operations. It prints in two different
-/// forms depending on if all of the types match.
-static void printBinaryOp(mlir::OpAsmPrinter& printer, mlir::Operation* op)
-{
-    printer << " " << op->getOperands();
-    printer.printOptionalAttrDict(op->getAttrs());
-    printer << " : ";
-
-    // If all of the types are the same, print the type directly.
-    Type resultType = *op->result_type_begin();
-    if (llvm::all_of(op->getOperandTypes(),
-                     [=](Type type) { return type == resultType; }))
-    {
-        printer << resultType;
-        return;
-    }
-
-    // Otherwise, print a functional type.
-    printer.printFunctionalType(op->getOperandTypes(), op->getResultTypes());
-}
-
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
@@ -318,36 +242,34 @@ LogicalResult fsharp::ReturnOp::verify() {
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
-ClosureOp resolveCallee(CallOp &callOp, ModuleOp module) {
-    // Step 1: Get the callable for the callee from the CallOpInterface
-    auto callable = callOp.getCallableForCallee();
+/// Find a closure with the given name in the current scope or parent scopes.
+mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::StringRef closureName) {
+    mlir::Operation *currentOp = startOp;
 
-    // Step 2: Check if the callable is a SymbolRefAttr
-    auto symbolRef = callable.dyn_cast<SymbolRefAttr>();
-    if (!symbolRef) {
-        // If it's not a SymbolRefAttr, the CallOp might be calling an inline region or something else
-        llvm::errs() << "CallOp does not reference a function symbol.\n";
-        return nullptr;
+    // Traverse up through parent operations (or regions) to find the closure
+    while (currentOp) {
+        // Check if the current operation has a SymbolTable
+        if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>()) {
+            // Try to lookup the closure in the current SymbolTable
+            mlir::Operation *closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
+            if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure)) {
+                return closure_op; // Found the closure
+            }
+        }
+
+        // Move to the parent operation
+        currentOp = currentOp->getParentOp();
     }
 
-    // Step 3: Get the function name from the SymbolRefAttr
-    StringRef funcName = symbolRef.getRootReference();
-
-    // Step 4: Use the SymbolTable to resolve the FuncOp by name
-    auto closureOp = module.lookupSymbol<ClosureOp>(funcName);
-    if (!closureOp) {
-        llvm::errs() << "Function " << funcName << " not found in the module.\n";
-        return nullptr;
-    }
-
-    return closureOp;
+    // If no closure was found, return nullptr
+    return nullptr;
 }
 
 int CallOp::inferTypes()
 {
     // Get the ClosureOp from the CallOp
 
-    ClosureOp closureOp = resolveCallee(*this, this->getOperation()->getParentOfType<ModuleOp>());
+    ClosureOp closureOp = findClosureInScope(*this, getCallee());
     if (!closureOp)
     {
         mlir::emitError(getLoc(), "Unable to find callee");

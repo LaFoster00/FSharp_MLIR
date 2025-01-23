@@ -9,6 +9,7 @@ add_subdirectory(lib)
 
 add_library(FSharpCompiler STATIC
         mlir/Compiler.cpp
+        mlir/CompilerUtils.cpp
         mlir/ASTToMLIR.cpp
         mlir/TypeInference.cpp
         mlir/LowerToFunc.cpp
@@ -17,6 +18,10 @@ add_library(FSharpCompiler STATIC
 
 add_dependencies(FSharpCompiler
         MLIRFSharpDialect
+)
+
+target_precompile_headers(FSharpCompiler PUBLIC
+        include/compiler/PrecompileHeaders.h
 )
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

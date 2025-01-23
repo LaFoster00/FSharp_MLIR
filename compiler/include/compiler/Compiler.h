@@ -1,12 +1,6 @@
 #pragma once
 
-#include <memory>
-#include <string>
-#include <ast/ASTNode.h>
-#include <llvm/ADT/StringRef.h>
-#include <mlir/IR/BuiltinOps.h.inc>
-#include <mlir/IR/MLIRContext.h>
-#include <mlir/IR/OwningOpRef.h>
+#include "ast/ASTNode.h"
 
 enum class InputType { FSharp = 0, MLIR };
 
@@ -16,7 +10,8 @@ enum class Action
     DumpST,
     DumpAST,
     DumpMLIR,
-    DumpMLIRFirstLower,
+    DumpMLIRTypeInference,
+    DumpMLIRAffine,
     DumpMLIRLLVM,
     DumpLLVMIR,
     RunJIT,
