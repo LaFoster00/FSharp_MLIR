@@ -705,3 +705,140 @@ void NotEqualOp::assumeTypes()
 {
     assumeEqualityOp(*this, getLhsMutable(), getRhsMutable());
 }
+
+//===----------------------------------------------------------------------===//
+// RelationOps
+//===----------------------------------------------------------------------===//
+static llvm::LogicalResult verifyRelationOp(mlir::Value lhs, mlir::Value rhs)
+{
+    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
+        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
+            NoneType>(rhs.getType())))
+    )
+    {
+        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
+        return llvm::failure();
+    }
+    return llvm::success();
+}
+
+static mlir::Type getRelationOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
+{
+    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
+        return lhs.getType();
+    return rhs.getType();
+}
+
+// Returns true if both operands have been inferred.
+static bool inferRelationOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
+        lhs.get().setType(rhs.get().getType());
+    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
+        rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(lhs.get().getType());
+    return mlir::isa<NoneType>(lhs.get().getType());
+}
+
+static void assumeRelationOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+{
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    rhs.get().setType(lhs.get().getType());
+    op->getResult(0).setType(rhs.get().getType());
+}
+
+//===----------------------------------------------------------------------===//
+// LessOp
+//===----------------------------------------------------------------------===//
+void LessOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult LessOp::verify()
+{
+    return verifyRelationOp(getLhs(), getRhs());
+}
+
+int LessOp::inferTypes()
+{
+    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void LessOp::assumeTypes()
+{
+    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// LessEqualOp
+//===----------------------------------------------------------------------===//
+void LessEqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult LessEqualOp::verify()
+{
+    return verifyRelationOp(getLhs(), getRhs());
+}
+
+int LessEqualOp::inferTypes()
+{
+    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void LessEqualOp::assumeTypes()
+{
+    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// GreaterOp
+//===----------------------------------------------------------------------===//
+void GreaterOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult GreaterOp::verify()
+{
+    return verifyRelationOp(getLhs(), getRhs());
+}
+
+int GreaterOp::inferTypes()
+{
+    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void GreaterOp::assumeTypes()
+{
+    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+//===----------------------------------------------------------------------===//
+// GreaterEqualOp
+//===----------------------------------------------------------------------===//
+void GreaterEqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+{
+    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
+    odsState.addOperands({lhs, rhs});
+}
+
+llvm::LogicalResult GreaterEqualOp::verify()
+{
+    return verifyRelationOp(getLhs(), getRhs());
+}
+
+int GreaterEqualOp::inferTypes()
+{
+    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
+}
+
+void GreaterEqualOp::assumeTypes()
+{
+    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
+}

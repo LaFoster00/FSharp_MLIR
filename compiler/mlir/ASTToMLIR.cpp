@@ -612,6 +612,46 @@ namespace fsharpgrammar::compiler
             }
         }
 
+        mlir::Value getRelationOp(const ast::Expression::OP& op)
+        {
+            if (auto relationOps = std::get_if<std::vector<ast::Expression::OP::RelationType>>(&op.ops))
+            {
+                mlir::SmallVector<mlir::Value, 4> operands;
+                for (auto& expression : op.expressions)
+                {
+                    auto result = mlirGen(*expression);
+                    if (!result.has_value())
+                    {
+                        mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                        return nullptr;
+                    }
+                    operands.push_back(result.value());
+                }
+
+                mlir::Value result = operands[0];
+                for (auto [index, relation_op] : llvm::enumerate(*relationOps))
+                {
+                    switch (relation_op)
+                    {
+                    case ast::Expression::OP::RelationType::LESS:
+                        result = builder.create<mlir::fsharp::LessOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    case ast::Expression::OP::RelationType::LESS_EQUAL:
+                        result = builder.create<mlir::fsharp::LessEqualOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    case ast::Expression::OP::RelationType::GREATER:
+                        result = builder.create<mlir::fsharp::GreaterOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    case ast::Expression::OP::RelationType::GREATER_EQUAL:
+                        result = builder.create<mlir::fsharp::GreaterEqualOp>(loc(op), result, operands[index + 1]);
+                        break;
+                    }
+                }
+
+                return result;
+            }
+        }
+
         mlir::Value getEqualityOp(const ast::Expression::OP& op)
         {
             if (auto equalityOps = std::get_if<std::vector<ast::Expression::OP::EqualityType>>(&op.ops))

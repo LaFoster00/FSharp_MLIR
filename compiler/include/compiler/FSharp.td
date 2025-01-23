@@ -401,4 +401,99 @@ def FSharp_NotEqualOp : FSharp_Op<"notequal", [DeclareOpInterfaceMethods<TypeInf
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// RelationOps
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// LessOp
+//===----------------------------------------------------------------------===//
+def FSharp_LessOp : FSharp_Op<"less", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "less than operation";
+  let description = [{
+    This operation performs element-wise less than of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// LessEqualOp
+//===----------------------------------------------------------------------===//
+def FSharp_LessEqualOp : FSharp_Op<"lessequal", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "less than or equal operation";
+  let description = [{
+    This operation performs element-wise less than or equal of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// GreaterOp
+//===----------------------------------------------------------------------===//
+def FSharp_GreaterOp : FSharp_Op<"greater", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "greater than operation";
+  let description = [{
+    This operation performs element-wise greater than of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// GreaterEqualOp
+//===----------------------------------------------------------------------===//
+def FSharp_GreaterEqualOp : FSharp_Op<"greaterequal", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "greater than or equal operation";
+  let description = [{
+    This operation performs element-wise greater than or equal of two tensors.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType);
+
+  let assemblyFormat = [{
+    $lhs `,` $rhs attr-dict `:` functional-type(operands, results)
+  }];
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+  let hasVerifier = 1;
+}
+
 #endif // FSHARP_OPS
