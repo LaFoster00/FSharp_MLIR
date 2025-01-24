@@ -25,3 +25,5 @@ let complex_add_float a b c =
     e + 2.0
 
 let complex_add_float_res = complex_add_float 1 2 3
+
+let unknown_add a b = a + b

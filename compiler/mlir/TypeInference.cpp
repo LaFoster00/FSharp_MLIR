@@ -123,6 +123,21 @@ namespace
             }
         }
 
+        // Infers all operations that have a specific way of resolving unknown types.
+        void inferFromUnknown(ModuleOp module_op)
+        {
+            module_op.walk([&](mlir::Operation* op)
+            {
+               if (fsharp::utils::noOperandsInferred(op) && fsharp::utils::returnsUnknownType(op))
+               {
+                   if (auto shapeOp = dyn_cast<TypeInference>(op))
+                   {
+                       shapeOp.inferFromUnknown();
+                   }
+               }
+            });
+        }
+
         void runOnOperation() final
         {
             auto f = getOperation();
@@ -131,11 +146,32 @@ namespace
             uint32_t current_open_ops = opsToResolve(f);
             while (last_open_ops != current_open_ops)
             {
+                last_open_ops = current_open_ops;
                 inferFromReturnType(f);
                 inferFromOperands(f);
                 current_open_ops = opsToResolve(f);
             }
             // At last assume int type for all unresolved types.
+            inferFromUnknown(f);
+
+            // Go over the operations again and resolve any remaining types from the operations that were resolved
+            // Anything that cant be resolved during this step is a generic which is not supported and therefore error.
+            current_open_ops = opsToResolve(f);
+            while (last_open_ops != current_open_ops)
+            {
+                last_open_ops = current_open_ops;
+                inferFromReturnType(f);
+                inferFromOperands(f);
+                current_open_ops = opsToResolve(f);
+            }
+
+            if (current_open_ops != 0)
+            {
+                mlir::emitError(getOperation().getLoc(), "Unable to resolve all types in the module. \n"
+                    "This is likely due to a generic operation that is not supported by the type inference pass. \n"
+                    "All types should be resolved prior to this pass.") << *getOperation();
+                return signalPassFailure();
+            }
         }
     };
 } // namespace

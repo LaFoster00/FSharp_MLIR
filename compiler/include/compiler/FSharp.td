@@ -81,6 +81,48 @@ def ImplicitTypeInferenceOpInterface : OpInterface<"ImplicitTypeInference"> {
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+// We define a fsharp operation by inheriting from our base 'FSharp_Op' class above.
+// Here we provide the mnemonic and a list of traits for the operation. The
+// constant operation is marked as 'Pure' as it is a pure operation
+// and may be removed if dead.
+def ConstantOp : FSharp_Op<"constant", [ConstantLike, Pure, AllTypesMatch<["value", "result"]>]> {
+  // Provide a summary and description for this operation. This can be used to
+  // auto-generate documentation of the operations within our dialect.
+  let summary = "constant";
+  let description = [{
+    Constant operation turns a literal into an SSA value. The data is attached
+    to the operation as an attribute. For example:
+
+    ```mlir
+      %0 = fsharp.constant dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]>
+                        : tensor<2x3xf64>
+    ```
+  }];
+
+  // The constant operation takes an attribute as the only input.
+  let arguments = (ins TypedAttrInterface:$value);
+
+  // The constant operation returns a single value of anytype.
+  let results = (outs AnyType:$result);
+
+  let extraClassDeclaration = [{
+      /// Whether the constant op can be constructed with a particular value and
+      /// type.
+      static bool isBuildableWith(Attribute value, Type type){
+        return mlir::arith::ConstantOp::isBuildableWith(value, type);
+      }
+    }];
+
+  // Indicate that the operation has a custom parser and printer method.
+  let assemblyFormat = "attr-dict $value";
+  // Indicate that additional verification for this operation is necessary.
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // ClosureOp
 //===----------------------------------------------------------------------===//
 

@@ -68,6 +68,20 @@ void FSharpDialect::registerAttributes()
 // FSharp Operations
 //===----------------------------------------------------------------------===//
 
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+llvm::LogicalResult ConstantOp::verify()
+{
+
+}
+
+
+//===----------------------------------------------------------------------===//
+// PrintOp
+//===----------------------------------------------------------------------===//
+
 llvm::LogicalResult PrintOp::verify()
 {
     auto firstArgType = llvm::dyn_cast<mlir::ShapedType>(getOperand(0).getType());
@@ -205,11 +219,16 @@ void ClosureOp::print(mlir::OpAsmPrinter& p)
 
 void ClosureOp::inferFromOperands()
 {
-    auto &entry_block = front();
+    auto& entry_block = front();
     for (auto [i, arg] : llvm::enumerate(entry_block.getArguments()))
     {
         arg.setType(getArgumentTypes()[i]);
     }
+    // In case the return operation has a typed operand but the function doesn't, copy it from the return operation.
+    auto function_type = getFunctionType();
+    if (isa<NoneType>(function_type.getResult(0)))
+        setFunctionType(FunctionType::get(getContext(), function_type.getInputs(),
+                                          entry_block.back().getOperandTypes()[0]));
 }
 
 void ClosureOp::inferFromReturnType()
@@ -292,7 +311,8 @@ void ReturnOp::inferFromOperands()
         return;
     }
 
-    getParentOp().setFunctionType(mlir::FunctionType::get(getContext(), previous_function_type.getInputs(), getOperandTypes()));
+    getParentOp().setFunctionType(
+        mlir::FunctionType::get(getContext(), previous_function_type.getInputs(), getOperandTypes()));
     // Now that the function type has been updated we need to update the types of the call ops that use this function
     auto function_uses = getParentOp().getSymbolUses(getParentOp()->getParentOp());
     if (function_uses.has_value())
@@ -311,15 +331,11 @@ void ReturnOp::inferFromOperands()
 // Return ops wont be resolved by this step since they take their type from the returned object which is not known at this point
 void ReturnOp::inferFromReturnType()
 {
-
 }
 
 void ReturnOp::inferFromUnknown()
 {
-
 }
-
-
 
 
 void CallOp::inferFromOperands()
@@ -427,9 +443,23 @@ static void inferArithOpFromResultType(Operation* op, OpOperand& lhs, OpOperand&
 
 static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    lhs.get().setType(IntegerType::get(op->getContext(), 32));
     rhs.get().setType(lhs.get().getType());
     op->getResult(0).setType(rhs.get().getType());
+    // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
+    if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
+    {
+        mlir::SmallVector<mlir::Type, 4> func_args;
+        auto closure_type = closure.getFunctionType();
+        for (auto [i, block_args] : llvm::enumerate(closure.front().getArguments()))
+        {
+            if (mlir::isa<NoneType>(closure_type.getInput(i)))
+                func_args.push_back(block_args.getType());
+            else
+                func_args.push_back(closure_type.getInput(i));
+        }
+        closure.setType(mlir::FunctionType::get(closure.getContext(), func_args, closure_type.getResults()));
+    }
 }
 
 //===----------------------------------------------------------------------===//
