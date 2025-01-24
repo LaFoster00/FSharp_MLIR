@@ -11,9 +11,6 @@
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
-#include <mlir/InitAllDialects.h>
-#include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Rewrite/FrozenRewritePatternSet.h>
 
 #include "Grammar.h"
 
@@ -462,19 +459,18 @@ namespace fsharpgrammar::compiler
             switch (op.type)
             {
             case ast::Expression::OP::Type::LOGICAL:
-                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::LOGICAL!");
+                return getLogicalOp(op);
                 break;
             // return getLogicalType(std::get<0>(op));
             case ast::Expression::OP::Type::EQUALITY:
-                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::EQUALITY!");
+                return getEqualityOp(op);
                 break;
             // return getEqualityType(std::get<1>(operators));
             case ast::Expression::OP::Type::RELATION:
-                mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::RELATION!");
+                return getRelationOp(op);
                 break;
             // return getRelationType(std::get<2>(operators));
             case ast::Expression::OP::Type::ARITHMETIC:
-                // mlir::emitError(loc(op.get_range()), "No initializer given to ast::Expression::OP::Type::ARITHMETIC!");
                 return getArithmeticOp(op);
             default:
                 mlir::emitError(loc(op.get_range()), "No initializer given to op.type!");
@@ -636,110 +632,109 @@ namespace fsharpgrammar::compiler
 
         mlir::Value getRelationOp(const ast::Expression::OP& op)
         {
-            if (auto relationOps = std::get_if<std::vector<ast::Expression::OP::RelationType>>(&op.ops))
+            auto relationOps = std::get<std::vector<ast::Expression::OP::RelationType>>(op.ops);
+            mlir::SmallVector<mlir::Value, 4> operands;
+            for (auto& expression : op.expressions)
             {
-                mlir::SmallVector<mlir::Value, 4> operands;
-                for (auto& expression : op.expressions)
+                auto result = mlirGen(*expression);
+                if (!result.has_value())
                 {
-                    auto result = mlirGen(*expression);
-                    if (!result.has_value())
-                    {
-                        mlir::emitError(loc(op.get_range()), "Operand did not return value!");
-                        return nullptr;
-                    }
-                    operands.push_back(result.value());
+                    mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                    return nullptr;
                 }
-
-                mlir::Value result = operands[0];
-                for (auto [index, relation_op] : llvm::enumerate(*relationOps))
-                {
-                    switch (relation_op)
-                    {
-                    case ast::Expression::OP::RelationType::LESS:
-                        result = builder.create<mlir::fsharp::LessOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    case ast::Expression::OP::RelationType::LESS_EQUAL:
-                        result = builder.create<mlir::fsharp::LessEqualOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    case ast::Expression::OP::RelationType::GREATER:
-                        result = builder.create<mlir::fsharp::GreaterOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    case ast::Expression::OP::RelationType::GREATER_EQUAL:
-                        result = builder.create<mlir::fsharp::GreaterEqualOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    }
-                }
-
-                return result;
+                operands.push_back(result.value());
             }
+
+            mlir::Value result = operands[0];
+            for (auto [index, relation_op] : llvm::enumerate(relationOps))
+            {
+                switch (relation_op)
+                {
+                case ast::Expression::OP::RelationType::LESS:
+                    result = builder.create<mlir::fsharp::LessOp>(loc(op), result, operands[index + 1]);
+                    break;
+                case ast::Expression::OP::RelationType::LESS_EQUAL:
+                    result = builder.create<mlir::fsharp::LessEqualOp>(loc(op), result, operands[index + 1]);
+                    break;
+                case ast::Expression::OP::RelationType::GREATER:
+                    result = builder.create<mlir::fsharp::GreaterOp>(loc(op), result, operands[index + 1]);
+                    break;
+                case ast::Expression::OP::RelationType::GREATER_EQUAL:
+                    result = builder.create<mlir::fsharp::GreaterEqualOp>(loc(op), result, operands[index + 1]);
+                    break;
+                }
+            }
+
+            return result;
         }
+
 
         mlir::Value getEqualityOp(const ast::Expression::OP& op)
         {
-            if (auto equalityOps = std::get_if<std::vector<ast::Expression::OP::EqualityType>>(&op.ops))
+            auto equalityOps = std::get<std::vector<ast::Expression::OP::EqualityType>>(op.ops);
+
+            mlir::SmallVector<mlir::Value, 4> operands;
+            for (auto& expression : op.expressions)
             {
-                mlir::SmallVector<mlir::Value, 4> operands;
-                for (auto& expression : op.expressions)
+                auto result = mlirGen(*expression);
+                if (!result.has_value())
                 {
-                    auto result = mlirGen(*expression);
-                    if (!result.has_value())
-                    {
-                        mlir::emitError(loc(op.get_range()), "Operand did not return value!");
-                        return nullptr;
-                    }
-                    operands.push_back(result.value());
+                    mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                    return nullptr;
                 }
-
-                mlir::Value result = operands[0];
-                for (auto [index, equality_op] : llvm::enumerate(*equalityOps))
-                {
-                    switch (equality_op)
-                    {
-                    case ast::Expression::OP::EqualityType::EQUAL:
-                        result = builder.create<mlir::fsharp::EqualOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    case ast::Expression::OP::EqualityType::NOT_EQUAL:
-                        result = builder.create<mlir::fsharp::NotEqualOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    }
-                }
-
-                return result;
+                operands.push_back(result.value());
             }
+
+            mlir::Value result = operands[0];
+            for (auto [index, equality_op] : llvm::enumerate(equalityOps))
+            {
+                switch (equality_op)
+                {
+                case ast::Expression::OP::EqualityType::EQUAL:
+                    result = builder.create<mlir::fsharp::EqualOp>(loc(op), result, operands[index + 1]);
+                    break;
+                case ast::Expression::OP::EqualityType::NOT_EQUAL:
+                    result = builder.create<mlir::fsharp::NotEqualOp>(loc(op), result, operands[index + 1]);
+                    break;
+                default: mlir::emitError(loc(op.get_range()), "No equality operator found in OP!");
+                }
+            }
+
+            return result;
         }
 
         mlir::Value getLogicalOp(const ast::Expression::OP& op)
         {
-            if (auto logicalOps = std::get_if<std::vector<ast::Expression::OP::LogicalType>>(&op.ops))
+            auto logicalOps = std::get<std::vector<ast::Expression::OP::LogicalType>>(op.ops);
+
+            mlir::SmallVector<mlir::Value, 4> operands;
+            for (auto& expression : op.expressions)
             {
-                mlir::SmallVector<mlir::Value, 4> operands;
-                for (auto& expression : op.expressions)
+                auto result = mlirGen(*expression);
+                if (!result.has_value())
                 {
-                    auto result = mlirGen(*expression);
-                    if (!result.has_value())
-                    {
-                        mlir::emitError(loc(op.get_range()), "Operand did not return value!");
-                        return nullptr;
-                    }
-                    operands.push_back(result.value());
+                    mlir::emitError(loc(op.get_range()), "Operand did not return value!");
+                    return nullptr;
                 }
-
-                mlir::Value result = operands[0];
-                for (auto [index, logical_op] : llvm::enumerate(*logicalOps))
-                {
-                    switch (logical_op)
-                    {
-                    case ast::Expression::OP::LogicalType::AND:
-                        result = builder.create<mlir::fsharp::AndOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    case ast::Expression::OP::LogicalType::OR:
-                        result = builder.create<mlir::fsharp::OrOp>(loc(op), result, operands[index + 1]);
-                        break;
-                    }
-                }
-
-                return result;
+                operands.push_back(result.value());
             }
+
+            mlir::Value result = operands[0];
+            for (auto [index, logical_op] : llvm::enumerate(logicalOps))
+            {
+                switch (logical_op)
+                {
+                case ast::Expression::OP::LogicalType::AND:
+                    result = builder.create<mlir::fsharp::AndOp>(loc(op), result, operands[index + 1]);
+                    break;
+                case ast::Expression::OP::LogicalType::OR:
+                    result = builder.create<mlir::fsharp::OrOp>(loc(op), result, operands[index + 1]);
+                    break;
+                default: mlir::emitError(loc(op.get_range()), "No logical operator found in OP!");
+                }
+            }
+
+            return result;
         }
 
         mlir::Value getArithmeticOp(const ast::Expression::OP& op)

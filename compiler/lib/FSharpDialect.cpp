@@ -412,10 +412,10 @@ void CallOp::inferFromUnknown()
 }
 
 //===----------------------------------------------------------------------===//
-// ArtihmeticOps
+// Binary Operations
 //===----------------------------------------------------------------------===//
 
-static llvm::LogicalResult verifyArithOp(mlir::Value lhs, mlir::Value rhs)
+static llvm::LogicalResult verifyBinaryOp(mlir::Value lhs, mlir::Value rhs)
 {
     if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
         || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
@@ -428,7 +428,7 @@ static llvm::LogicalResult verifyArithOp(mlir::Value lhs, mlir::Value rhs)
     return llvm::success();
 }
 
-static mlir::Type getArithOpReturnType(const mlir::Value& lhs, const mlir::Value& rhs)
+static mlir::Type getBinaryOpReturnType(const mlir::Value& lhs, const mlir::Value& rhs)
 {
     if (!mlir::isa<mlir::NoneType>(lhs.getType()))
         return lhs.getType();
@@ -436,12 +436,12 @@ static mlir::Type getArithOpReturnType(const mlir::Value& lhs, const mlir::Value
 }
 
 // Returns true if both operands have been inferred.
-static void inferArithOpFromOperands(Operation* op, OpOperand& lhs, OpOperand& rhs)
+static void inferBinaryOpFromOperands(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
     op->getResult(0).setType(lhs.get().getType());
 }
 
-static void inferArithOpFromResultType(Operation* op, OpOperand& lhs, OpOperand& rhs)
+static void inferBinaryOpFromResultType(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
     if (mlir::isa<NoneType>(lhs.get().getType()))
     {
@@ -458,7 +458,7 @@ static void inferArithOpFromResultType(Operation* op, OpOperand& lhs, OpOperand&
     }
 }
 
-static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
+static void assumeBinaryOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
     lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::Signed));
     rhs.get().setType(lhs.get().getType());
@@ -471,472 +471,251 @@ static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 }
 
 //===----------------------------------------------------------------------===//
+// ArtihmeticOps
+//===----------------------------------------------------------------------===//
+
+#define GENERATE_BINARY_OP_BUILDER(op_name) \
+    void op_name::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs) \
+    { \
+        odsState.addTypes(getBinaryOpReturnType(lhs, rhs)); \
+        odsState.addOperands({lhs, rhs}); \
+    }
+
+#define GENERATE_BINARY_OP_VERIFIER(op_name) \
+    llvm::LogicalResult op_name::verify() \
+    { \
+        return verifyBinaryOp(getLhs(), getRhs()); \
+    }
+
+#define GENERATE_BINARY_OP_INFERENCE(op_name) \
+    void op_name::inferFromOperands() \
+    { \
+        inferBinaryOpFromOperands(*this, getLhsMutable(), getRhsMutable()); \
+    } \
+    void op_name::inferFromReturnType() \
+    { \
+        inferBinaryOpFromResultType(*this, getLhsMutable(), getRhsMutable()); \
+    } \
+    void op_name::inferFromUnknown() \
+    { \
+        assumeBinaryOp(*this, getLhsMutable(), getRhsMutable()); \
+    }
+
+#define GENERATE_BINARY_OP(op_name) \
+    GENERATE_BINARY_OP_BUILDER(op_name) \
+    GENERATE_BINARY_OP_VERIFIER(op_name) \
+    GENERATE_BINARY_OP_INFERENCE(op_name)
+
+//===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
 
-void AddOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getArithOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
-
-llvm::LogicalResult AddOp::verify()
-{
-    return verifyArithOp(getLhs(), getRhs());
-}
-
-void AddOp::inferFromOperands()
-{
-    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
-}
-
-void AddOp::inferFromReturnType()
-{
-    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
-}
-
-void AddOp::inferFromUnknown()
-{
-    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_BINARY_OP(AddOp)
 
 //===----------------------------------------------------------------------===//
 // SubOp
 //===----------------------------------------------------------------------===//
 
-void SubOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getArithOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
-
-llvm::LogicalResult SubOp::verify()
-{
-    return verifyArithOp(getLhs(), getRhs());
-}
-
-void SubOp::inferFromOperands()
-{
-    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
-}
-
-void SubOp::inferFromReturnType()
-{
-    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
-}
-
-void SubOp::inferFromUnknown()
-{
-    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_BINARY_OP(SubOp)
 
 //===----------------------------------------------------------------------===//
 // MulOp
 //===----------------------------------------------------------------------===//
 
-void MulOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getArithOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
-
-llvm::LogicalResult MulOp::verify()
-{
-    return verifyArithOp(getLhs(), getRhs());
-}
-
-void MulOp::inferFromOperands()
-{
-    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
-}
-
-void MulOp::inferFromReturnType()
-{
-    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
-}
-
-void MulOp::inferFromUnknown()
-{
-    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_BINARY_OP(MulOp)
 
 //===----------------------------------------------------------------------===//
 // DivOp
 //===----------------------------------------------------------------------===//
 
-void DivOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getArithOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
-
-llvm::LogicalResult DivOp::verify()
-{
-    return verifyArithOp(getLhs(), getRhs());
-}
-
-void DivOp::inferFromOperands()
-{
-    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
-}
-
-void DivOp::inferFromReturnType()
-{
-    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
-}
-
-void DivOp::inferFromUnknown()
-{
-    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_BINARY_OP(DivOp)
 
 //===----------------------------------------------------------------------===//
 // ModOp
 //===----------------------------------------------------------------------===//
 
-void ModOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getArithOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
+GENERATE_BINARY_OP(ModOp)
 
-llvm::LogicalResult ModOp::verify()
-{
-    return verifyArithOp(getLhs(), getRhs());
-}
 
-void ModOp::inferFromOperands()
-{
-    inferArithOpFromOperands(*this, getLhsMutable(), getRhsMutable());
-}
-
-void ModOp::inferFromReturnType()
-{
-    inferArithOpFromResultType(*this, getLhsMutable(), getRhsMutable());
-}
-
-void ModOp::inferFromUnknown()
-{
-    assumeArithOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-//===----------------------------------------------------------------------===//
-// LogicalOps
-//===----------------------------------------------------------------------===//
-static llvm::LogicalResult verifyLogicalOp(mlir::Value lhs, mlir::Value rhs)
-{
-    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
-        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
-            NoneType>(rhs.getType())))
-    )
-    {
-        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
-        return llvm::failure();
-    }
-    return llvm::success();
-}
-
-/// Returns the type of the logical operation. If the type of the left-hand side (lhs)
-/// operand is not NoneType, it returns the type of lhs. Otherwise, it returns the type
-/// of the right-hand side (rhs) operand.
-static mlir::Type getLogicalOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
-{
-    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
-        return lhs.getType();
-    return rhs.getType();
-}
-
-// Returns true if both operands have been inferred.
-static bool inferLogicalOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
-{
-    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
-        lhs.get().setType(rhs.get().getType());
-    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
-        rhs.get().setType(lhs.get().getType());
-    op->getResult(0).setType(lhs.get().getType());
-    return mlir::isa<NoneType>(lhs.get().getType());
-}
-
-static void assumeLogicalOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
-{
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
-    rhs.get().setType(lhs.get().getType());
-    op->getResult(0).setType(rhs.get().getType());
-}
-
-//===----------------------------------------------------------------------===//
-// AndOp
-//===----------------------------------------------------------------------===//
-void AndOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getLogicalOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
-
-llvm::LogicalResult AndOp::verify()
-{
-    return verifyLogicalOp(getLhs(), getRhs());
-}
-
-int AndOp::inferTypes()
-{
-    return inferLogicalOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void AndOp::assumeTypes()
-{
-    assumeLogicalOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-//===----------------------------------------------------------------------===//
-// OrOp
-//===----------------------------------------------------------------------===//
-void OrOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getLogicalOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
-
-llvm::LogicalResult OrOp::verify()
-{
-    return verifyLogicalOp(getLhs(), getRhs());
-}
-
-int OrOp::inferTypes()
-{
-    return inferLogicalOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void OrOp::assumeTypes()
-{
-    assumeLogicalOp(*this, getLhsMutable(), getRhsMutable());
-}
 
 //===----------------------------------------------------------------------===//
 // EqualityOps
 //===----------------------------------------------------------------------===//
-static llvm::LogicalResult verifyEqualityOp(mlir::Value lhs, mlir::Value rhs)
+
+// Equality ops always return boolean
+static void inferEqualityOpFromOperands(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
-        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
-            NoneType>(rhs.getType())))
-    )
-    {
-        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
-        return llvm::failure();
-    }
-    return llvm::success();
 }
 
-/// Returns the type of the logical operation. If the type of the left-hand side (lhs)
-/// operand is not NoneType, it returns the type of lhs. Otherwise, it returns the type
-/// of the right-hand side (rhs) operand.
-static mlir::Type getEqualityOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
+// Skip inference for equality ops since they should not influence the types that get resolved. After all the output
+// of a equality operation doesn't tell us anything about the operands
+static void inferEqualityOpFromResultType(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
-        return lhs.getType();
-    return rhs.getType();
 }
 
-// Returns true if both operands have been inferred.
-static bool inferEqualityOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
+static void assumeEqualityOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
-        lhs.get().setType(rhs.get().getType());
-    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
-        rhs.get().setType(lhs.get().getType());
-    op->getResult(0).setType(lhs.get().getType());
-    return mlir::isa<NoneType>(lhs.get().getType());
-}
-
-static void assumeEqualityOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
-{
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::Signed));
     rhs.get().setType(lhs.get().getType());
-    op->getResult(0).setType(rhs.get().getType());
+    // Update the surrounding closure so that its input args match with the block args of the closure region.
+    if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
+    {
+        closure.updateSignatureFromBody();
+    }
 }
+
+#define GENERATE_EQUALITY_OP_BUILDER(op_name) \
+    void op_name::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs) \
+    { \
+        odsState.addTypes(IntegerType::get(odsBuilder.getContext(), 1)); \
+        odsState.addOperands({lhs, rhs}); \
+    }
+
+#define GENERATE_EQUALITY_OP_VERIFIER(op_name) \
+    llvm::LogicalResult op_name::verify() \
+    { \
+        return verifyBinaryOp(getLhs(), getRhs()); \
+    }
+
+#define GENERATE_EQUALITY_OP_INFERENCE(op_name) \
+    void op_name::inferFromOperands() \
+    { \
+        inferEqualityOpFromOperands(*this, getLhsMutable(), getRhsMutable()); \
+    } \
+    void op_name::inferFromReturnType() \
+    { \
+        inferEqualityOpFromResultType(*this, getLhsMutable(), getRhsMutable()); \
+    } \
+    void op_name::inferFromUnknown() \
+    { \
+        assumeEqualityOp(*this, getLhsMutable(), getRhsMutable()); \
+    }
+
+#define GENERATE_EQUALITY_OP(op_name) \
+    GENERATE_EQUALITY_OP_BUILDER(op_name) \
+    GENERATE_EQUALITY_OP_VERIFIER(op_name) \
+    GENERATE_EQUALITY_OP_INFERENCE(op_name)
 
 //===----------------------------------------------------------------------===//
 // EqualOp
 //===----------------------------------------------------------------------===//
-void EqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getEqualityOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
 
-llvm::LogicalResult EqualOp::verify()
-{
-    return verifyEqualityOp(getLhs(), getRhs());
-}
-
-int EqualOp::inferTypes()
-{
-    return inferEqualityOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void EqualOp::assumeTypes()
-{
-    assumeEqualityOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_EQUALITY_OP(EqualOp)
 
 //===----------------------------------------------------------------------===//
 // NotEqualOp
 //===----------------------------------------------------------------------===//
-void NotEqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getEqualityOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
 
-llvm::LogicalResult NotEqualOp::verify()
-{
-    return verifyEqualityOp(getLhs(), getRhs());
-}
+GENERATE_EQUALITY_OP(NotEqualOp)
 
-int NotEqualOp::inferTypes()
-{
-    return inferEqualityOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void NotEqualOp::assumeTypes()
-{
-    assumeEqualityOp(*this, getLhsMutable(), getRhsMutable());
-}
 
 //===----------------------------------------------------------------------===//
 // RelationOps
 //===----------------------------------------------------------------------===//
-static llvm::LogicalResult verifyRelationOp(mlir::Value lhs, mlir::Value rhs)
-{
-    if ((mlir::isa<mlir::ShapedType>(lhs.getType()) || mlir::isa<mlir::ShapedType>(rhs.getType()))
-        || (lhs.getType() != rhs.getType() && !(mlir::isa<NoneType>(lhs.getType()) || mlir::isa<
-            NoneType>(rhs.getType())))
-    )
-    {
-        mlir::emitError(lhs.getLoc(), "Expected operands to have the same scalar type or for one to be undefined.");
-        return llvm::failure();
-    }
-    return llvm::success();
-}
-
-static mlir::Type getRelationOpReturnType(const mlir::Value &lhs, const mlir::Value &rhs)
-{
-    if (!mlir::isa<mlir::NoneType>(lhs.getType()))
-        return lhs.getType();
-    return rhs.getType();
-}
-
-// Returns true if both operands have been inferred.
-static bool inferRelationOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
-{
-    if (mlir::isa<mlir::NoneType>(lhs.get().getType()))
-        lhs.get().setType(rhs.get().getType());
-    else if (mlir::isa<mlir::NoneType>(rhs.get().getType()))
-        rhs.get().setType(lhs.get().getType());
-    op->getResult(0).setType(lhs.get().getType());
-    return mlir::isa<NoneType>(lhs.get().getType());
-}
-
-static void assumeRelationOp(Operation *op, OpOperand &lhs, OpOperand &rhs)
-{
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
-    rhs.get().setType(lhs.get().getType());
-    op->getResult(0).setType(rhs.get().getType());
-}
 
 //===----------------------------------------------------------------------===//
 // LessOp
 //===----------------------------------------------------------------------===//
-void LessOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
 
-llvm::LogicalResult LessOp::verify()
-{
-    return verifyRelationOp(getLhs(), getRhs());
-}
-
-int LessOp::inferTypes()
-{
-    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void LessOp::assumeTypes()
-{
-    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_EQUALITY_OP(LessOp)
 
 //===----------------------------------------------------------------------===//
 // LessEqualOp
 //===----------------------------------------------------------------------===//
-void LessEqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
 
-llvm::LogicalResult LessEqualOp::verify()
-{
-    return verifyRelationOp(getLhs(), getRhs());
-}
-
-int LessEqualOp::inferTypes()
-{
-    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void LessEqualOp::assumeTypes()
-{
-    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_EQUALITY_OP(LessEqualOp)
 
 //===----------------------------------------------------------------------===//
 // GreaterOp
 //===----------------------------------------------------------------------===//
-void GreaterOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
-{
-    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
-}
 
-llvm::LogicalResult GreaterOp::verify()
-{
-    return verifyRelationOp(getLhs(), getRhs());
-}
-
-int GreaterOp::inferTypes()
-{
-    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
-}
-
-void GreaterOp::assumeTypes()
-{
-    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
-}
+GENERATE_EQUALITY_OP(GreaterOp)
 
 //===----------------------------------------------------------------------===//
 // GreaterEqualOp
 //===----------------------------------------------------------------------===//
-void GreaterEqualOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs)
+
+GENERATE_EQUALITY_OP(GreaterEqualOp)
+
+
+
+//===----------------------------------------------------------------------===//
+// LogicalOps
+//===----------------------------------------------------------------------===//
+
+// Logical Ops always return boolean
+static void inferLogicalOpFromOperands(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    odsState.addTypes(getRelationOpReturnType(lhs, rhs));
-    odsState.addOperands({lhs, rhs});
 }
 
-llvm::LogicalResult GreaterEqualOp::verify()
+// Same as equality
+static void inferLogicalOpFromResultType(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    return verifyRelationOp(getLhs(), getRhs());
 }
 
-int GreaterEqualOp::inferTypes()
+static void assumeLogicalOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    return inferRelationOp(*this, getLhsMutable(), getRhsMutable());
+    lhs.get().setType(IntegerType::get(op->getContext(), 1));
+    rhs.get().setType(lhs.get().getType());
+    // Update the surrounding closure so that its input args match with the block args of the closure region.
+    if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
+    {
+        closure.updateSignatureFromBody();
+    }
 }
 
-void GreaterEqualOp::assumeTypes()
+static llvm::LogicalResult verifyLogicalOp(mlir::Value lhs, mlir::Value rhs)
 {
-    assumeRelationOp(*this, getLhsMutable(), getRhsMutable());
+    if (auto lhsType = mlir::dyn_cast<IntegerType>(lhs.getType());
+        auto rhsType = mlir::dyn_cast<IntegerType>(rhs.getType()))
+    {
+        if (lhsType.getWidth() == 1 && rhsType.getWidth() == 1)
+            return llvm::success();
+    }
+    mlir::emitError(lhs.getLoc(), "Expected operands to have type bool.");
+    return llvm::failure();
 }
+
+#define GENERATE_LOGICAL_OP_BUILDER(op_name) \
+    void op_name::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, Value lhs, Value rhs) \
+    { \
+        odsState.addTypes(IntegerType::get(odsBuilder.getContext(), 1)); \
+        odsState.addOperands({lhs, rhs}); \
+    }
+
+#define GENERATE_LOGICAL_OP_VERIFIER(op_name) \
+    llvm::LogicalResult op_name::verify() \
+    { \
+        return verifyLogicalOp(getLhs(), getRhs()); \
+    }
+
+#define GENERATE_LOGICAL_OP_INFERENCE(op_name) \
+    void op_name::inferFromOperands() \
+    { \
+        inferLogicalOpFromOperands(*this, getLhsMutable(), getRhsMutable()); \
+    } \
+    void op_name::inferFromReturnType() \
+    { \
+        inferLogicalOpFromResultType(*this, getLhsMutable(), getRhsMutable()); \
+    } \
+    void op_name::inferFromUnknown() \
+    { \
+        assumeLogicalOp(*this, getLhsMutable(), getRhsMutable()); \
+    }
+
+#define GENERATE_LOGICAL_OP(op_name) \
+    GENERATE_LOGICAL_OP_BUILDER(op_name) \
+    GENERATE_LOGICAL_OP_VERIFIER(op_name) \
+    GENERATE_LOGICAL_OP_INFERENCE(op_name)
+
+//===----------------------------------------------------------------------===//
+// AndOp
+//===----------------------------------------------------------------------===//
+
+GENERATE_LOGICAL_OP(AndOp)
+
+//===----------------------------------------------------------------------===//
+// OrOp
+//===----------------------------------------------------------------------===//
+
+GENERATE_LOGICAL_OP(OrOp)
