@@ -6,7 +6,7 @@ printf text (add 1 2)
 
 let sub a b :float = a - b
 
-let a_res = sub 1 2
+let sub_res = sub 1.0 2.5
 
 let add_3 a b c = a + b + c
 
@@ -24,6 +24,6 @@ let complex_add_float a b c =
     let e = d + c
     e + 2.0
 
-let complex_add_float_res = complex_add_float 1 2 3
+//let complex_add_float_res = complex_add_float 1 2 3
 
 let unknown_add a b = a + b

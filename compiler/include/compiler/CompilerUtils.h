@@ -11,6 +11,9 @@ namespace mlir::fsharp::utils
     /// Find a closure with the given name in the current scope or parent scopes.
     mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::StringRef closureName);
 
+    /// Find a function with the given name in the current scope or parent scopes.
+    mlir::func::FuncOp findFunctionInScope(mlir::Operation* startOp, mlir::StringRef funcName);
+
     bool isImplicitTypeInferred(Operation *op);
 
     bool someOperandsInferred(Operation* op);

@@ -133,7 +133,7 @@ namespace fsharpgrammar::compiler
             if (type_name == "int")
                 return builder.getIntegerType(32, true);
             if (type_name == "float")
-                return builder.getF32Type();
+                return builder.getF64Type();
             if (type_name == "bool")
                 return builder.getI8Type();
             if (type_name == "string")

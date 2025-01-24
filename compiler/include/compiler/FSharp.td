@@ -285,7 +285,7 @@ def ReturnOp : FSharp_Op<"return", [Pure, HasParent<"ClosureOp">, DeclareOpInter
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMethods<ImplicitTypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMethods<ImplicitTypeInferenceOpInterface>]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces

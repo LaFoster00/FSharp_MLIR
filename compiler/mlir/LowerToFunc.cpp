@@ -111,6 +111,24 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
 };
 
 //===----------------------------------------------------------------------===//
+// LowerToFunc RewritePatterns: Return operations
+//===----------------------------------------------------------------------===//
+
+struct ReturnOpLowering : public OpConversionPattern<fsharp::ReturnOp>
+{
+    using OpConversionPattern<fsharp::ReturnOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(fsharp::ReturnOp return_op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter& rewriter) const final
+    {
+        rewriter.setInsertionPointAfter(return_op);
+        rewriter.create<func::ReturnOp>(return_op.getLoc(), return_op.getOperands());
+        rewriter.eraseOp(return_op);
+        return success();
+    }
+};
+
+//===----------------------------------------------------------------------===//
 // LowerToFunc RewritePatterns: Call operations
 //===----------------------------------------------------------------------===//
 
@@ -126,10 +144,10 @@ struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
 
         // Get the symbol of the callee.
         auto calleeSymbol = call_op.getCalleeAttr();
-        auto funcOp = fsharp::utils::findClosureInScope(call_op, calleeSymbol.getValue());
+        auto funcOp = fsharp::utils::findFunctionInScope(call_op, calleeSymbol.getValue());
         if (!funcOp)
         {
-            mlir::emitError(call_op.getLoc(), "Callee function not found in symbol table");
+            mlir::emitError(call_op.getLoc(), "Callee function not found in symbol table: ") << calleeSymbol;
             return failure();
         }
 
@@ -176,10 +194,12 @@ void FSharpToFuncLoweringPass::runOnOperation()
                                arith::ArithDialect, func::FuncDialect,
                                memref::MemRefDialect, fsharp::FSharpDialect>();
         target.addIllegalOp<fsharp::ClosureOp>();
+        target.addIllegalOp<fsharp::ReturnOp>();
 
         RewritePatternSet patterns(&getContext());
 
         patterns.add<ClosureOpLowering>(&getContext());
+        patterns.add<ReturnOpLowering>(&getContext());
 
         auto module = getOperation();
         if (failed(applyFullConversion(module, target, std::move(patterns))))
