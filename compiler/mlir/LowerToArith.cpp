@@ -313,9 +313,13 @@ namespace
             // Lower all the arithmetic operations
             {
                 mlir::ConversionTarget target(getContext());
-                target.addLegalDialect<affine::AffineDialect, mlir::BuiltinDialect,
-                                       arith::ArithDialect, func::FuncDialect,
-                                       memref::MemRefDialect>();
+                target.addLegalDialect<affine::AffineDialect,
+                                       mlir::BuiltinDialect,
+                                       arith::ArithDialect,
+                                       func::FuncDialect,
+                                       scf::SCFDialect,
+                                       memref::MemRefDialect,
+                                       fsharp::FSharpDialect>();
                 target.addIllegalDialect<fsharp::FSharpDialect>();
                 target.addLegalOp<fsharp::ClosureOp>();
                 target.addLegalOp<fsharp::ReturnOp>();
@@ -340,9 +344,13 @@ namespace
             // Now lower all the constant ops
             {
                 mlir::ConversionTarget target(getContext());
-                target.addLegalDialect<affine::AffineDialect, mlir::BuiltinDialect,
-                                       arith::ArithDialect, func::FuncDialect,
-                                       memref::MemRefDialect>();
+                target.addLegalDialect<affine::AffineDialect,
+                                       mlir::BuiltinDialect,
+                                       arith::ArithDialect,
+                                       func::FuncDialect,
+                                       scf::SCFDialect,
+                                       memref::MemRefDialect,
+                                       fsharp::FSharpDialect>();
                 target.addIllegalDialect<fsharp::FSharpDialect>();
                 target.addLegalOp<fsharp::ClosureOp>();
                 target.addLegalOp<fsharp::ReturnOp>();

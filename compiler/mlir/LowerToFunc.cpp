@@ -190,9 +190,13 @@ void FSharpToFuncLoweringPass::runOnOperation()
     // First lower the function calls them
     {
         mlir::ConversionTarget target(getContext());
-        target.addLegalDialect<affine::AffineDialect, mlir::BuiltinDialect,
-                               arith::ArithDialect, func::FuncDialect,
-                               memref::MemRefDialect, fsharp::FSharpDialect>();
+        target.addLegalDialect<affine::AffineDialect,
+                               mlir::BuiltinDialect,
+                               arith::ArithDialect,
+                               func::FuncDialect,
+                               scf::SCFDialect,
+                               memref::MemRefDialect,
+                               fsharp::FSharpDialect>();
         target.addIllegalOp<fsharp::ClosureOp>();
         target.addIllegalOp<fsharp::ReturnOp>();
 
@@ -210,9 +214,13 @@ void FSharpToFuncLoweringPass::runOnOperation()
 
     {
         mlir::ConversionTarget target(getContext());
-        target.addLegalDialect<affine::AffineDialect, mlir::BuiltinDialect,
-                               arith::ArithDialect, func::FuncDialect,
-                               memref::MemRefDialect, fsharp::FSharpDialect>();
+        target.addLegalDialect<affine::AffineDialect,
+                               mlir::BuiltinDialect,
+                               arith::ArithDialect,
+                               func::FuncDialect,
+                               scf::SCFDialect,
+                               memref::MemRefDialect,
+                               fsharp::FSharpDialect>();
         target.addIllegalOp<fsharp::CallOp>();
 
         RewritePatternSet patterns(&getContext());
