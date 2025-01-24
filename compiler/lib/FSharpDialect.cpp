@@ -68,15 +68,6 @@ void FSharpDialect::registerAttributes()
 // FSharp Operations
 //===----------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
-// ConstantOp
-//===----------------------------------------------------------------------===//
-
-llvm::LogicalResult ConstantOp::verify()
-{
-
-}
-
 
 //===----------------------------------------------------------------------===//
 // PrintOp
@@ -443,7 +434,7 @@ static void inferArithOpFromResultType(Operation* op, OpOperand& lhs, OpOperand&
 
 static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    lhs.get().setType(IntegerType::get(op->getContext(), 32));
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::Signed));
     rhs.get().setType(lhs.get().getType());
     op->getResult(0).setType(rhs.get().getType());
     // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky

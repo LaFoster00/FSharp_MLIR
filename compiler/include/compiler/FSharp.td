@@ -88,7 +88,7 @@ def ImplicitTypeInferenceOpInterface : OpInterface<"ImplicitTypeInference"> {
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : FSharp_Op<"constant", [ConstantLike, Pure, AllTypesMatch<["value", "result"]>]> {
+def ConstantOp : FSharp_Op<"constant", [Pure, AllTypesMatch<["value", "result"]>]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
@@ -118,8 +118,6 @@ def ConstantOp : FSharp_Op<"constant", [ConstantLike, Pure, AllTypesMatch<["valu
 
   // Indicate that the operation has a custom parser and printer method.
   let assemblyFormat = "attr-dict $value";
-  // Indicate that additional verification for this operation is necessary.
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -412,6 +410,10 @@ def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
   ];
   let hasVerifier = 1;
 }
+
+//===----------------------------------------------------------------------===//
+// ModOp
+//===----------------------------------------------------------------------===//
 
 def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "modulo operation";

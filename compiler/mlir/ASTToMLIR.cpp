@@ -131,7 +131,7 @@ namespace fsharpgrammar::compiler
         mlir::Type getMLIRType(const std::string& type_name)
         {
             if (type_name == "int")
-                return builder.getI32Type();
+                return builder.getIntegerType(32, true);
             if (type_name == "float")
                 return builder.getF32Type();
             if (type_name == "bool")
@@ -204,7 +204,7 @@ namespace fsharpgrammar::compiler
                 // If the value is of type None, and no type was found yet, set the smallest type to i32
                 if (mlir::isa<mlir::NoneType>(value.getType()) && smallest_type == nullptr)
                 {
-                    smallest_type = builder.getI32Type();
+                    smallest_type = builder.getIntegerType(32, true);
                     continue;
                 }
                 // Check if we need to upcast the results to a larger type
@@ -934,7 +934,7 @@ namespace fsharpgrammar::compiler
             return std::visit<mlir::Type>(utils::overloaded{
                                               [&](const int32_t&)
                                               {
-                                                  return builder.getI32Type();
+                                                  return builder.getIntegerType(32, true);
                                               },
                                               [&](const double_t&)
                                               {
@@ -959,12 +959,12 @@ namespace fsharpgrammar::compiler
             return std::visit<mlir::Value>(utils::overloaded{
                                                [&](const int32_t& i)
                                                {
-                                                   return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getI32IntegerAttr(i));
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
+                                                       loc(constant.get_range()), type, builder.getSI32IntegerAttr(i));
                                                },
                                                [&](const double_t& f)
                                                {
-                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type, builder.getF64FloatAttr(f));
                                                },
                                                [&](const std::string& s)
@@ -973,12 +973,12 @@ namespace fsharpgrammar::compiler
                                                    data.push_back('\0');
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
                                                        mlir::dyn_cast<mlir::ShapedType>(type), llvm::ArrayRef(data));
-                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type, dataAttribute);
                                                },
                                                [&](const bool& b)
                                                {
-                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type,
                                                        builder.getIntegerAttr(builder.getI1Type(), b));
                                                },
