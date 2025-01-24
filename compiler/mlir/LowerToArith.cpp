@@ -5,77 +5,66 @@
 #include <compiler/FSharpDialect.h>
 using namespace mlir;
 
+#define GENERATE_OP_CONVERSION_PATTERN(op_name) \
+    struct op_name##Lowering : public OpConversionPattern<fsharp::op_name> \
+    { \
+        using OpConversionPattern<fsharp::op_name>::OpConversionPattern; \
+        LogicalResult matchAndRewrite(fsharp::op_name op, OpAdaptor adaptor, ConversionPatternRewriter& rewriter) const final \
+        {
+
+#define END_GENERATE_OP_CONVERSION_PATTERN() }};
+
 //===----------------------------------------------------------------------===//
 // LowerToArith RewritePatterns: Add operations
 //===----------------------------------------------------------------------===//
 
-struct AddOpLowering : public OpConversionPattern<fsharp::AddOp>
-{
-    using OpConversionPattern<fsharp::AddOp>::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(fsharp::AddOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter& rewriter) const final
+GENERATE_OP_CONVERSION_PATTERN(AddOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
     {
-        auto operand_type = op.getOperandTypes()[0];
-        if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
-        {
-            Operation* new_op = rewriter.create<arith::AddIOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            op.replaceAllUsesWith(new_op->getResult(0));
-            rewriter.eraseOp(op);
-            return success();
-        }
-        else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
-        {
-            Operation* new_op = rewriter.create<arith::AddFOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            op.replaceAllUsesWith(new_op->getResult(0));
-            rewriter.eraseOp(op);
-            return success();
-        }
-        return failure();
+        Operation* new_op = rewriter.create<arith::AddIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
     }
-};
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        Operation* new_op = rewriter.create<arith::AddFOp>(op.getLoc(), op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
 
 //===----------------------------------------------------------------------===//
 // LowerToArith RewritePatterns: SubOp operations
 //===----------------------------------------------------------------------===//
 
-struct SubOpLowering : public OpConversionPattern<fsharp::SubOp>
-{
-    using OpConversionPattern<fsharp::SubOp>::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(fsharp::SubOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter& rewriter) const final
+GENERATE_OP_CONVERSION_PATTERN(SubOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
     {
-        auto operand_type = op.getOperandTypes()[0];
-        if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
-        {
-            Operation* new_op = rewriter.create<arith::SubIOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            op.replaceAllUsesWith(new_op->getResult(0));
-            rewriter.eraseOp(op);
-            return success();
-        }
-        else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
-        {
-            Operation* new_op = rewriter.create<arith::SubFOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            op.replaceAllUsesWith(new_op->getResult(0));
-            rewriter.eraseOp(op);
-            return success();
-        }
-        return failure();
+        Operation* new_op = rewriter.create<arith::SubIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
     }
-};
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        Operation* new_op = rewriter.create<arith::SubFOp>(op.getLoc(), op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
 
 //===----------------------------------------------------------------------===//
 // LowerToArith RewritePatterns: MulOp operations
 //===----------------------------------------------------------------------===//
 
-struct MulOpLowering : public OpConversionPattern<fsharp::MulOp>
-{
-    using OpConversionPattern<fsharp::MulOp>::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(fsharp::MulOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter& rewriter) const final
-    {
+GENERATE_OP_CONVERSION_PATTERN(MulOp)
         auto operand_type = op.getOperandTypes()[0];
         if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
         {
@@ -99,13 +88,7 @@ struct MulOpLowering : public OpConversionPattern<fsharp::MulOp>
 // LowerToArith RewritePatterns: DivOp operations
 //===----------------------------------------------------------------------===//
 
-struct DivOpLowering : public OpConversionPattern<fsharp::DivOp>
-{
-    using OpConversionPattern<fsharp::DivOp>::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(fsharp::DivOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter& rewriter) const final
-    {
+GENERATE_OP_CONVERSION_PATTERN(DivOp)
         auto operand_type = op.getOperandTypes()[0];
         if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
         {
@@ -142,13 +125,7 @@ struct DivOpLowering : public OpConversionPattern<fsharp::DivOp>
 // LowerToArith RewritePatterns: ModOp operations
 //===----------------------------------------------------------------------===//
 
-struct ModOpLowering : public OpConversionPattern<fsharp::ModOp>
-{
-    using OpConversionPattern<fsharp::ModOp>::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(fsharp::ModOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter& rewriter) const final
-    {
+GENERATE_OP_CONVERSION_PATTERN(ModOp)
         auto operand_type = op.getOperandTypes()[0];
         if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
         {
@@ -185,13 +162,7 @@ struct ModOpLowering : public OpConversionPattern<fsharp::ModOp>
 // LowerToArith RewritePatterns: DivOp operations
 //===----------------------------------------------------------------------===//
 
-struct ConstantOpLowering : public OpConversionPattern<fsharp::ConstantOp>
-{
-    using OpConversionPattern<fsharp::ConstantOp>::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(fsharp::ConstantOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter& rewriter) const final
-    {
+GENERATE_OP_CONVERSION_PATTERN(ConstantOp)
         if (auto int_attr = mlir::dyn_cast_or_null<mlir::IntegerAttr>(op.getValue()))
         {
             auto type = mlir::dyn_cast<IntegerType>(int_attr.getType());
@@ -224,6 +195,287 @@ struct ConstantOpLowering : public OpConversionPattern<fsharp::ConstantOp>
         return failure();
     }
 };
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: AndOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(AndOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        Operation* new_op = nullptr;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            new_op = rewriter.create<arith::MinSIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+        case IntegerType::Unsigned:
+            new_op = rewriter.create<arith::MinUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        mlir::emitError(op.getLoc(), "Float type not convertable to boolean for comparison!");
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: OrOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(OrOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        Operation* new_op = nullptr;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            new_op = rewriter.create<arith::MaxSIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+            break;
+        case IntegerType::Unsigned:
+            new_op = rewriter.create<arith::MaxUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        mlir::emitError(op.getLoc(), "Float type not convertable to boolean for comparison!");
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: EqualOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(EqualOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        auto predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::eq);
+        Operation* new_op = nullptr;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+        case IntegerType::Unsigned:
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        auto predicate = arith::CmpFPredicateAttr::get(op.getContext(), arith::CmpFPredicate::OEQ);
+        Operation* new_op = rewriter.create<arith::CmpFOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: NotEqualOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(NotEqualOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        auto predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::ne);
+        Operation* new_op = nullptr;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+        case IntegerType::Unsigned:
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        auto predicate = arith::CmpFPredicateAttr::get(op.getContext(), arith::CmpFPredicate::ONE);
+        Operation* new_op = rewriter.create<arith::CmpFOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: LessOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(LessOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        Operation* new_op = nullptr;
+        arith::CmpIPredicateAttr predicate;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::slt);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        case IntegerType::Unsigned:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::ult);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        auto predicate = arith::CmpFPredicateAttr::get(op.getContext(), arith::CmpFPredicate::OLT);
+        Operation* new_op = rewriter.create<arith::CmpFOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: LessEqualOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(LessEqualOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        Operation* new_op = nullptr;
+        arith::CmpIPredicateAttr predicate;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::sle);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        case IntegerType::Unsigned:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::ule);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        auto predicate = arith::CmpFPredicateAttr::get(op.getContext(), arith::CmpFPredicate::OLE);
+        Operation* new_op = rewriter.create<arith::CmpFOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: GreaterOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(GreaterOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        Operation* new_op = nullptr;
+        arith::CmpIPredicateAttr predicate;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::sgt);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        case IntegerType::Unsigned:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::ugt);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        auto predicate = arith::CmpFPredicateAttr::get(op.getContext(), arith::CmpFPredicate::OGT);
+        Operation* new_op = rewriter.create<arith::CmpFOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArith RewritePatterns: GreaterEqualOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(GreaterEqualOp)
+    auto operand_type = op.getOperandTypes()[0];
+    if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
+    {
+        Operation* new_op = nullptr;
+        arith::CmpIPredicateAttr predicate;
+        switch (int_type.getSignedness())
+        {
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::sge);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        case IntegerType::Unsigned:
+            predicate = arith::CmpIPredicateAttr::get(op.getContext(), arith::CmpIPredicate::uge);
+            new_op = rewriter.create<arith::CmpIOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+            break;
+        }
+
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    else if (auto float_type = llvm::dyn_cast_or_null<FloatType>(operand_type))
+    {
+        auto predicate = arith::CmpFPredicateAttr::get(op.getContext(), arith::CmpFPredicate::OGE);
+        Operation* new_op = rewriter.create<arith::CmpFOp>(op.getLoc(), predicate, op.getLhs(), op.getRhs());
+        op.replaceAllUsesWith(new_op->getResult(0));
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+END_GENERATE_OP_CONVERSION_PATTERN()
 
 //===----------------------------------------------------------------------===//
 // TypeInferencePass
@@ -319,7 +571,7 @@ namespace
                                        func::FuncDialect,
                                        scf::SCFDialect,
                                        memref::MemRefDialect,
-                                       fsharp::FSharpDialect>();
+                                       tensor::TensorDialect>();
                 target.addIllegalDialect<fsharp::FSharpDialect>();
                 target.addLegalOp<fsharp::ClosureOp>();
                 target.addLegalOp<fsharp::ReturnOp>();
@@ -335,10 +587,18 @@ namespace
                 patterns.add<MulOpLowering>(&getContext());
                 patterns.add<DivOpLowering>(&getContext());
                 patterns.add<ModOpLowering>(&getContext());
+                patterns.add<AndOpLowering>(&getContext());
+                patterns.add<OrOpLowering>(&getContext());
+                patterns.add<EqualOpLowering>(&getContext());
+                patterns.add<NotEqualOpLowering>(&getContext());
+                patterns.add<LessOpLowering>(&getContext());
+                patterns.add<LessEqualOpLowering>(&getContext());
+                patterns.add<GreaterOpLowering>(&getContext());
+                patterns.add<GreaterEqualOpLowering>(&getContext());
 
                 auto module = getOperation();
                 if (failed(applyFullConversion(module, target, std::move(patterns))))
-                    signalPassFailure();
+                    return signalPassFailure();
             }
 
             // Now lower all the constant ops
@@ -350,7 +610,7 @@ namespace
                                        func::FuncDialect,
                                        scf::SCFDialect,
                                        memref::MemRefDialect,
-                                       fsharp::FSharpDialect>();
+                                       tensor::TensorDialect>();
                 target.addIllegalDialect<fsharp::FSharpDialect>();
                 target.addLegalOp<fsharp::ClosureOp>();
                 target.addLegalOp<fsharp::ReturnOp>();
@@ -364,7 +624,7 @@ namespace
 
                 auto module = getOperation();
                 if (failed(applyFullConversion(module, target, std::move(patterns))))
-                    signalPassFailure();
+                    return signalPassFailure();
             }
 
             convertToSignless(getOperation());

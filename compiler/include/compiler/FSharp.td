@@ -195,7 +195,7 @@ def CallOp : FSharp_Op<"call", [CallOpInterface, DeclareOpInterfaceMethods<TypeI
   let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$operands);
 
   // The generic call operation returns a single value of TensorType.
-  let results = (outs AnyType);
+  let results = (outs Optional<AnyType>);
 
   // Add custom build methods for the generic call operation.
   let builders = [

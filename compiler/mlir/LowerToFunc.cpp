@@ -196,7 +196,8 @@ void FSharpToFuncLoweringPass::runOnOperation()
                                func::FuncDialect,
                                scf::SCFDialect,
                                memref::MemRefDialect,
-                               fsharp::FSharpDialect>();
+                               fsharp::FSharpDialect,
+                               tensor::TensorDialect>();
         target.addIllegalOp<fsharp::ClosureOp>();
         target.addIllegalOp<fsharp::ReturnOp>();
 
@@ -220,7 +221,8 @@ void FSharpToFuncLoweringPass::runOnOperation()
                                func::FuncDialect,
                                scf::SCFDialect,
                                memref::MemRefDialect,
-                               fsharp::FSharpDialect>();
+                               fsharp::FSharpDialect,
+                               tensor::TensorDialect>();
         target.addIllegalOp<fsharp::CallOp>();
 
         RewritePatternSet patterns(&getContext());

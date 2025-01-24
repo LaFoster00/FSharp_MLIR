@@ -311,7 +311,7 @@ namespace fsharpgrammar::compiler
                     continue;
 
                 if (value.value() == nullptr)
-                    return nullptr;
+                    return value;
             }
             return value;
         }
@@ -320,9 +320,9 @@ namespace fsharpgrammar::compiler
         {
             if (std::holds_alternative<ast::Expression::Append>(expression.expression))
             {
-                if (auto result = mlirGen(std::get<ast::Expression::Append>(expression.expression));
-                    std::holds_alternative<mlir::Value>(result))
-                    return std::get<mlir::Value>(result);
+                if (const auto result = mlirGen(std::get<ast::Expression::Append>(expression.expression));
+                    const auto value = std::get_if<std::optional<mlir::Value>>(&result))
+                    return *value;
                 return {};
             }
             if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
@@ -375,7 +375,7 @@ namespace fsharpgrammar::compiler
             return operands;
         }
 
-        std::variant<mlir::Value, llvm::LogicalResult> mlirGen(const ast::Expression::Append& append)
+        std::variant<std::optional<mlir::Value>, llvm::LogicalResult> mlirGen(const ast::Expression::Append& append)
         {
             if (append.isFunctionCall)
             {
@@ -425,7 +425,8 @@ namespace fsharpgrammar::compiler
             return nullptr;
         }
 
-        mlir::Value declareFunctionCall(const ast::Expression::Append& append, const std::string& func_name)
+        std::optional<mlir::Value> declareFunctionCall(const ast::Expression::Append& append,
+                                                       const std::string& func_name)
         {
             auto location = loc(append.get_range());
 
@@ -435,8 +436,13 @@ namespace fsharpgrammar::compiler
             mlir::ValueRange arg_values = args.value();
             auto closureOp = findClosureInScope(builder.getBlock()->getParentOp(), mlir::StringRef(func_name));
             if (closureOp)
-                return builder.create<mlir::fsharp::CallOp>(
-                    location, closureOp, arg_values)->getResult(0);
+                if (closureOp.getNumResults() == 0)
+                {
+                    builder.create<mlir::fsharp::CallOp>(location, closureOp, arg_values);
+                    return {};
+                }
+                else
+                    return builder.create<mlir::fsharp::CallOp>(location, closureOp, arg_values)->getResult(0);
             else
             {
                 mlir::emitError(loc(append),
@@ -934,6 +940,7 @@ namespace fsharpgrammar::compiler
             if (!function)
                 return llvm::failure();
 
+            auto func_type = function.getFunctionType();
             mlir::Block& entry_block = function.front();
 
             // Set the insertion point in the builder to the beginning of the function
@@ -945,20 +952,41 @@ namespace fsharpgrammar::compiler
             auto body_result = mlirGen(let.expressions);
             if (body_result.has_value() && body_result.value() == nullptr)
             {
-                mlir::emitError(loc(let), "Last statement in a function definition must return a value!");
+                mlir::emitError(loc(let), "Invalid last statement!");
+                return llvm::failure();
+            }
+            if (!llvm::isa<mlir::NoneType>(func_type.getResult(0)) && !body_result.has_value())
+            {
+                mlir::emitError(loc(let), "Function does not return a value even though a return type was specified!");
                 return llvm::failure();
             }
 
-            if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
-                body_result.value().setType(function.getFunctionType().getResult(0));
+            // If the function returns a specified type, we need to set the return type of the function
+            // But only if the last statement actually returns a value
+            if (body_result.has_value())
+                if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
+                    body_result.value().setType(function.getFunctionType().getResult(0));
 
             builder.setInsertionPointToEnd(&entry_block);
-            builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
-            function.setFunctionType(mlir::FunctionType::get(
-                    builder.getContext(),
-                    function.getFunctionType().getInputs(),
-                    body_result->getType())
-            );
+            if (body_result.has_value())
+            {
+                builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
+                function.setFunctionType(mlir::FunctionType::get(
+                        builder.getContext(),
+                        function.getFunctionType().getInputs(),
+                        body_result->getType())
+                );
+            }
+            else
+            {
+                builder.create<mlir::fsharp::ReturnOp>(loc(let));
+                function.setFunctionType(mlir::FunctionType::get(
+                        builder.getContext(),
+                        function.getFunctionType().getInputs(),
+                        {})
+                );
+            }
+
 
             return llvm::success();
         }
@@ -1084,8 +1112,11 @@ namespace fsharpgrammar::compiler
                                                    data.push_back('\0');
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
                                                        mlir::dyn_cast<mlir::ShapedType>(type), llvm::ArrayRef(data));
-                                                   return builder.create<mlir::fsharp::ConstantOp>(
+                                                   auto tensor = builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type, dataAttribute);
+                                                   return builder.create<mlir::tensor::CastOp>(loc(constant),
+                                                       mlir::UnrankedTensorType::get(builder.getI8Type()),
+                                                       tensor);
                                                },
                                                [&](const bool& b)
                                                {

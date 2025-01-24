@@ -84,6 +84,8 @@ OPEN_BRACK          : '[' {this->openBrace();};
 CLOSE_BRACK         : ']' {this->closeBrace();};
 PIPE                : '|';
 AMPERCENT           : '&';
+AND                 : '&&';
+OR                  : '||';
 COMPO_LEFT          : '<<';
 COMPO_RIGHT         : '>>';
 LESS_THAN           : '<';

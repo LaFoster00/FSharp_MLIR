@@ -183,13 +183,13 @@ app_expr
     ;
 
 or_expr
-    /// F# syntax: expr | expr
-    : and_expr (PIPE and_expr)*
+    /// F# syntax: expr || expr
+    : and_expr ((PIPE | OR) and_expr)*
     ;
 
 and_expr
-    /// F# syntax: expr & expr
-    : equality_expr (AMPERCENT equality_expr)*
+    /// F# syntax: expr && expr
+    : equality_expr ((AMPERCENT | AND) equality_expr)*
     ;
 
 equality_expr

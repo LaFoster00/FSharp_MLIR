@@ -71,8 +71,10 @@ lines |> List.ofSeq |> tokenizeLines sourceTok FSharpTokenizerLexState.Initial 1
 // Inspect the syntax tree
 getUntypedTree (filePath, fileContents) |> printAst
 
-let nested_func a b c =
-    let inner_func a b = a + b
-    inner_func a b + c
 
-if 1.0 && 1 then printfn "1.0 < 1" else printfn "1.0 >= 1"
+let test x y = 
+    if x && y then
+        printf "x and y are true"
+    else
+        printf "x and y are not true"
+

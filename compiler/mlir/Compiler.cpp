@@ -170,6 +170,8 @@ namespace fsharp::compiler
                 optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
             }
 
+            mlir::bufferization::OneShotBufferizationOptions bufferizationOptions();
+
             pm.addPass(mlir::bufferization::createOneShotBufferizePass());
         }
 

@@ -96,8 +96,10 @@ bufferization::AliasingValueList PrintOp::getAliasingValues(::mlir::OpOperand& o
 }
 
 /// Convert the given RankedTensorType into the corresponding MemRefType.
-static MemRefType convertTensorToMemRef(RankedTensorType type)
+static MemRefType convertTensorToMemRef(TensorType type)
 {
+    if (auto unranked = mlir::dyn_cast<UnrankedTensorType>(type))
+        return MemRefType::get({1}, unranked.getElementType());
     return MemRefType::get(type.getShape(), type.getElementType());
 }
 
@@ -123,7 +125,7 @@ LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::Bu
         Value buffer = *maybeBuffer;
 
         // Caller / callee type mismatch is handled with a CastOp.
-        auto memRefType = convertTensorToMemRef(mlir::cast<RankedTensorType>(opOperand.getType()));
+        auto memRefType = convertTensorToMemRef(mlir::cast<TensorType>(opOperand.getType()));
         // Since we don't yet have a clear layout story, to_memref may
         // conservatively turn tensors into more dynamic memref than necessary.
         // If the memref type of the callee fails, introduce an extra memref.cast
@@ -335,7 +337,7 @@ void ReturnOp::inferFromOperands()
             auto user = symbol_use.getUser();
             if (auto call_op = mlir::dyn_cast<CallOp>(user))
             {
-                call_op.getResult().setType(getOperand().getType());
+                call_op.getResult(0).setType(getOperand().getType());
             }
         }
     }
@@ -537,7 +539,6 @@ GENERATE_BINARY_OP(DivOp)
 GENERATE_BINARY_OP(ModOp)
 
 
-
 //===----------------------------------------------------------------------===//
 // EqualityOps
 //===----------------------------------------------------------------------===//
@@ -638,7 +639,6 @@ GENERATE_EQUALITY_OP(GreaterOp)
 GENERATE_EQUALITY_OP(GreaterEqualOp)
 
 
-
 //===----------------------------------------------------------------------===//
 // LogicalOps
 //===----------------------------------------------------------------------===//
@@ -651,6 +651,19 @@ static void inferLogicalOpFromOperands(Operation* op, OpOperand& lhs, OpOperand&
 // Same as equality
 static void inferLogicalOpFromResultType(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
+    if (mlir::isa<NoneType>(lhs.get().getType()))
+    {
+        lhs.get().setType(mlir::IntegerType::get(op->getContext(), 1));
+    }
+    if (mlir::isa<NoneType>(rhs.get().getType()))
+    {
+        rhs.get().setType(mlir::IntegerType::get(op->getContext(), 1));
+    }
+    // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
+    if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
+    {
+        closure.updateSignatureFromBody();
+    }
 }
 
 static void assumeLogicalOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
@@ -666,13 +679,37 @@ static void assumeLogicalOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 
 static llvm::LogicalResult verifyLogicalOp(mlir::Value lhs, mlir::Value rhs)
 {
-    if (auto lhsType = mlir::dyn_cast<IntegerType>(lhs.getType());
-        auto rhsType = mlir::dyn_cast<IntegerType>(rhs.getType()))
+    bool lhs_correct = false;
+    bool rhs_correct = false;
+    if (auto lhsType = mlir::dyn_cast<IntegerType>(lhs.getType()))
     {
-        if (lhsType.getWidth() == 1 && rhsType.getWidth() == 1)
-            return llvm::success();
+        if (lhsType.getWidth() != 1)
+        {
+            mlir::emitError(lhs.getLoc(), "Expected first operand to have type bool.");
+            return llvm::failure();
+        }
+        lhs_correct = true;
     }
-    mlir::emitError(lhs.getLoc(), "Expected operands to have type bool.");
+    if (auto rhsType = mlir::dyn_cast<IntegerType>(lhs.getType()))
+    {
+        if (rhsType.getWidth() != 1)
+        {
+            mlir::emitError(lhs.getLoc(), "Expected first operand to have type bool.");
+            return llvm::failure();
+        }
+        rhs_correct = true;
+    }
+
+    if (!lhs_correct || mlir::isa<NoneType>(lhs.getType()))
+        lhs_correct = true;
+
+    if (!rhs_correct || mlir::isa<NoneType>(rhs.getType()))
+        rhs_correct = true;
+
+    if (lhs_correct || rhs_correct)
+        return llvm::success();
+
+    mlir::emitError(lhs.getLoc(), "Expected operands to have type bool or to be unspecified.");
     return llvm::failure();
 }
 
