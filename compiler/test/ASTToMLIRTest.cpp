@@ -111,6 +111,11 @@ TEST(FunctionDefinition, BasicAssertion)
     RunFullTestSuite(InputType::FSharp, "TestFiles/FunctionDefinition.fs");
 }
 
+TEST(NestedFunctionDefinition, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/NestedFunctionDefinitions.fs");
+}
+
 TEST(SimpleAdd, BasicAssertion)
 {
     RunFullTestSuite(InputType::FSharp, "TestFiles/SimpleAdd.fs", false, "SimpleAdd");

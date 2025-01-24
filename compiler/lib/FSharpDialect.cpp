@@ -326,6 +326,12 @@ void ReturnOp::inferFromReturnType()
 
 void ReturnOp::inferFromUnknown()
 {
+    if (isa<NoneType>(getOperand().getType()))
+    {
+        getOperand().setType(IntegerType::get(getContext(), 32, IntegerType::Signed));
+    }
+    getParentOp().setFunctionType(
+        mlir::FunctionType::get(getContext(), getParentOp().getFunctionType().getInputs(), getOperandTypes()));
 }
 
 

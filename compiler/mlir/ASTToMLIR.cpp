@@ -123,7 +123,13 @@ namespace fsharpgrammar::compiler
         llvm::LogicalResult declare(const llvm::StringRef var, mlir::Value value)
         {
             if (symbolTable.count(var))
+            {
+                mlir::emitError(value.getLoc(),
+                                fmt::format(
+                                    "Cannot declare variable '{}' with same name twice in the same scope!",
+                                    var.str()));
                 return mlir::failure();
+            }
             symbolTable.insert(var, value);
             return mlir::success();
         }
@@ -842,6 +848,8 @@ namespace fsharpgrammar::compiler
 
             if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
                 body_result.value().setType(function.getFunctionType().getResult(0));
+
+            builder.setInsertionPointToEnd(&entry_block);
             builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
             function.setFunctionType(mlir::FunctionType::get(
                     builder.getContext(),

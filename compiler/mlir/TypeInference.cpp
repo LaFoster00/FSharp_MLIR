@@ -78,7 +78,7 @@ namespace
                 }
             }
 
-            //mlir::emitError(module_op.getLoc(), "Inferred from operands: \n") << *module_op;
+            mlir::emitError(module_op.getLoc(), "Inferred from operands: \n") << *module_op;
         }
 
         void inferFromReturnType(ModuleOp module_op)
@@ -121,21 +121,31 @@ namespace
                     return signalPassFailure();
                 }
             }
+
+            mlir::emitError(module_op.getLoc(), "Inferred from return type: \n") << *module_op;
         }
 
         // Infers all operations that have a specific way of resolving unknown types.
         void inferFromUnknown(ModuleOp module_op)
         {
+            llvm::SmallVector<Operation*, 16> work_list;
             module_op.walk([&](mlir::Operation* op)
             {
-               if (fsharp::utils::noOperandsInferred(op) && fsharp::utils::returnsUnknownType(op))
+               if (fsharp::utils::noOperandsInferred(op) && fsharp::utils::returnsUnknownType(op) && !fsharp::utils::isImplicitTypeInferred(op))
                {
-                   if (auto shapeOp = dyn_cast<TypeInference>(op))
-                   {
-                       shapeOp.inferFromUnknown();
-                   }
+                   work_list.push_back(op);
                }
             });
+
+            for (auto op : work_list)
+            {
+                if (auto shapeOp = dyn_cast<TypeInference>(op))
+                {
+                    shapeOp.inferFromUnknown();
+                }
+            }
+
+            mlir::emitError(module_op.getLoc(), "Inferred from unkown: \n") << *module_op;
         }
 
         void runOnOperation() final
