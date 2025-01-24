@@ -78,7 +78,7 @@ namespace
                 }
             }
 
-            mlir::emitError(module_op.getLoc(), "Inferred from operands: \n") << *module_op;
+            //mlir::emitError(module_op.getLoc(), "Inferred from operands: \n") << *module_op;
         }
 
         void inferFromReturnType(ModuleOp module_op)
@@ -122,7 +122,7 @@ namespace
                 }
             }
 
-            mlir::emitError(module_op.getLoc(), "Inferred from return type: \n") << *module_op;
+            //mlir::emitError(module_op.getLoc(), "Inferred from return type: \n") << *module_op;
         }
 
         // Infers all operations that have a specific way of resolving unknown types.
@@ -145,7 +145,7 @@ namespace
                 }
             }
 
-            mlir::emitError(module_op.getLoc(), "Inferred from unkown: \n") << *module_op;
+            //mlir::emitError(module_op.getLoc(), "Inferred from unkown: \n") << *module_op;
         }
 
         void runOnOperation() final

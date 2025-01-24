@@ -159,6 +159,9 @@ def ClosureOp : FSharp_Op<"closure",
       ArrayRef<Type> getResultTypes() { return getFunctionType().getResults(); }
 
       Region *getCallableRegion() { return &getBody(); }
+
+      // Update the function signature of this closure so that it matches the operation types inside the body.
+      void updateSignatureFromBody();
     }];
 
   let hasCustomAssemblyFormat = 1;
@@ -306,7 +309,6 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMe
 
     bufferization::AliasingValueList getAliasingValues(OpOperand & opOperand, const bufferization::AnalysisState & state);
     LogicalResult bufferize(RewriterBase &rewriter, const bufferization::BufferizationOptions &options);
-
   }];
 
 
