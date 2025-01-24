@@ -145,12 +145,11 @@ namespace fsharp::compiler
             // Inline all functions into main and then delete them.
             pm.addPass(mlir::createInlinerPass());
 
-            // Now that there is only one function, we can infer the shapes of each of
-            // the operations.
             mlir::OpPassManager& optPM = pm.nest<mlir::func::FuncOp>();
-            //optPM.addPass(mlir::fsharp::createShapeInferencePass()); // TODO Reenable once implemented
+
             optPM.addPass(mlir::createCanonicalizerPass());
             optPM.addPass(mlir::createCSEPass());
+            optPM.addPass(mlir::bufferization::createEmptyTensorEliminationPass());
         }
 
         if (isLoweringToAffine)
@@ -170,9 +169,19 @@ namespace fsharp::compiler
                 optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
             }
 
-            mlir::bufferization::OneShotBufferizationOptions bufferizationOptions();
 
-            pm.addPass(mlir::bufferization::createOneShotBufferizePass());
+
+            mlir::bufferization::OneShotBufferizationOptions bufferizationOptions{};
+            bufferizationOptions.bufferizeFunctionBoundaries = true;
+
+            pm.addPass(mlir::bufferization::createOneShotBufferizePass(bufferizationOptions));
+            pm.addPass(mlir::bufferization::createBufferHoistingPass());
+            pm.addPass(mlir::bufferization::createBufferLoopHoistingPass());
+            pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass());
+            pm.addPass(mlir::bufferization::createDropEquivalentBufferResultsPass());
+            pm.addPass(mlir::bufferization::createPromoteBuffersToStackPass());
+            pm.addPass(mlir::bufferization::createBufferDeallocationPass());
+
         }
 
         if (isLoweringToLLVM)
