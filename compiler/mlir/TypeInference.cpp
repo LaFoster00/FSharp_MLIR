@@ -26,6 +26,19 @@ namespace
                             memref::MemRefDialect>();
         }
 
+        static uint32_t opsToResolve(ModuleOp module_op)
+        {
+            uint32_t open_ops = 0;
+            module_op.walk([&](mlir::Operation* op)
+            {
+                if (!fsharp::utils::allOperandsInferred(op) || fsharp::utils::returnsUnknownType(op))
+                {
+                    ++open_ops;
+                }
+            });
+            return open_ops;
+        }
+
         // Infers all operations from their operand types if possible.
         void inferFromOperands(ModuleOp module_op)
         {
@@ -113,8 +126,16 @@ namespace
         void runOnOperation() final
         {
             auto f = getOperation();
-            inferFromReturnType(f);
-            inferFromOperands(f);
+            // Continue resolving types as long as we are making progress.
+            uint32_t last_open_ops = 0;
+            uint32_t current_open_ops = opsToResolve(f);
+            while (last_open_ops != current_open_ops)
+            {
+                inferFromReturnType(f);
+                inferFromOperands(f);
+                current_open_ops = opsToResolve(f);
+            }
+            // At last assume int type for all unresolved types.
         }
     };
 } // namespace

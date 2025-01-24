@@ -18,8 +18,6 @@
 #include "Grammar.h"
 
 
-
-
 #include "boost/algorithm/string.hpp"
 
 namespace fsharpgrammar::compiler
@@ -398,16 +396,20 @@ namespace fsharpgrammar::compiler
         }
 
         /// Find a closure with the given name in the current scope or parent scopes.
-        mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::StringRef closureName) {
-            mlir::Operation *currentOp = startOp;
+        mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::StringRef closureName)
+        {
+            mlir::Operation* currentOp = startOp;
 
             // Traverse up through parent operations (or regions) to find the closure
-            while (currentOp) {
+            while (currentOp)
+            {
                 // Check if the current operation has a SymbolTable
-                if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>()) {
+                if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>())
+                {
                     // Try to lookup the closure in the current SymbolTable
-                    mlir::Operation *closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-                    if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure)) {
+                    mlir::Operation* closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
+                    if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure))
+                    {
                         return closure_op; // Found the closure
                     }
                 }
@@ -434,11 +436,10 @@ namespace fsharpgrammar::compiler
                     location, closureOp, arg_values)->getResult(0);
             else
             {
-                mlir::emitError(loc(append), "Could not find function with name: " + func_name + "in the current scope!");
+                mlir::emitError(loc(append),
+                                "Could not find function with name: " + func_name + "in the current scope!");
                 return nullptr;
             }
-
-
         }
 
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
@@ -842,6 +843,11 @@ namespace fsharpgrammar::compiler
             if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
                 body_result.value().setType(function.getFunctionType().getResult(0));
             builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
+            function.setFunctionType(mlir::FunctionType::get(
+                    builder.getContext(),
+                    function.getFunctionType().getInputs(),
+                    body_result->getType())
+            );
 
             return llvm::success();
         }
