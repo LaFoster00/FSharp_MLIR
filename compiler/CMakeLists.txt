@@ -12,6 +12,7 @@ add_library(FSharpCompiler STATIC
         mlir/CompilerUtils.cpp
         mlir/ASTToMLIR.cpp
         mlir/TypeInference.cpp
+        mlir/LowerToArith.cpp
         mlir/LowerToFunc.cpp
         mlir/LowerToLLVM.cpp
 )

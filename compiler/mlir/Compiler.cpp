@@ -137,6 +137,7 @@ namespace fsharp::compiler
         if (isTypeInference)
         {
             pm.addPass(mlir::fsharp::createTypeInferencePass());
+            pm.addPass(mlir::fsharp::createLowerToArithPass());
         }
 
         if (runOptimizations || isLoweringToAffine)

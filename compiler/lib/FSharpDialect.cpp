@@ -68,6 +68,11 @@ void FSharpDialect::registerAttributes()
 // FSharp Operations
 //===----------------------------------------------------------------------===//
 
+
+//===----------------------------------------------------------------------===//
+// PrintOp
+//===----------------------------------------------------------------------===//
+
 llvm::LogicalResult PrintOp::verify()
 {
     auto firstArgType = llvm::dyn_cast<mlir::ShapedType>(getOperand(0).getType());
@@ -205,11 +210,14 @@ void ClosureOp::print(mlir::OpAsmPrinter& p)
 
 void ClosureOp::inferFromOperands()
 {
-    auto &entry_block = front();
+    auto& entry_block = front();
     for (auto [i, arg] : llvm::enumerate(entry_block.getArguments()))
     {
         arg.setType(getArgumentTypes()[i]);
     }
+
+    // In case the return operation has a typed operand but the function doesn't, copy it from the return operation.
+    updateSignatureFromBody();
 }
 
 void ClosureOp::inferFromReturnType()
@@ -278,6 +286,30 @@ mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::Strin
     return nullptr;
 }
 
+void ClosureOp::updateSignatureFromBody()
+{
+    mlir::SmallVector<mlir::Type, 4> inputs(getFunctionType().getInputs());
+    for (auto [i, block_arg] : llvm::enumerate(front().getArguments()))
+    {
+        inputs[i] = block_arg.getType();
+    }
+    mlir::SmallVector<Type, 4> results(getFunctionType().getResults());
+    walk<WalkOrder::PreOrder>([&](fsharp::ReturnOp return_op)
+    {
+        for (auto [i, operand_type] : llvm::enumerate(return_op.getOperandTypes()))
+        {
+            if (results.size() > i)
+                results[i] = operand_type;
+            else
+                mlir::emitError(getLoc(), "Function return type mismatch!");
+        }
+        return mlir::WalkResult::interrupt();
+    });
+
+    setType(mlir::FunctionType::get(getContext(), inputs, results));
+}
+
+
 //===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
@@ -292,7 +324,8 @@ void ReturnOp::inferFromOperands()
         return;
     }
 
-    getParentOp().setFunctionType(mlir::FunctionType::get(getContext(), previous_function_type.getInputs(), getOperandTypes()));
+    getParentOp().setFunctionType(
+        mlir::FunctionType::get(getContext(), previous_function_type.getInputs(), getOperandTypes()));
     // Now that the function type has been updated we need to update the types of the call ops that use this function
     auto function_uses = getParentOp().getSymbolUses(getParentOp()->getParentOp());
     if (function_uses.has_value())
@@ -311,15 +344,16 @@ void ReturnOp::inferFromOperands()
 // Return ops wont be resolved by this step since they take their type from the returned object which is not known at this point
 void ReturnOp::inferFromReturnType()
 {
-
 }
 
 void ReturnOp::inferFromUnknown()
 {
-
+    if (isa<NoneType>(getOperand().getType()))
+    {
+        getOperand().setType(IntegerType::get(getContext(), 32, IntegerType::Signed));
+    }
+    getParentOp().updateSignatureFromBody();
 }
-
-
 
 
 void CallOp::inferFromOperands()
@@ -335,29 +369,18 @@ void CallOp::inferFromOperands()
 
     auto closure_type = closureOp.getFunctionType();
 
-    auto operands = getOperands();
+    auto operand_types = getOperandTypes();
     // In case we infer any of the types of the targeted closure we need to update the closure types inputs later on
-    llvm::SmallVector<mlir::Type, 4> new_closure_types;
-    bool operands_inferred = false;
-    for (auto [index, input_type] : std::ranges::views::enumerate(closure_type.getInputs()))
+    llvm::SmallVector<mlir::Type, 4> new_closure_inputs(closure_type.getInputs());
+    for (auto [index, operand_type] : llvm::enumerate(operand_types))
     {
         // If the operand types are not the same as the input types of the closure we can substitute them for this calls types
-        if (operands[index].getType() != input_type)
+        if (new_closure_inputs[index] != operand_type)
         {
-            new_closure_types.push_back(operands[index].getType());
-            operands_inferred = true;
-        }
-        // If both types are the same we just copy previously defined type of the closure
-        else
-        {
-            new_closure_types.push_back(input_type);
+            new_closure_inputs[index] = operand_type;
         }
     }
-    if (operands_inferred)
-    {
-        closureOp.setFunctionType(mlir::FunctionType::get(getContext(), new_closure_types, closure_type.getResult(0)));
-        return;
-    }
+    closureOp.setFunctionType(mlir::FunctionType::get(getContext(), new_closure_inputs, closure_type.getResults()));
 }
 
 void CallOp::inferFromReturnType()
@@ -365,8 +388,27 @@ void CallOp::inferFromReturnType()
 }
 
 
+// In case one of the arguments for this call is not inferred yet, we check if the callee is infered and change the
+// type of the arguments for the call to match the callee.
 void CallOp::inferFromUnknown()
 {
+    ClosureOp closureOp = findClosureInScope(*this, getCallee());
+    if (!closureOp)
+    {
+        mlir::emitError(getLoc(), "Unable to find callee");
+        return;
+    }
+    auto closure_type = closureOp.getFunctionType();
+
+    auto operands = getOperands();
+    for (auto [index, closure_input_type] : llvm::enumerate(closure_type.getInputs()))
+    {
+        if (isa<NoneType>(operands[index].getType()))
+        {
+            operands[index].setType(closure_input_type);
+        }
+    }
+    closureOp.updateSignatureFromBody();
 }
 
 //===----------------------------------------------------------------------===//
@@ -412,24 +454,20 @@ static void inferArithOpFromResultType(Operation* op, OpOperand& lhs, OpOperand&
     // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
     if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
     {
-        mlir::SmallVector<mlir::Type, 4> func_args;
-        auto closure_type = closure.getFunctionType();
-        for (auto [i, block_args] : llvm::enumerate(closure.front().getArguments()))
-        {
-            if (mlir::isa<NoneType>(closure_type.getInput(i)))
-                func_args.push_back(block_args.getType());
-            else
-                func_args.push_back(closure_type.getInput(i));
-        }
-        closure.setType(mlir::FunctionType::get(closure.getContext(), func_args, closure_type.getResults()));
+        closure.updateSignatureFromBody();
     }
 }
 
 static void assumeArithOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::SignednessSemantics::Signed));
+    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::Signed));
     rhs.get().setType(lhs.get().getType());
     op->getResult(0).setType(rhs.get().getType());
+    // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
+    if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
+    {
+        closure.updateSignatureFromBody();
+    }
 }
 
 //===----------------------------------------------------------------------===//

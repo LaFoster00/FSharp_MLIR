@@ -10,6 +10,9 @@ namespace mlir {
     namespace fsharp {
         std::unique_ptr<Pass> createTypeInferencePass();
 
+        // Create a pass that lowers fsharp.constant and fsharp.add, fsharp.sub, etc. to their arithmetic counterparts
+        std::unique_ptr<Pass> createLowerToArithPass();
+
         // Create a pass that lowers the fsharp.closure ops to func.func ops since they are the ones we want to use going forward.
         // This will also resolve nested functions and convert them to capturing global functions
         std::unique_ptr<Pass> createLowerToFunctionPass();

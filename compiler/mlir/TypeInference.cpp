@@ -26,6 +26,19 @@ namespace
                             memref::MemRefDialect>();
         }
 
+        static uint32_t opsToResolve(ModuleOp module_op)
+        {
+            uint32_t open_ops = 0;
+            module_op.walk([&](mlir::Operation* op)
+            {
+                if (!fsharp::utils::allOperandsInferred(op) || fsharp::utils::returnsUnknownType(op))
+                {
+                    ++open_ops;
+                }
+            });
+            return open_ops;
+        }
+
         // Infers all operations from their operand types if possible.
         void inferFromOperands(ModuleOp module_op)
         {
@@ -108,13 +121,67 @@ namespace
                     return signalPassFailure();
                 }
             }
+
+            //mlir::emitError(module_op.getLoc(), "Inferred from return type: \n") << *module_op;
+        }
+
+        // Infers all operations that have a specific way of resolving unknown types.
+        void inferFromUnknown(ModuleOp module_op)
+        {
+            llvm::SmallVector<Operation*, 16> work_list;
+            module_op.walk([&](mlir::Operation* op)
+            {
+               if (fsharp::utils::noOperandsInferred(op) && fsharp::utils::returnsUnknownType(op) && !fsharp::utils::isImplicitTypeInferred(op))
+               {
+                   work_list.push_back(op);
+               }
+            });
+
+            for (auto op : work_list)
+            {
+                if (auto shapeOp = dyn_cast<TypeInference>(op))
+                {
+                    shapeOp.inferFromUnknown();
+                }
+            }
+
+            //mlir::emitError(module_op.getLoc(), "Inferred from unkown: \n") << *module_op;
         }
 
         void runOnOperation() final
         {
             auto f = getOperation();
-            inferFromReturnType(f);
-            inferFromOperands(f);
+            // Continue resolving types as long as we are making progress.
+            uint32_t last_open_ops = 0;
+            uint32_t current_open_ops = opsToResolve(f);
+            while (last_open_ops != current_open_ops)
+            {
+                last_open_ops = current_open_ops;
+                inferFromReturnType(f);
+                inferFromOperands(f);
+                current_open_ops = opsToResolve(f);
+            }
+            // At last assume int type for all unresolved types.
+            inferFromUnknown(f);
+
+            // Go over the operations again and resolve any remaining types from the operations that were resolved
+            // Anything that cant be resolved during this step is a generic which is not supported and therefore error.
+            current_open_ops = opsToResolve(f);
+            while (last_open_ops != current_open_ops)
+            {
+                last_open_ops = current_open_ops;
+                inferFromReturnType(f);
+                inferFromOperands(f);
+                current_open_ops = opsToResolve(f);
+            }
+
+            if (current_open_ops != 0)
+            {
+                mlir::emitError(getOperation().getLoc(), "Unable to resolve all types in the module. \n"
+                    "This is likely due to a generic operation that is not supported by the type inference pass. \n"
+                    "All types should be resolved prior to this pass.") << *getOperation();
+                return signalPassFailure();
+            }
         }
     };
 } // namespace

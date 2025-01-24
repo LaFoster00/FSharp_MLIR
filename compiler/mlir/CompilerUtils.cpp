@@ -31,6 +31,32 @@ namespace mlir::fsharp::utils
         return nullptr;
     }
 
+    mlir::func::FuncOp findFunctionInScope(mlir::Operation* startOp, mlir::StringRef funcName)
+    {
+        mlir::Operation* currentOp = startOp;
+
+        // Traverse up through parent operations (or regions) to find the closure
+        while (currentOp)
+        {
+            // Check if the current operation has a SymbolTable
+            if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>())
+            {
+                // Try to lookup the closure in the current SymbolTable
+                mlir::Operation* function = mlir::SymbolTable::lookupSymbolIn(currentOp, funcName);
+                if (auto func_op = mlir::dyn_cast<mlir::func::FuncOp>(function))
+                {
+                    return func_op; // Found the closure
+                }
+            }
+
+            // Move to the parent operation
+            currentOp = currentOp->getParentOp();
+        }
+
+        // If no closure was found, return nullptr
+        return nullptr;
+    }
+
     TypeRange getOperands(mlir::Operation* op)
     {
         if (auto function = mlir::dyn_cast_or_null<mlir::FunctionOpInterface>(op))

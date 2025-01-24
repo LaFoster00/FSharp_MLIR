@@ -77,3 +77,6 @@ lines
 getUntypedTree (filePath, fileContents)
 |> printAst
 
+let nested_func a b c =
+    let inner_func a b = a + b
+    inner_func a b + c

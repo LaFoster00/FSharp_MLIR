@@ -18,8 +18,6 @@
 #include "Grammar.h"
 
 
-
-
 #include "boost/algorithm/string.hpp"
 
 namespace fsharpgrammar::compiler
@@ -125,7 +123,13 @@ namespace fsharpgrammar::compiler
         llvm::LogicalResult declare(const llvm::StringRef var, mlir::Value value)
         {
             if (symbolTable.count(var))
+            {
+                mlir::emitError(value.getLoc(),
+                                fmt::format(
+                                    "Cannot declare variable '{}' with same name twice in the same scope!",
+                                    var.str()));
                 return mlir::failure();
+            }
             symbolTable.insert(var, value);
             return mlir::success();
         }
@@ -133,9 +137,9 @@ namespace fsharpgrammar::compiler
         mlir::Type getMLIRType(const std::string& type_name)
         {
             if (type_name == "int")
-                return builder.getI32Type();
+                return builder.getIntegerType(32, true);
             if (type_name == "float")
-                return builder.getF32Type();
+                return builder.getF64Type();
             if (type_name == "bool")
                 return builder.getI8Type();
             if (type_name == "string")
@@ -206,7 +210,7 @@ namespace fsharpgrammar::compiler
                 // If the value is of type None, and no type was found yet, set the smallest type to i32
                 if (mlir::isa<mlir::NoneType>(value.getType()) && smallest_type == nullptr)
                 {
-                    smallest_type = builder.getI32Type();
+                    smallest_type = builder.getIntegerType(32, true);
                     continue;
                 }
                 // Check if we need to upcast the results to a larger type
@@ -398,16 +402,20 @@ namespace fsharpgrammar::compiler
         }
 
         /// Find a closure with the given name in the current scope or parent scopes.
-        mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation *startOp, mlir::StringRef closureName) {
-            mlir::Operation *currentOp = startOp;
+        mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::StringRef closureName)
+        {
+            mlir::Operation* currentOp = startOp;
 
             // Traverse up through parent operations (or regions) to find the closure
-            while (currentOp) {
+            while (currentOp)
+            {
                 // Check if the current operation has a SymbolTable
-                if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>()) {
+                if (currentOp->hasTrait<mlir::OpTrait::SymbolTable>())
+                {
                     // Try to lookup the closure in the current SymbolTable
-                    mlir::Operation *closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-                    if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure)) {
+                    mlir::Operation* closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
+                    if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure))
+                    {
                         return closure_op; // Found the closure
                     }
                 }
@@ -434,11 +442,10 @@ namespace fsharpgrammar::compiler
                     location, closureOp, arg_values)->getResult(0);
             else
             {
-                mlir::emitError(loc(append), "Could not find function with name: " + func_name + "in the current scope!");
+                mlir::emitError(loc(append),
+                                "Could not find function with name: " + func_name + "in the current scope!");
                 return nullptr;
             }
-
-
         }
 
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
@@ -949,7 +956,14 @@ namespace fsharpgrammar::compiler
 
             if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
                 body_result.value().setType(function.getFunctionType().getResult(0));
+
+            builder.setInsertionPointToEnd(&entry_block);
             builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
+            function.setFunctionType(mlir::FunctionType::get(
+                    builder.getContext(),
+                    function.getFunctionType().getInputs(),
+                    body_result->getType())
+            );
 
             return llvm::success();
         }
@@ -1036,7 +1050,7 @@ namespace fsharpgrammar::compiler
             return std::visit<mlir::Type>(utils::overloaded{
                                               [&](const int32_t&)
                                               {
-                                                  return builder.getI32Type();
+                                                  return builder.getIntegerType(32, true);
                                               },
                                               [&](const double_t&)
                                               {
@@ -1061,12 +1075,12 @@ namespace fsharpgrammar::compiler
             return std::visit<mlir::Value>(utils::overloaded{
                                                [&](const int32_t& i)
                                                {
-                                                   return builder.create<mlir::arith::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getI32IntegerAttr(i));
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
+                                                       loc(constant.get_range()), type, builder.getSI32IntegerAttr(i));
                                                },
                                                [&](const double_t& f)
                                                {
-                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type, builder.getF64FloatAttr(f));
                                                },
                                                [&](const std::string& s)
@@ -1075,12 +1089,12 @@ namespace fsharpgrammar::compiler
                                                    data.push_back('\0');
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
                                                        mlir::dyn_cast<mlir::ShapedType>(type), llvm::ArrayRef(data));
-                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type, dataAttribute);
                                                },
                                                [&](const bool& b)
                                                {
-                                                   return builder.create<mlir::arith::ConstantOp>(
+                                                   return builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type,
                                                        builder.getIntegerAttr(builder.getI1Type(), b));
                                                },
