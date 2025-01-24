@@ -60,11 +60,20 @@ def TypeInferenceOpInterface : OpInterface<"TypeInference"> {
     }];
 
     let methods = [
-        InterfaceMethod<"Infer and set the output shape for the current operation. Returns 0 if not all of the types could be inferred, 1 if some could be inferred and 2 if all could be inferred..",
-                        "int", "inferTypes">,
+        InterfaceMethod<"Infer the output shape for the current operation based on the operands which are all typed. ",
+                        "void", "inferFromOperands">,
+        InterfaceMethod<"Infer the operand types from the return type of the operation.",
+                        "void", "inferFromReturnType">,
         InterfaceMethod<"Set all the unknown types to int.",
-                        "void", "assumeTypes">
+                        "void", "inferFromUnknown">
     ];
+}
+
+def ImplicitTypeInferenceOpInterface : OpInterface<"ImplicitTypeInference"> {
+    let description = [{
+        Interface to mark an op as implicitly inferring its type from its operands, without any effect on the evaluated
+        type.
+    }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -75,7 +84,8 @@ def TypeInferenceOpInterface : OpInterface<"TypeInference"> {
 // ClosureOp
 //===----------------------------------------------------------------------===//
 
-def ClosureOp : FSharp_Op<"closure", [FunctionOpInterface, IsolatedFromAbove, DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def ClosureOp : FSharp_Op<"closure",
+  [Symbol, SymbolTable, FunctionOpInterface, DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "Represents a closure with implicit captures and explicit arguments.";
   let description = [{
     This operation represents a closure that captures variables from its
@@ -85,10 +95,11 @@ def ClosureOp : FSharp_Op<"closure", [FunctionOpInterface, IsolatedFromAbove, De
   }];
 
   let arguments = (ins
-    SymbolNameAttr:$sym_name,
+    SymbolNameAttr:$sym_name,  // Name of the closure
     TypeAttrOf<FunctionType>:$function_type,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
     OptionalAttr<DictArrayAttr>:$res_attrs);
+
   let regions = (region AnyRegion:$body);
 
   let builders = [OpBuilder<(ins
@@ -114,11 +125,12 @@ def ClosureOp : FSharp_Op<"closure", [FunctionOpInterface, IsolatedFromAbove, De
   let skipDefaultBuilders = 1;
 }
 
+
 //===----------------------------------------------------------------------===//
 // CallOp
 //===----------------------------------------------------------------------===//
 
-def CallOp : FSharp_Op<"call", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def CallOp : FSharp_Op<"call", [CallOpInterface, DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "Call operation";
   let description = [{
     Calls represent calls to a user defined function that needs to
@@ -137,27 +149,103 @@ def CallOp : FSharp_Op<"call", [DeclareOpInterfaceMethods<TypeInferenceOpInterfa
 
   // The generic call operation takes a symbol reference attribute as the
   // callee, and inputs for the call.
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$inputs);
+  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$operands);
 
   // The generic call operation returns a single value of TensorType.
   let results = (outs AnyType);
 
-  // Specialize assembly printing and parsing using a declarative format.
-  let assemblyFormat = [{
-    $callee `(` $inputs `)` attr-dict `:` functional-type($inputs, results)
-  }];
-
   // Add custom build methods for the generic call operation.
   let builders = [
-    OpBuilder<(ins "StringRef":$callee, "ArrayRef<Value>":$arguments)>
-  ];
+        OpBuilder<(ins "ClosureOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
+          $_state.addOperands(operands);
+          $_state.addAttribute("callee", SymbolRefAttr::get(callee));
+          $_state.addTypes(callee.getFunctionType().getResults());
+        }]>,
+        OpBuilder<(ins "SymbolRefAttr":$callee, "TypeRange":$results,
+          CArg<"ValueRange", "{}">:$operands), [{
+          $_state.addOperands(operands);
+          $_state.addAttribute("callee", callee);
+          $_state.addTypes(results);
+        }]>,
+        OpBuilder<(ins "StringAttr":$callee, "TypeRange":$results,
+          CArg<"ValueRange", "{}">:$operands), [{
+          build($_builder, $_state, SymbolRefAttr::get(callee), results, operands);
+        }]>,
+        OpBuilder<(ins "StringRef":$callee, "TypeRange":$results,
+          CArg<"ValueRange", "{}">:$operands), [{
+          build($_builder, $_state, StringAttr::get($_builder.getContext(), callee),
+                results, operands);
+        }]>
+    ];
+
+    let extraClassDeclaration = [{
+        FunctionType getCalleeType();
+
+        /// Get the argument operands to the called function.
+        operand_range getArgOperands() {
+          return {arg_operand_begin(), arg_operand_end()};
+        }
+
+        MutableOperandRange getArgOperandsMutable() {
+          return getOperandsMutable();
+        }
+
+        operand_iterator arg_operand_begin() { return operand_begin(); }
+        operand_iterator arg_operand_end() { return operand_end(); }
+
+        /// Return the callee of this operation.
+        CallInterfaceCallable getCallableForCallee() {
+          return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+        }
+
+        /// Set the callee for this operation.
+        void setCalleeFromCallable(CallInterfaceCallable callee) {
+          (*this)->setAttr("callee", callee.get<SymbolRefAttr>());
+        }
+      }];
+
+    let assemblyFormat = [{
+        $callee `(` $operands `)` attr-dict `:` functional-type($operands, results)
+    }];
+}
+
+//===----------------------------------------------------------------------===//
+// ReturnOp
+//===----------------------------------------------------------------------===//
+
+def ReturnOp : FSharp_Op<"return", [Pure, HasParent<"ClosureOp">, DeclareOpInterfaceMethods<TypeInferenceOpInterface>, Terminator]> {
+  let summary = "Function return operation";
+  let description = [{
+    The `FSharp.return` operation represents a return operation within a function.
+    The operation takes variable number of operands and produces no results.
+    The operand number and types must match the signature of the function
+    that contains the operation.
+
+    Example:
+
+    ```mlir
+    fsharp.closure @foo() : (i32, f8) {
+      ...
+      return %0, %1 : i32, f8
+    }
+    ```
+  }];
+
+  let arguments = (ins Optional<AnyType>:$operand);
+
+  let builders = [OpBuilder<(ins), [{
+    build($_builder, $_state, nullptr);
+  }]>];
+
+  let assemblyFormat = "attr-dict ($operand^ `:` type($operand))?";
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
+def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMethods<ImplicitTypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -191,7 +279,7 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface]> {
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "addition operation";
   let description = [{
     The "add" operation performs addition of any two types that are compatible.
@@ -215,7 +303,7 @@ def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // SubOp
 //===----------------------------------------------------------------------===//
 
-def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "subtraction operation";
   let description = [{
     The "sub" operation performs subtraction of any two types that are compatible.
@@ -239,7 +327,7 @@ def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // MulOp
 //===----------------------------------------------------------------------===//
 
-def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "multiplication operation";
   let description = [{
     The "sub" operation performs multiplication of any two types that are compatible.
@@ -263,7 +351,7 @@ def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // DivOp
 //===----------------------------------------------------------------------===//
 
-def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "division operation";
   let description = [{
     The "sub" operation performs division of any two types that are compatible.
@@ -283,7 +371,7 @@ def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
   let hasVerifier = 1;
 }
 
-def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
   let summary = "modulo operation";
   let description = [{
     This operation performs element-wise modulo of two tensors.

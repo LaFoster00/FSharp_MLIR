@@ -5,37 +5,7 @@
 #include "compiler/FSharpDialect.h"
 #include "compiler/FSharpPasses.h"
 
-#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
-#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/Support/LLVM.h"
-#include "mlir/Support/TypeID.h"
-
-#include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
-#include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
-#include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
-#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
-#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
-#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
-#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
-#include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
-#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/IR/BuiltinDialect.h>
-#include "mlir/Pass/Pass.h"
-#include "mlir/Transforms/DialectConversion.h"
-#include "llvm/Support/Casting.h"
-#include <memory>
-#include <utility>
-
+#include "compiler/CompilerUtils.h"
 
 using namespace mlir;
 
@@ -83,8 +53,13 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
         // Create the new function type with captures and explicit arguments.
         auto newFuncType = builder.getFunctionType(allArgTypes, funcType.getResults());
 
+
         // Generate a unique symbol name for the new function.
-        std::string funcName = (closure_op.getSymName() + "_lowered").str();
+        std::string funcName;
+        if (closure_op.getSymName() != "main")
+            funcName = (closure_op.getSymName() + "_lowered").str();
+        else
+            funcName = "main";
 
         // Create the new `func.func` operation.
         auto funcOp = builder.create<func::FuncOp>(loc, funcName, newFuncType);
@@ -92,22 +67,33 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
         // Inline the closure body into the function region.
         Region& funcRegion = funcOp.getBody();
         rewriter.inlineRegionBefore(closure_op.getBody(), funcRegion, funcRegion.end());
-
-        // Replace block arguments in the inlined body.
-        Block& entryBlock = funcRegion.front();
-        SmallVector<Value, 4> funcArgs;
-        funcArgs.append(implicitCaptures.begin(), implicitCaptures.end());
-        funcArgs.append(entryBlock.getArguments().begin(), entryBlock.getArguments().end());
-
-        for (auto [blockArg, funcArg] : llvm::zip(entryBlock.getArguments(), funcArgs))
+        
+        // Replace all references to the closure arguments with the new function arguments.
+        for (auto [index, old_arg] : llvm::enumerate(closure_op.getArguments()))
         {
-            blockArg.replaceAllUsesWith(funcArg);
+            old_arg.replaceAllUsesWith(funcOp.getArgument(index));
         }
-        entryBlock.eraseArguments([](BlockArgument) { return true; });
 
         // Replace `ClosureOp` with a symbol reference to the new function.
         builder.setInsertionPointAfter(closure_op);
-        //closure_op->replaceAllUsesWith(SymbolRefAttr::get(builder.getContext(), funcName));
+        closure_op->getParentOp()->walk([&](fsharp::CallOp call_op)
+        {
+            if (call_op.getCallee() == closure_op.getSymName())
+            {
+                OpBuilder builder(call_op);
+                auto loc = call_op.getLoc();
+
+                // Get the arguments for the CallOp
+                SmallVector<Value, 4> callArgs = call_op.getOperands();
+
+                // Create a new func::CallOp with the new function name
+                auto newCallOp = builder.create<fsharp::CallOp>(loc, funcName, call_op->getResultTypes(), callArgs);
+
+                // Replace the old CallOp with the new CallOp
+                call_op.replaceAllUsesWith(newCallOp.getResult());
+                call_op.erase();
+            }
+        });
         rewriter.eraseOp(closure_op);
         return success();
     }
@@ -126,19 +112,18 @@ struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
     {
         OpBuilder builder(call_op);
         auto loc = call_op.getLoc();
-        auto module = call_op->getParentOfType<ModuleOp>();
 
         // Get the symbol of the callee.
         auto calleeSymbol = call_op.getCalleeAttr();
-        auto funcOp = dyn_cast_or_null<func::FuncOp>(SymbolTable::lookupSymbolIn(module, calleeSymbol));
+        auto funcOp = fsharp::utils::findClosureInScope(call_op, calleeSymbol.getValue());
         if (!funcOp)
         {
-            call_op.emitError("Callee function not found in symbol table");
+            mlir::emitError(call_op.getLoc(), "Callee function not found in symbol table");
             return failure();
         }
 
         // Get the arguments for the `CallOp`.
-        SmallVector<Value, 4> callArgs = call_op.getInputs();
+        SmallVector<Value, 4> callArgs = call_op.getOperands();
 
         // Replace `CallOp` with `func.call`.
         auto call = builder.create<func::CallOp>(loc, funcOp.getName(), funcOp.getFunctionType().getResults(),

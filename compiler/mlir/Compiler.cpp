@@ -10,41 +10,6 @@
 #include "compiler/ASTToMLIR.h"
 #include "compiler/FSharpPasses.h"
 
-#include "mlir/Dialect/Func/Extensions/AllExtensions.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/Func/Extensions/AllExtensions.h"
-
-#include "mlir/Dialect/Affine/Passes.h"
-#include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
-#include "mlir/ExecutionEngine/ExecutionEngine.h"
-#include "mlir/ExecutionEngine/OptUtils.h"
-#include "mlir/IR/AsmState.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Verifier.h"
-#include "mlir/InitAllDialects.h"
-#include "mlir/Parser/Parser.h"
-#include "mlir/Pass/PassManager.h"
-#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
-#include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
-#include "mlir/Target/LLVMIR/Export.h"
-#include "mlir/Transforms/Passes.h"
-#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/raw_ostream.h"
-#include <cassert>
-#include <memory>
-#include <string>
-#include <system_error>
-#include <utility>
-
 namespace fsharp::compiler
 {
     int FSharpCompiler::compileProgram(InputType inputType, std::string_view inputFilename, Action emitAction,
@@ -165,8 +130,14 @@ namespace fsharp::compiler
             return 4;
 
         // Check to see what granularity of MLIR we are compiling to.
-        bool isLoweringToAffine = emitAction >= Action::DumpMLIRFirstLower;
+        bool isTypeInference = emitAction >= Action::DumpMLIRTypeInference;
+        bool isLoweringToAffine = emitAction >= Action::DumpMLIRAffine;
         bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
+
+        if (isTypeInference)
+        {
+            pm.addPass(mlir::fsharp::createTypeInferencePass());
+        }
 
         if (runOptimizations || isLoweringToAffine)
         {

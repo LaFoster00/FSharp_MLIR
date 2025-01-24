@@ -188,12 +188,10 @@ namespace fsharpgrammar::ast
 
         if (expressions.size() > 1)
         {
-            const auto is_function_call = ast::find_closest_parent<
-                FSharpParser::Let_exprContext, FSharpParser::Module_declContext>(context->parent);
             return make_ast<Expression>(
                 Expression::Append(
                     std::move(expressions),
-                    is_function_call ? is_function_call.value() : true,
+                    true,
                     Range::create(context))
             );
         }
