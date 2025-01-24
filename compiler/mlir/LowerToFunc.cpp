@@ -206,7 +206,7 @@ void FSharpToFuncLoweringPass::runOnOperation()
             signalPassFailure();
     }
 
-    mlir::emitError(getOperation().getLoc(), "Function calls lowered to func.call: \n") << *getOperation();
+    //mlir::emitError(getOperation().getLoc(), "Function calls lowered to func.call: \n") << *getOperation();
 
     {
         mlir::ConversionTarget target(getContext());
