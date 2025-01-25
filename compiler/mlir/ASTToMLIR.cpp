@@ -411,7 +411,7 @@ namespace fsharpgrammar::compiler
                 {
                     // Try to lookup the closure in the current SymbolTable
                     mlir::Operation* closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-                    if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure))
+                    if (auto closure_op = mlir::dyn_cast_or_null<mlir::fsharp::ClosureOp>(closure))
                     {
                         return closure_op; // Found the closure
                     }

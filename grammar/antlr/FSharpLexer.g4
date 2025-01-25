@@ -59,10 +59,10 @@ STRING_LITERAL: SHORT_STRING;
 CHARACTER_LITERAL: '\'' (STRING_ESCAPE_SEQ | ~[\\\r\n\f'])? '\'';
 
 /// decimalinteger ::=  nonzerodigit digit* | "0"+
-DECIMAL_INTEGER: NON_ZERO_DIGIT DIGIT* | '0'+;
+DECIMAL_INTEGER: (MINUS | PLUS)? NON_ZERO_DIGIT DIGIT* | '0'+;
 
 /// floatnumber   ::=  pointfloat | exponentfloat
-FLOAT_NUMBER: POINT_FLOAT;
+FLOAT_NUMBER: (MINUS | PLUS)? POINT_FLOAT;
 
 DOT                 : '.';
 STAR                : '*';

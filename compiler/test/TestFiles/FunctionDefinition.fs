@@ -25,6 +25,7 @@ let complex_add_float a b c =
     let e = d + c
     e + 2.0
 
-let complex_add_float_res = complex_add_float 1.0 2.0 3.0
+let complex_add_float_res = complex_add_float 1.0 -2.0 3.0
+print "Complex add float result = %f\n" complex_add_float_res
 
 let unknown_add a b = a + b

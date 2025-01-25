@@ -187,8 +187,8 @@ namespace fsharp::compiler
         if (isLoweringToAffine)
         {
             // Partially lower the fsharp dialect.
-            pm.addPass(mlir::fsharp::createLowerToFunctionPass());
             pm.addPass(mlir::fsharp::createLowerToArithPass());
+            pm.addPass(mlir::fsharp::createLowerToFunctionPass());
 
             // Add a few cleanups post lowering.
             mlir::OpPassManager& optPM = pm.nest<mlir::func::FuncOp>();
