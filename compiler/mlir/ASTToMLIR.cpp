@@ -356,19 +356,39 @@ namespace fsharpgrammar::compiler
             return {std::next(append.expressions.begin()), append.expressions.end()};
         }
 
-        std::optional<llvm::SmallVector<mlir::Value, 4>> getFunctionArgValues(const ast::Expression::Append& append)
+        mlir::Value getFunctionArgValue(const ast::Expression::Append& append, size_t index)
+        {
+            auto args = getFunctionArgs(append);
+            if (args.size() <= index)
+            {
+                mlir::emitError(loc(append.get_range()), "Function argument index out of bounds!");
+                return nullptr;
+            }
+            auto value = mlirGen(*args[index]);
+            if (!value.has_value())
+            {
+                mlir::emitError(loc(append.get_range()), "Function argument value does not return a value!");
+                return nullptr;
+            }
+            return value.value();
+        }
+
+        std::optional<llvm::SmallVector<mlir::Value, 4>> getFunctionArgValues(
+            const ast::Expression::Append& append, bool skip_first)
         {
             // Codegen the operands first
             llvm::SmallVector<mlir::Value, 4> operands;
-            for (auto& expr : getFunctionArgs(append))
+            for (auto [i, expr] : llvm::enumerate(getFunctionArgs(append)))
             {
+                if (i == 0 && skip_first)
+                    continue;
+
                 const auto arg = mlirGen(*expr);
                 if (!arg.has_value())
                 {
                     fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}",
                                utils::to_string(expr->get_range()));
-                    operands.push_back(nullptr);
-                    continue;
+                    return {};
                 };
                 operands.push_back(arg.value());
             }
@@ -430,7 +450,7 @@ namespace fsharpgrammar::compiler
         {
             auto location = loc(append.get_range());
 
-            auto args = getFunctionArgValues(append);
+            auto args = getFunctionArgValues(append, false);
             if (!args.has_value())
                 return nullptr;
             mlir::ValueRange arg_values = args.value();
@@ -453,11 +473,22 @@ namespace fsharpgrammar::compiler
 
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
         {
-            auto args = getFunctionArgValues(append);
+            auto args = getFunctionArgValues(append, true);
             if (!args.has_value() || args.value().empty())
                 return llvm::failure();
-            builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), mlir::ValueRange(args.value()));
-            return llvm::success();
+            if (auto fmt_string_constant = std::get_if<ast::Expression::Constant>(&append.expressions[1]->expression);
+                auto fmt_string = std::get_if<std::string>(&fmt_string_constant->constant->value.value()))
+            {
+                auto fmt_string_attr = builder.getStringAttr(*fmt_string);
+                builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), fmt_string_attr, mlir::ValueRange(args.value()));
+                return llvm::success();
+            }
+            else
+            {
+                mlir::emitError(loc(append.get_range()), "First argument to print must be a string literal!");
+                return llvm::failure();
+            }
+
         }
 
         mlir::Value mlirGen(const ast::Expression::OP& op)

@@ -106,11 +106,54 @@ static BaseMemRefType convertTensorToMemRef(TensorType type)
     return MemRefType::get(type.getShape(), type.getElementType());
 }
 
+// Helper function to create a global memref for the string.
+static Value createGlobalMemrefForString(Location loc, StringRef stringValue,
+                                         OpBuilder& builder, ModuleOp module, Operation* op)
+{
+    // Check if the global already exists in the module.
+    std::string globalName = "__printf_format_" + std::to_string(hash_value(stringValue));
+    auto existingGlobal = module.lookupSymbol<memref::GlobalOp>(globalName);
+    if (existingGlobal)
+        return builder.create<memref::GetGlobalOp>(
+            loc, existingGlobal.getType(), existingGlobal.getName());
+
+    // Create a global memref.
+    builder.setInsertionPointToStart(module.getBody());
+    // Prepare data attribute for the global.
+    std::vector<char8_t> data{stringValue.begin(), stringValue.end()};
+    data.push_back('\0');
+    auto type = mlir::RankedTensorType::get({static_cast<int64_t>(data.size())}, builder.getI8Type());
+    auto dataAttribute = mlir::DenseElementsAttr::get(type, llvm::ArrayRef(data));
+    // Create the global using the data attribute.
+    auto globalOp = builder.create<memref::GlobalOp>(
+        loc,
+        globalName,
+        builder.getStringAttr("private"),
+        MemRefType::get(type.getShape(), type.getElementType()),
+        dataAttribute,
+        /*constant=*/true, /*alignment=*/nullptr);
+
+    // Return a GetGlobalOp for this global.
+    builder.setInsertionPoint(op);
+    return builder.create<memref::GetGlobalOp>(
+        loc, globalOp.getType(), globalOp.getName());
+}
+
 LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::BufferizationOptions& options)
 {
     // 1. Rewrite tensor operands as memrefs based on type of the already
     //    bufferized callee.
     SmallVector<Value> newOperands;
+    // First operand is the format string.
+    auto fmtString = getFmtStringAttr();
+    auto fmtStringMemref = createGlobalMemrefForString(getLoc(),
+                                                       fmtString.getValue(),
+                                                       rewriter,
+                                                       getOperation()->getParentOfType<ModuleOp>(),
+                                                       *this);
+    newOperands.push_back(fmtStringMemref);
+
+    // Next get the rest of the operands.
     for (auto opOperand : getOperands())
     {
         // Non-tensor operands are just copied.
@@ -129,11 +172,6 @@ LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::Bu
 
         // Caller / callee type mismatch is handled with a CastOp.
         auto memRefType = convertTensorToMemRef(mlir::cast<TensorType>(opOperand.getType()));
-        // Since we don't yet have a clear layout story, to_memref may
-        // conservatively turn tensors into more dynamic memref than necessary.
-        // If the memref type of the callee fails, introduce an extra memref.cast
-        // that will either canonicalize away or fail compilation until we can do
-        // something better.
         if (buffer.getType() != memRefType)
         {
             assert(
@@ -148,12 +186,24 @@ LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::Bu
 
     // 3. Create the new CallOp.
     Operation* newCallOp = rewriter.create<PrintOp>(
-        getLoc(), newOperands);
+        getLoc(), getFmtStringAttr(), newOperands);
 
     // 4. Replace the old op with the new op.
     bufferization::replaceOpWithBufferizedValues(rewriter, *this, newCallOp->getResults());
 
     return success();
+}
+
+void PrintOp::inferFromReturnType()
+{
+}
+
+void PrintOp::inferFromOperands()
+{
+}
+
+void PrintOp::inferFromUnknown()
+{
 }
 
 //===----------------------------------------------------------------------===//

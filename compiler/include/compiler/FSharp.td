@@ -288,7 +288,7 @@ def ReturnOp : FSharp_Op<"return", [Pure, HasParent<"ClosureOp">, DeclareOpInter
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMethods<ImplicitTypeInferenceOpInterface>]> {
+def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "print operation";
   let description = [{
     The "print" builtin operation prints a given input tensor, and produces
@@ -296,7 +296,7 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMe
   }];
 
   // The print operation takes an input tensor to print.
-  let arguments = (ins Variadic<AnyType>:$fmt_operands);
+  let arguments = (ins StrAttr:$fmt_string, Variadic<AnyType>:$fmt_operands);
 
   let extraClassDeclaration = [{
     bool bufferizesToMemoryRead(OpOperand &opOperand,
@@ -312,7 +312,7 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMe
   }];
 
 
-  let assemblyFormat = "`(` $fmt_operands `)` attr-dict `:` type($fmt_operands)";
+  let assemblyFormat = "$fmt_string ` ` `(` $fmt_operands `)` attr-dict `:` type($fmt_operands)";
   // Indicate that additional verification for this operation is necessary.
   let hasVerifier = 1;
 }
