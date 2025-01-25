@@ -2,17 +2,9 @@
 // Created by lasse on 1/24/25.
 //
 
+#include <compiler/CompilerUtils.h>
 #include <compiler/FSharpDialect.h>
 using namespace mlir;
-
-#define GENERATE_OP_CONVERSION_PATTERN(op_name) \
-    struct op_name##Lowering : public OpConversionPattern<fsharp::op_name> \
-    { \
-        using OpConversionPattern<fsharp::op_name>::OpConversionPattern; \
-        LogicalResult matchAndRewrite(fsharp::op_name op, OpAdaptor adaptor, ConversionPatternRewriter& rewriter) const final \
-        {
-
-#define END_GENERATE_OP_CONVERSION_PATTERN() }};
 
 //===----------------------------------------------------------------------===//
 // LowerToArith RewritePatterns: Add operations

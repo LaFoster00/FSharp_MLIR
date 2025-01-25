@@ -78,4 +78,4 @@ let test x y =
     else
         printf "x and y are not true"
 
-printf 1.0
+printf "%a" [-10.0; 20.0]

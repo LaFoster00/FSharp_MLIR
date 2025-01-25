@@ -11,6 +11,7 @@
 
 #include <ast/ASTNode.h>
 #include <ast/Range.h>
+#include <compiler/CompilerUtils.h>
 
 #include "Grammar.h"
 
@@ -320,10 +321,20 @@ namespace fsharpgrammar::compiler
         {
             if (std::holds_alternative<ast::Expression::Append>(expression.expression))
             {
-                if (const auto result = mlirGen(std::get<ast::Expression::Append>(expression.expression));
-                    const auto value = std::get_if<std::optional<mlir::Value>>(&result))
+                // Get the generation result of the append expression
+                const auto result = mlirGen(std::get<ast::Expression::Append>(expression.expression));
+                // Return the value if a value was generated
+                if (const auto value = std::get_if<std::optional<mlir::Value>>(&result))
+                {
                     return *value;
-                return {};
+                }
+                // Return invalid state in case the generation failed else nullopt
+                if (const auto logical_result = std::get_if<llvm::LogicalResult>(&result))
+                {
+                    if (llvm::succeeded(*logical_result))
+                        return std::optional<mlir::Value>{};
+                    return mlir::Value(nullptr);
+                }
             }
             if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
                 return mlirGen(std::get<ast::Expression::Constant>(expression.expression));
@@ -476,19 +487,21 @@ namespace fsharpgrammar::compiler
             auto args = getFunctionArgValues(append, true);
             if (!args.has_value() || args.value().empty())
                 return llvm::failure();
-            if (auto fmt_string_constant = std::get_if<ast::Expression::Constant>(&append.expressions[1]->expression);
-                auto fmt_string = std::get_if<std::string>(&fmt_string_constant->constant->value.value()))
+            if (auto fmt_string_constant = std::get_if<ast::Expression::Constant>(&append.expressions[1]->expression))
             {
-                auto fmt_string_attr = builder.getStringAttr(*fmt_string);
-                builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), fmt_string_attr, mlir::ValueRange(args.value()));
-                return llvm::success();
+                if (auto fmt_string = std::get_if<std::string>(&fmt_string_constant->constant->value.value()))
+                {
+                    auto fmt_string_attr = builder.getStringAttr(*fmt_string);
+                    builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), fmt_string_attr,
+                                                          mlir::ValueRange(args.value()));
+                    return llvm::success();
+                }
             }
-            else
-            {
-                mlir::emitError(loc(append.get_range()), "First argument to print must be a string literal!");
-                return llvm::failure();
-            }
-
+            auto op = builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), builder.getStringAttr(""),
+                                                          mlir::ValueRange{});
+            mlir::fsharp::utils::addOrUpdateAttrDictEntry(op.getOperation(), "malformed", builder.getUnitAttr());
+            mlir::emitError(loc(append.get_range()), "First argument of print must be a formattable string literal!");
+            return llvm::failure();
         }
 
         mlir::Value mlirGen(const ast::Expression::OP& op)
@@ -881,7 +894,9 @@ namespace fsharpgrammar::compiler
                     mlir::emitError(loc(pattern), "Invalid function arg name. Only non nested names allowed!");
                     return {"", nullptr};
                 }
-                return {std::get<ast::Pattern::Named>(typed.pattern->pattern).ident->ident, getMLIRType(*typed.type)};
+                return {
+                    std::get<ast::Pattern::Named>(typed.pattern->pattern).ident->ident, getMLIRType(*typed.type)
+                };
             }
             if (std::holds_alternative<ast::Pattern::Named>(pattern.pattern))
                 return {std::get<ast::Pattern::Named>(pattern.pattern).ident->ident, builder.getNoneType()};
@@ -988,7 +1003,8 @@ namespace fsharpgrammar::compiler
             }
             if (!llvm::isa<mlir::NoneType>(func_type.getResult(0)) && !body_result.has_value())
             {
-                mlir::emitError(loc(let), "Function does not return a value even though a return type was specified!");
+                mlir::emitError(
+                    loc(let), "Function does not return a value even though a return type was specified!");
                 return llvm::failure();
             }
 
@@ -1036,6 +1052,12 @@ namespace fsharpgrammar::compiler
             for (auto& expr : let.expressions)
             {
                 auto value = mlirGen(*expr);
+                if (value.has_value() && value.value() == nullptr)
+                {
+                    mlir::emitError(loc(let), "Invalid statement in let expression!");
+                    return nullptr;
+                }
+
                 expressions.push_back(value.has_value() ? value.value() : nullptr);
             }
 
@@ -1072,7 +1094,8 @@ namespace fsharpgrammar::compiler
             if (auto variable = symbolTable.lookup(ident.ident->ident))
                 return variable;
 
-            mlir::emitError(loc(ident.get_range()), fmt::format("error: unknown variable '{}'!", ident.ident->ident));
+            mlir::emitError(loc(ident.get_range()),
+                            fmt::format("error: unknown variable '{}'!", ident.ident->ident));
             return nullptr;
         }
 
@@ -1130,7 +1153,8 @@ namespace fsharpgrammar::compiler
                                                [&](const int32_t& i)
                                                {
                                                    return builder.create<mlir::fsharp::ConstantOp>(
-                                                       loc(constant.get_range()), type, builder.getSI32IntegerAttr(i));
+                                                       loc(constant.get_range()), type,
+                                                       builder.getSI32IntegerAttr(i));
                                                },
                                                [&](const double_t& f)
                                                {
@@ -1142,7 +1166,8 @@ namespace fsharpgrammar::compiler
                                                    std::vector<char8_t> data{s.begin(), s.end()};
                                                    data.push_back('\0');
                                                    auto dataAttribute = mlir::DenseElementsAttr::get(
-                                                       mlir::dyn_cast<mlir::ShapedType>(type), llvm::ArrayRef(data));
+                                                       mlir::dyn_cast<mlir::ShapedType>(type),
+                                                       llvm::ArrayRef(data));
                                                    auto tensor = builder.create<mlir::fsharp::ConstantOp>(
                                                        loc(constant.get_range()), type, dataAttribute);
                                                    return builder.create<mlir::tensor::CastOp>(loc(constant),

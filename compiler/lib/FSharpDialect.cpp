@@ -73,16 +73,175 @@ void FSharpDialect::registerAttributes()
 // PrintOp
 //===----------------------------------------------------------------------===//
 
+llvm::SmallVector<mlir::Type, 4> getFormatSpecifiedTypes(llvm::StringRef format, mlir::MLIRContext* context)
+{
+    llvm::SmallVector<mlir::Type, 4> types;
+
+    // Define a simple state machine to parse the format string
+    for (size_t i = 0; i < format.size(); ++i)
+    {
+        if (format[i] == '%')
+        {
+            ++i; // Advance to the character after '%'
+
+            // Skip flags and width/precision modifiers (e.g., "%-10.3d").
+            while (i < format.size() && (format[i] == '-' || format[i] == '+' ||
+                format[i] == ' ' || format[i] == '#' ||
+                format[i] == '0' || std::isdigit(format[i]) ||
+                format[i] == '.'))
+            {
+                ++i;
+            }
+
+            // Ensure we haven't reached the end of the string.
+            if (i >= format.size())
+            {
+                break;
+            }
+
+            // Check the specifier and map to an MLIR type.
+            switch (format[i])
+            {
+            case 'b':
+                types.push_back(IntegerType::get(context, 1));
+                break;
+            case 's': // String
+                types.push_back(mlir::UnrankedTensorType::get(IntegerType::get(context, 8)));
+                break;
+            case 'c': // Character
+                types.push_back(IntegerType::get(context, 8, IntegerType::Signless));
+                break;
+            case 'i': // Integer
+            case 'd':
+            case 'u':
+            case 'o':
+            case 'x':
+            case 'X':
+                types.push_back(IntegerType::get(context, 64, IntegerType::SignednessSemantics::Signless));
+                break;
+            case 'f':
+            case 'F':
+            case 'e':
+            case 'E':
+            case 'g':
+            case 'G': // Float
+                types.push_back(mlir::FloatType::getF64(context)); // Default to 32-bit float
+                break;
+            case '%': // Literal '%' (no type, skip)
+                break;
+            case 'A':
+            // Formatted using structured plain text formatting with the default layout settings. Not actually supported.
+            // TODO implement and provide a default method for printing arrays and lists
+            case 'a':
+            // Requires two arguments: a formatting function accepting a context parameter and the value, and the particular value to print
+            case 't':
+            //Requires one argument: a formatting function accepting a context parameter that either outputs or returns the appropriate text
+            case 'O': // Box object and call System.Object.ToString()
+            default:
+                llvm::errs() << "Unsupported format specifier: " << format[i] << "\n";
+                break;
+            }
+        }
+    }
+
+    return types;
+}
+
 llvm::LogicalResult PrintOp::verify()
 {
-    auto firstArgType = llvm::dyn_cast<mlir::ShapedType>(getOperand(0).getType());
-    if (!firstArgType || (firstArgType.getElementType() != IntegerType::get(getContext(), 8)))
+    auto attrs = getOperation()->getAttrDictionary();
+    // Set if the first argument of the operation was not a formattable string literal.
+    if (attrs.contains("malformed"))
+        return failure();
+
+    // If we reached the bufferized stage for this type we can skip the verification since all types are correct.
+    if (attrs.contains("analysisFinished"))
     {
-        mlir::emitError(getLoc(), fmt::format("expected i8 tensor type for first operand got {}",
-                                              getTypeString(getOperand(0).getType()))
-        );
+        return success();
+    }
+
+
+    auto fmt_types = getFormatSpecifiedTypes(getFmtString(), getContext());
+    if (fmt_types.size() != getFmtOperands().size())
+    {
+        mlir::emitError(getLoc(), fmt::format("expected {} operands got {}",
+                                              fmt_types.size(),
+                                              getFmtOperands().size()));
         return llvm::failure();
     }
+
+    for (auto [i, operand] : llvm::enumerate(getFmtOperands()))
+    {
+        // Ignore unresolved operands (NoneType). They will be caught by the type inference pass.
+        if (isa<NoneType>(operand.getType()))
+            continue;
+
+        if (auto fmt_int_type = mlir::dyn_cast<IntegerType>(fmt_types[i]))
+        {
+            // Check if the operand type matches the format specifier.
+            if (auto oper_type = mlir::dyn_cast<IntegerType>(operand.getType()))
+            {
+                // Check for bool
+                if (fmt_int_type.getWidth() == 1)
+                {
+                    if (oper_type.getWidth() == 1)
+                        continue;
+                    else
+                    {
+                        mlir::emitError(getLoc(), fmt::format(
+                                            "operand {} has type {} but the format specified bool type",
+                                            i,
+                                            getTypeString(operand.getType())));
+                        return mlir::failure();
+                    }
+                }
+                // Check for char
+                else if (fmt_int_type.getWidth() == 8)
+                {
+                    if (oper_type.getWidth() == 8)
+                        continue;
+                    else
+                    {
+                        mlir::emitError(getLoc(), fmt::format(
+                                            "operand {} has type {} but the format specified char type",
+                                            i,
+                                            getTypeString(operand.getType())));
+                        return mlir::failure();
+                    }
+                }
+                // We have an integer and all integer formats are compatible with all integer types.
+                continue;
+            }
+            mlir::emitError(getLoc(), fmt::format(
+                                "operand {} has type {} but the format specified înteger or bool type",
+                                i,
+                                getTypeString(operand.getType())));
+            return mlir::failure();
+        }
+        else if (auto fmt_float_type = mlir::dyn_cast<FloatType>(fmt_types[i]))
+        {
+            // Floating types are always compatible with each formater.
+            continue;
+        }
+        else if (auto fmt_string_type = mlir::dyn_cast<UnrankedTensorType>(fmt_types[i]))
+        {
+            // Check if the operand type matches the format specifier which we expect to be i8.
+            if (auto oper_tensor_type = mlir::dyn_cast<UnrankedTensorType>(operand.getType()))
+            {
+                if (oper_tensor_type.getElementType() == fmt_string_type.getElementType())
+                    continue;
+            }
+            mlir::emitError(getLoc(), fmt::format(
+                                "operand {} has type {} but the format specified string type",
+                                i,
+                                getTypeString(operand.getType())));
+            return mlir::failure();
+        }
+
+        mlir::emitError(getLoc(), fmt::format("Unsupported format specifier type {}", getTypeString(fmt_types[i])));
+        return mlir::failure();
+    }
+
     return mlir::success();
 }
 
@@ -106,52 +265,11 @@ static BaseMemRefType convertTensorToMemRef(TensorType type)
     return MemRefType::get(type.getShape(), type.getElementType());
 }
 
-// Helper function to create a global memref for the string.
-static Value createGlobalMemrefForString(Location loc, StringRef stringValue,
-                                         OpBuilder& builder, ModuleOp module, Operation* op)
-{
-    // Check if the global already exists in the module.
-    std::string globalName = "__printf_format_" + std::to_string(hash_value(stringValue));
-    auto existingGlobal = module.lookupSymbol<memref::GlobalOp>(globalName);
-    if (existingGlobal)
-        return builder.create<memref::GetGlobalOp>(
-            loc, existingGlobal.getType(), existingGlobal.getName());
-
-    // Create a global memref.
-    builder.setInsertionPointToStart(module.getBody());
-    // Prepare data attribute for the global.
-    std::vector<char8_t> data{stringValue.begin(), stringValue.end()};
-    data.push_back('\0');
-    auto type = mlir::RankedTensorType::get({static_cast<int64_t>(data.size())}, builder.getI8Type());
-    auto dataAttribute = mlir::DenseElementsAttr::get(type, llvm::ArrayRef(data));
-    // Create the global using the data attribute.
-    auto globalOp = builder.create<memref::GlobalOp>(
-        loc,
-        globalName,
-        builder.getStringAttr("private"),
-        MemRefType::get(type.getShape(), type.getElementType()),
-        dataAttribute,
-        /*constant=*/true, /*alignment=*/nullptr);
-
-    // Return a GetGlobalOp for this global.
-    builder.setInsertionPoint(op);
-    return builder.create<memref::GetGlobalOp>(
-        loc, globalOp.getType(), globalOp.getName());
-}
-
 LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::BufferizationOptions& options)
 {
     // 1. Rewrite tensor operands as memrefs based on type of the already
     //    bufferized callee.
     SmallVector<Value> newOperands;
-    // First operand is the format string.
-    auto fmtString = getFmtStringAttr();
-    auto fmtStringMemref = createGlobalMemrefForString(getLoc(),
-                                                       fmtString.getValue(),
-                                                       rewriter,
-                                                       getOperation()->getParentOfType<ModuleOp>(),
-                                                       *this);
-    newOperands.push_back(fmtStringMemref);
 
     // Next get the rest of the operands.
     for (auto opOperand : getOperands())
@@ -187,23 +305,13 @@ LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::Bu
     // 3. Create the new CallOp.
     Operation* newCallOp = rewriter.create<PrintOp>(
         getLoc(), getFmtStringAttr(), newOperands);
+    newCallOp->setAttrs(getOperation()->getAttrs());
+    utils::addOrUpdateAttrDictEntry(newCallOp, "bufferized", rewriter.getUnitAttr());
 
     // 4. Replace the old op with the new op.
     bufferization::replaceOpWithBufferizedValues(rewriter, *this, newCallOp->getResults());
 
     return success();
-}
-
-void PrintOp::inferFromReturnType()
-{
-}
-
-void PrintOp::inferFromOperands()
-{
-}
-
-void PrintOp::inferFromUnknown()
-{
 }
 
 //===----------------------------------------------------------------------===//

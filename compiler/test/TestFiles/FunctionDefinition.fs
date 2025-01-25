@@ -1,9 +1,7 @@
 
-let text = "%d\n"
-
 let add a b = a + b
 
-printf text (add 1 2)
+printf "%d\n" (add 1 2)
 
 let sub a b :float = a - b
 

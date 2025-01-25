@@ -163,6 +163,7 @@ struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
     }
 };
 
+
 //===----------------------------------------------------------------------===//
 // FSharpToFuncLoweringPass
 //===----------------------------------------------------------------------===//
@@ -187,7 +188,41 @@ namespace
 
 void FSharpToFuncLoweringPass::runOnOperation()
 {
-    // First lower the function calls them
+    // Partially lower the print ops here as well
+    {
+        // We need to lower the print operation partially and extract the format string into a tensor operand so that
+        // the bufferization pass handles it correctly. Without a tensor operand, the bufferization pass will not run for the print operation.
+        auto module = getOperation();
+        module->walk([&](fsharp::PrintOp op)
+        {
+            OpBuilder builder(op);
+
+            SmallVector<Value> newOperands;
+
+            auto fmtString = op.getFmtStringAttr();
+
+            // Copy the string data into a tensor.
+            std::vector<char8_t> data{fmtString.begin(), fmtString.end()};
+            data.push_back('\0');
+            auto type = RankedTensorType::get({static_cast<int64_t>(data.size())}, builder.getI8Type());
+            auto dataAttribute = DenseElementsAttr::get(type, llvm::ArrayRef(data));
+            auto tensor = builder.create<arith::ConstantOp>(op.getLoc(), type, dataAttribute);
+            // Add the string tensor as the first operand.
+            newOperands.push_back(tensor);
+            // Add the rest of the operands.
+            auto oldOperands = op.getFmtOperands();
+            newOperands.append(oldOperands.begin(), oldOperands.end());
+            //Create the new CallOp.
+            auto newPrintOp = builder.create<fsharp::PrintOp>(op.getLoc(), op.getFmtStringAttr(), newOperands);
+            newPrintOp.getOperation()->setAttrs(op->getAttrs());
+            fsharp::utils::addOrUpdateAttrDictEntry(newPrintOp, "analysisFinished", builder.getUnitAttr());
+
+            op->replaceAllUsesWith(newPrintOp);
+            op.erase();
+        });
+    }
+
+    // Lower the function calls them
     {
         mlir::ConversionTarget target(getContext());
         target.addLegalDialect<affine::AffineDialect,

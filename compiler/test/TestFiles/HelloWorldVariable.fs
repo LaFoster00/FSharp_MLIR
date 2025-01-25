@@ -1,12 +1,12 @@
 
-let text = "Hello, World!\n"
-printf "%s" text
+let b = true
+printf "Hello, World with the boolean '%b' !\n" b
 
-let int_text = "Hello, World with the integer '%d' !\n"
-printf int_text 42
+let i = 42
+printf "Hello, World with the integer '%d' !\n" i
 
-let float_text = "Hello, World with the float '%f' !\n"
-printf float_text 42.0
+let f = 42.0
+printf "Hello, World with the float '%f' !\n" f
 
-let string_text = "Hello, World with the string '%s' !\n"
-printf string_text "string 42"
+let s = "string 42"
+printf "Hello, World with the string '%s' !\n" s
