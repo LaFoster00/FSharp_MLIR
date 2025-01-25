@@ -125,3 +125,13 @@ TEST(Logical, BasicAssertion)
 {
     RunFullTestSuite(InputType::FSharp, "TestFiles/Logical.fs", false, "Logical");
 }
+
+TEST(LogicalNoDynamicReturn, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/LogicalNoDynamicReturn.fs", false, "Logical");
+}
+
+TEST(Relation, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/Relation.fs", false, "Logical");
+}
