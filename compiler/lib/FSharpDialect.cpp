@@ -96,10 +96,13 @@ bufferization::AliasingValueList PrintOp::getAliasingValues(::mlir::OpOperand& o
 }
 
 /// Convert the given RankedTensorType into the corresponding MemRefType.
-static MemRefType convertTensorToMemRef(TensorType type)
+static BaseMemRefType convertTensorToMemRef(TensorType type)
 {
     if (auto unranked = mlir::dyn_cast<UnrankedTensorType>(type))
-        return MemRefType::get({1}, unranked.getElementType());
+    {
+        auto element_type = unranked.getElementType();
+        return UnrankedMemRefType::get(element_type, nullptr);
+    }
     return MemRefType::get(type.getShape(), type.getElementType());
 }
 

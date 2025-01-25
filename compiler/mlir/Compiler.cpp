@@ -25,6 +25,39 @@ namespace fsharp::compiler
         mlir::registerMLIRContextCLOptions();
         mlir::registerPassManagerCLOptions();
 
+        switch (emitAction)
+        {
+        case Action::None:
+            fmt::print("No action specified (parsing only?), use -emit=<action>\n");
+            break;
+        case Action::DumpST:
+            fmt::print("Syntax tree result:\n");
+            break;
+        case Action::DumpAST:
+            fmt::print("Abstract syntax tree result:\n");
+            break;
+        case Action::DumpMLIR:
+            fmt::print("Base mlir result:\n");
+            break;
+        case Action::DumpMLIRTypeInference:
+            fmt::print("Type infered mlir result:\n");
+            break;
+        case Action::DumpMLIRAffine:
+            fmt::print("Affine mlir result:\n");
+            break;
+        case Action::DumpMLIRLLVM:
+            fmt::print("LLVM-Dialect mlir result:\n");
+            break;
+        case Action::DumpLLVMIR:
+            fmt::print("LLVM IR result:\n");
+            break;
+        case Action::RunJIT:
+            fmt::print("JIT result:\n");
+            break;
+        case Action::EmitExecutable:
+            break;
+        }
+
         if (emitAction == Action::DumpST)
             return dumpST();
 
@@ -137,7 +170,6 @@ namespace fsharp::compiler
         if (isTypeInference)
         {
             pm.addPass(mlir::fsharp::createTypeInferencePass());
-            pm.addPass(mlir::fsharp::createLowerToArithPass());
         }
 
         if (runOptimizations || isLoweringToAffine)
@@ -156,6 +188,7 @@ namespace fsharp::compiler
         {
             // Partially lower the fsharp dialect.
             pm.addPass(mlir::fsharp::createLowerToFunctionPass());
+            pm.addPass(mlir::fsharp::createLowerToArithPass());
 
             // Add a few cleanups post lowering.
             mlir::OpPassManager& optPM = pm.nest<mlir::func::FuncOp>();
@@ -169,29 +202,29 @@ namespace fsharp::compiler
                 optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
             }
 
-
-
+            // Bufferize the program
             mlir::bufferization::OneShotBufferizationOptions bufferizationOptions{};
             bufferizationOptions.bufferizeFunctionBoundaries = true;
 
             pm.addPass(mlir::bufferization::createOneShotBufferizePass(bufferizationOptions));
-            pm.addPass(mlir::bufferization::createBufferHoistingPass());
-            pm.addPass(mlir::bufferization::createBufferLoopHoistingPass());
+            optPM.addPass(mlir::bufferization::createBufferHoistingPass());
+            optPM.addPass(mlir::bufferization::createBufferLoopHoistingPass());
             pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass());
             pm.addPass(mlir::bufferization::createDropEquivalentBufferResultsPass());
-            pm.addPass(mlir::bufferization::createPromoteBuffersToStackPass());
-            pm.addPass(mlir::bufferization::createBufferDeallocationPass());
-
+            optPM.addPass(mlir::bufferization::createPromoteBuffersToStackPass());
+            optPM.addPass(mlir::bufferization::createBufferDeallocationPass());
         }
 
         if (isLoweringToLLVM)
         {
             // Finish lowering the fsharp IR to the LLVM dialect.
             pm.addPass(mlir::fsharp::createLowerToLLVMPass());
+            pm.addPass(mlir::createReconcileUnrealizedCastsPass());
             // This is necessary to have line tables emitted and basic
             // debugger working. In the future we will add proper debug information
             // emission directly from our frontend.
             pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
+
         }
 
         if (mlir::failed(pm.run(*module)))

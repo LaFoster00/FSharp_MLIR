@@ -1150,6 +1150,7 @@ namespace fsharpgrammar::compiler
         mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
         mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(registry);
         mlir::scf::registerBufferizableOpInterfaceExternalModels(registry);
+        mlir::registerConvertMemRefToLLVMInterface(registry);
         context.appendDialectRegistry(registry);
 
         context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
