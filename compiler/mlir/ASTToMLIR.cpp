@@ -485,7 +485,7 @@ namespace fsharpgrammar::compiler
         llvm::LogicalResult generatePrint(const ast::Expression::Append& append)
         {
             auto args = getFunctionArgValues(append, true);
-            if (!args.has_value() || args.value().empty())
+            if (!args.has_value())
                 return llvm::failure();
             if (auto fmt_string_constant = std::get_if<ast::Expression::Constant>(&append.expressions[1]->expression))
             {
