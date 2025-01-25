@@ -182,6 +182,8 @@ namespace
                     "All types should be resolved prior to this pass.") << *getOperation();
                 return signalPassFailure();
             }
+
+            // TODO Update the formating parameters for the print statements so that they are c compatible
         }
     };
 } // namespace
