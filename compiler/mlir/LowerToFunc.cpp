@@ -246,6 +246,7 @@ void FSharpToFuncLoweringPass::runOnOperation()
         // Make the whole fsharp dialect illegal. Except for the CallOps which will be lowered to func.call in the next step.
         target.addIllegalDialect<fsharp::FSharpDialect>();
         target.addLegalOp<fsharp::CallOp>();
+        target.addLegalOp<fsharp::PrintOp>();
         target.addLegalOp<fsharp::AssertOp>();
 
         RewritePatternSet patterns(&getContext());
@@ -272,6 +273,7 @@ void FSharpToFuncLoweringPass::runOnOperation()
                                tensor::TensorDialect,
                                cf::ControlFlowDialect>();
         target.addIllegalDialect<fsharp::FSharpDialect>();
+        target.addLegalOp<fsharp::PrintOp>();
 
         RewritePatternSet patterns(&getContext());
 
