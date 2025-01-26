@@ -4,6 +4,8 @@
 
 #include "compiler/Compiler.h"
 
+#include <sys/wait.h>
+
 #include "Grammar.h"
 #include "ast/ASTNode.h"
 #include "compiler/FSharpDialect.h"
@@ -42,8 +44,14 @@ namespace fsharp::compiler
         case Action::DumpMLIRTypeInference:
             fmt::print("Type infered mlir result:\n");
             break;
-        case Action::DumpMLIRAffine:
+        case Action::DumpMLIRArith:
             fmt::print("Affine mlir result:\n");
+            break;
+        case Action::DumpMLIRFunc:
+            fmt::print("Func mlir result:\n");
+            break;
+        case Action::DumpMLIRBufferized:
+            fmt::print("Bufferized mlir result:\n");
             break;
         case Action::DumpMLIRLLVM:
             fmt::print("LLVM-Dialect mlir result:\n");
@@ -164,7 +172,9 @@ namespace fsharp::compiler
 
         // Check to see what granularity of MLIR we are compiling to.
         bool isTypeInference = emitAction >= Action::DumpMLIRTypeInference;
-        bool isLoweringToAffine = emitAction >= Action::DumpMLIRAffine;
+        bool isLoweringToArith = emitAction >= Action::DumpMLIRArith;
+        bool isLoweringToFunc = emitAction >= Action::DumpMLIRFunc;
+        bool isBufferizing = emitAction >= Action::DumpMLIRBufferized;
         bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
         if (isTypeInference)
@@ -172,7 +182,7 @@ namespace fsharp::compiler
             pm.addPass(mlir::fsharp::createTypeInferencePass());
         }
 
-        if (runOptimizations || isLoweringToAffine)
+        if (runOptimizations || isLoweringToArith)
         {
             // Inline all functions into main and then delete them.
             pm.addPass(mlir::createInlinerPass());
@@ -184,10 +194,14 @@ namespace fsharp::compiler
             optPM.addPass(mlir::bufferization::createEmptyTensorEliminationPass());
         }
 
-        if (isLoweringToAffine)
+        if (isLoweringToArith)
         {
             // Partially lower the fsharp dialect.
             pm.addPass(mlir::fsharp::createLowerToArithPass());
+        }
+
+        if (isLoweringToFunc)
+        {
             pm.addPass(mlir::fsharp::createLowerToFunctionPass());
 
             // Add a few cleanups post lowering.
@@ -201,6 +215,11 @@ namespace fsharp::compiler
                 optPM.addPass(mlir::affine::createLoopFusionPass());
                 optPM.addPass(mlir::affine::createAffineScalarReplacementPass());
             }
+        }
+
+        if (isBufferizing)
+        {
+            mlir::OpPassManager& optPM = pm.nest<mlir::func::FuncOp>();
 
             // Bufferize the program
             mlir::bufferization::OneShotBufferizationOptions bufferizationOptions{};
@@ -224,7 +243,6 @@ namespace fsharp::compiler
             // debugger working. In the future we will add proper debug information
             // emission directly from our frontend.
             pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
-
         }
 
         if (mlir::failed(pm.run(*module)))
@@ -312,6 +330,15 @@ namespace fsharp::compiler
         return 0;
     }
 
+    void runJITInChildProcess(mlir::ExecutionEngine* engine) {
+        auto invocationResult = engine->invokePacked("main");
+        if (invocationResult) {
+            llvm::errs() << "JIT invocation failed\n";
+            exit(1); // Indicate failure
+        }
+        exit(0); // Indicate success
+    }
+
     int FSharpCompiler::runJit(mlir::ModuleOp module)
     {
         // Initialize LLVM targets.
@@ -336,11 +363,31 @@ namespace fsharp::compiler
         assert(maybeEngine && "failed to construct an execution engine");
         auto& engine = maybeEngine.get();
 
-        // Invoke the JIT-compiled function.
-        auto invocationResult = engine->invokePacked("main");
-        if (invocationResult)
-        {
-            llvm::errs() << "JIT invocation failed\n";
+        std::promise<bool> resultPromise;
+        auto resultFuture = resultPromise.get_future();
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Child process: Run the JIT function
+            runJITInChildProcess(engine.get());
+        } else if (pid > 0) {
+            // Parent process: Monitor child process
+            int status;
+            waitpid(pid, &status, 0);
+
+            if (WIFEXITED(status)) {
+                if (WEXITSTATUS(status) == 0) {
+                    llvm::errs() << "JIT executed successfully.\n";
+                } else {
+                    llvm::errs() << "JIT execution failed.\n";
+                    return -1;
+                }
+            } else {
+                llvm::errs() << "JIT process terminated abnormally. This probably means an assert triggered.\n";
+                return -1;
+            }
+        } else {
+            llvm::errs() << "Failed to fork process.\n";
             return -1;
         }
 

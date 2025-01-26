@@ -163,6 +163,15 @@ struct CallOpLowering : public OpConversionPattern<fsharp::CallOp>
     }
 };
 
+//===----------------------------------------------------------------------===//
+// LowerToFunc RewritePatterns: AssertOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(AssertOp)
+    rewriter.replaceOpWithNewOp<cf::AssertOp>(op, op.getCondition(), op.getMessageAttr());
+    return success();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
 
 //===----------------------------------------------------------------------===//
 // FSharpToFuncLoweringPass
@@ -222,7 +231,7 @@ void FSharpToFuncLoweringPass::runOnOperation()
         });
     }
 
-    // Lower the function calls them
+    // Lower the functions to func dialect operations
     {
         mlir::ConversionTarget target(getContext());
         target.addLegalDialect<affine::AffineDialect,
@@ -231,10 +240,13 @@ void FSharpToFuncLoweringPass::runOnOperation()
                                func::FuncDialect,
                                scf::SCFDialect,
                                memref::MemRefDialect,
-                               fsharp::FSharpDialect,
-                               tensor::TensorDialect>();
-        target.addIllegalOp<fsharp::ClosureOp>();
-        target.addIllegalOp<fsharp::ReturnOp>();
+                               tensor::TensorDialect,
+                               cf::ControlFlowDialect>();
+
+        // Make the whole fsharp dialect illegal. Except for the CallOps which will be lowered to func.call in the next step.
+        target.addIllegalDialect<fsharp::FSharpDialect>();
+        target.addLegalOp<fsharp::CallOp>();
+        target.addLegalOp<fsharp::AssertOp>();
 
         RewritePatternSet patterns(&getContext());
 
@@ -243,11 +255,12 @@ void FSharpToFuncLoweringPass::runOnOperation()
 
         auto module = getOperation();
         if (failed(applyFullConversion(module, target, std::move(patterns))))
-            signalPassFailure();
+            return signalPassFailure();
     }
 
     //mlir::emitError(getOperation().getLoc(), "Function calls lowered to func.call: \n") << *getOperation();
 
+    // Lower the fsharp.call to func.call and the fsharp.assert to cf.assert operations
     {
         mlir::ConversionTarget target(getContext());
         target.addLegalDialect<affine::AffineDialect,
@@ -256,17 +269,19 @@ void FSharpToFuncLoweringPass::runOnOperation()
                                func::FuncDialect,
                                scf::SCFDialect,
                                memref::MemRefDialect,
-                               fsharp::FSharpDialect,
-                               tensor::TensorDialect>();
-        target.addIllegalOp<fsharp::CallOp>();
+                               tensor::TensorDialect,
+                               cf::ControlFlowDialect>();
+        target.addIllegalDialect<fsharp::FSharpDialect>();
 
         RewritePatternSet patterns(&getContext());
 
         patterns.add<CallOpLowering>(&getContext());
+        patterns.add<AssertOpLowering>(&getContext());
+
 
         auto module = getOperation();
         if (failed(applyFullConversion(module, target, std::move(patterns))))
-            signalPassFailure();
+            return signalPassFailure();
     }
 }
 

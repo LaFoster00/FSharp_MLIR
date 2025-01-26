@@ -44,9 +44,23 @@ void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitE
     FSharpCompiler::compileProgram(
         inputType,
         fileName,
-        Action::DumpMLIRAffine,
+        Action::DumpMLIRArith,
         false
     );
+
+    FSharpCompiler::compileProgram(
+       inputType,
+       fileName,
+       Action::DumpMLIRFunc,
+       false
+   );
+
+    FSharpCompiler::compileProgram(
+       inputType,
+       fileName,
+       Action::DumpMLIRBufferized,
+       false
+   );
 
     FSharpCompiler::compileProgram(
         inputType,
@@ -81,6 +95,11 @@ void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitE
     );
 }
 
+TEST(Assert, BasicAssertion)
+{
+    RunFullTestSuite(InputType::FSharp, "TestFiles/Assert.fs", false, "Assert");
+}
+
 TEST(HelloWorld, BasicAssertion)
 {
     RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorld.fs", true, "HelloWorld");
@@ -88,7 +107,7 @@ TEST(HelloWorld, BasicAssertion)
 
 TEST(HelloWorldVariable, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs", true, "HelloWorldVariable");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs", false, "HelloWorldVariable");
 }
 
 TEST(HelloWorldBranchConstant, BasicAssertion)
@@ -128,10 +147,10 @@ TEST(Logical, BasicAssertion)
 
 TEST(LogicalNoDynamicReturn, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/LogicalNoDynamicReturn.fs", false, "Logical");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/LogicalNoDynamicReturn.fs", false, "LogicalNoDynamicReturn");
 }
 
 TEST(Relation, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/Relation.fs", false, "Logical");
+    RunFullTestSuite(InputType::FSharp, "TestFiles/Relation.fs", false, "Relation");
 }

@@ -242,6 +242,23 @@ LogicalResult PrintOp::bufferize(RewriterBase& rewriter, const bufferization::Bu
 }
 
 //===----------------------------------------------------------------------===//
+// AssertOp
+//===----------------------------------------------------------------------===//
+
+llvm::LogicalResult AssertOp::verify()
+{
+    if (isa<NoneType>(getCondition().getType())
+        || (isa<IntegerType>(getCondition().getType()) && cast<IntegerType>(getCondition().getType()).getWidth() == 1))
+    {
+        return success();
+    }
+    mlir::emitError(getLoc(), "Condition must be of type bool, got ")
+        << getTypeString(getCondition().getType());
+    return failure();
+}
+
+
+//===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 

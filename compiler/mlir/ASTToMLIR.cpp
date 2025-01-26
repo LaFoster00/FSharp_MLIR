@@ -319,10 +319,10 @@ namespace fsharpgrammar::compiler
 
         std::optional<mlir::Value> mlirGen(const ast::Expression& expression)
         {
-            if (std::holds_alternative<ast::Expression::Append>(expression.expression))
+            if (auto append = std::get_if<ast::Expression::Append>(&expression.expression))
             {
                 // Get the generation result of the append expression
-                const auto result = mlirGen(std::get<ast::Expression::Append>(expression.expression));
+                const auto result = mlirGen(*append);
                 // Return the value if a value was generated
                 if (const auto value = std::get_if<std::optional<mlir::Value>>(&result))
                 {
@@ -336,28 +336,30 @@ namespace fsharpgrammar::compiler
                     return mlir::Value(nullptr);
                 }
             }
-            if (std::holds_alternative<ast::Expression::Constant>(expression.expression))
-                return mlirGen(std::get<ast::Expression::Constant>(expression.expression));
-            if (std::holds_alternative<ast::Expression::Let>(expression.expression))
+            if (auto constant = std::get_if<ast::Expression::Constant>(&expression.expression))
+                return mlirGen(*constant);
+            if (auto let = std::get_if<ast::Expression::Let>(&expression.expression))
             {
-                auto result = mlirGen(std::get<ast::Expression::Let>(expression.expression));
+                auto result = mlirGen(*let);
                 // If the function definition was not successful return the invalid state nullptr
-                if (std::holds_alternative<llvm::LogicalResult>(result))
-                    return llvm::succeeded(std::get<llvm::LogicalResult>(result))
+                if (auto logical_result = std::get_if<llvm::LogicalResult>(&result))
+                    return llvm::succeeded(logical_result)
                                ? std::optional<mlir::Value>{}
                                : mlir::Value(nullptr);
                 else
                     return std::get<mlir::Value>(result);
             }
-            if (std::holds_alternative<ast::Expression::Ident>(expression.expression))
-                return mlirGen(std::get<ast::Expression::Ident>(expression.expression));
-            if (std::holds_alternative<ast::Expression::OP>(expression.expression))
-                return mlirGen(std::get<ast::Expression::OP>(expression.expression));
-            if (std::holds_alternative<ast::Expression::IfThenElse>(expression.expression))
-                return mlirGen(std::get<ast::Expression::IfThenElse>(expression.expression));
+            if (auto ident = std::get_if<ast::Expression::Ident>(&expression.expression))
+                return mlirGen(*ident);
+            if (auto op = std::get_if<ast::Expression::OP>(&expression.expression))
+                return mlirGen(*op);
+            if (auto if_then_else = std::get_if<ast::Expression::IfThenElse>(&expression.expression))
+                return mlirGen(*if_then_else);
             // Paren expressions can be skipped since we only care about the inner expression
-            if (std::holds_alternative<ast::Expression::Paren>(expression.expression))
-                return mlirGen(*std::get<ast::Expression::Paren>(expression.expression).expression);
+            if (auto paren = std::get_if<ast::Expression::Paren>(&expression.expression))
+                return mlirGen(*paren->expression);
+            if (auto unary = std::get_if<ast::Expression::Unary>(&expression.expression))
+                return mlirGen(*unary);
 
             mlir::emitError(loc(expression.get_range()), "Expression not supported!");
         }
@@ -411,14 +413,16 @@ namespace fsharpgrammar::compiler
             if (append.isFunctionCall)
             {
                 std::string func_name;
-                if (std::holds_alternative<ast::Expression::Ident>(append.expressions.front()->expression))
-                    func_name = std::get<ast::Expression::Ident>(append.expressions.front()->expression).ident->ident;
-                else if (std::holds_alternative<ast::Expression::LongIdent>(append.expressions.front()->expression))
-                    func_name = std::get<ast::Expression::LongIdent>(append.expressions.front()->expression).longIdent->
-                        get_as_string();
+                if (auto ident = std::get_if<ast::Expression::Ident>(&append.expressions.front()->expression))
+                    func_name = ident->ident->ident;
+                else if (auto long_ident = std::get_if<ast::Expression::LongIdent>(
+                    &append.expressions.front()->expression))
+                    func_name = long_ident->longIdent->get_as_string();
 
                 if (func_name == "print" || func_name == "printf" || func_name == "printfn")
                     return generatePrint(append);
+                if (func_name == "assert")
+                    return generateAssert(append);
 
                 return declareFunctionCall(append, func_name);
             }
@@ -477,7 +481,7 @@ namespace fsharpgrammar::compiler
             else
             {
                 mlir::emitError(loc(append),
-                                "Could not find function with name: " + func_name + "in the current scope!");
+                                "Could not find function with name '" + func_name + "' in the current scope!");
                 return nullptr;
             }
         }
@@ -498,10 +502,65 @@ namespace fsharpgrammar::compiler
                 }
             }
             auto op = builder.create<mlir::fsharp::PrintOp>(loc(append.get_range()), builder.getStringAttr(""),
-                                                          mlir::ValueRange{});
+                                                            mlir::ValueRange{});
             mlir::fsharp::utils::addOrUpdateAttrDictEntry(op.getOperation(), "malformed", builder.getUnitAttr());
             mlir::emitError(loc(append.get_range()), "First argument of print must be a formattable string literal!");
             return llvm::failure();
+        }
+
+        llvm::LogicalResult generateAssert(const ast::Expression::Append& append)
+        {
+            auto num_args = append.expressions.size();
+            // Assert must have at max two arguments
+            // The first argument is the function name so we need to allways add 1
+            if (num_args != 2)
+            {
+                if (num_args == 3)
+                {
+                    // Check if we are holding a string literal as the second function argument
+                    if (auto constant = std::get_if<ast::Expression::Constant>(&append.expressions[2]->expression))
+                    {
+                        if (!std::holds_alternative<std::string>(constant->constant->value.value()))
+                        {
+                            emitError(loc(append), "Second argument of assert must be a string literal!");
+                            return llvm::failure();
+                        }
+                    }
+                    else
+                    {
+                        emitError(loc(append), "Second argument of assert must be a string literal!");
+                        return llvm::failure();
+                    }
+                }
+                else
+                {
+                    emitError(loc(append.get_range()), "Assert must have at max two arguments!");
+                    return llvm::failure();
+                }
+            }
+            // Get the condition value
+            auto condition = mlirGen(*append.expressions[1]);
+            if (!condition.has_value() || condition.value() == nullptr)
+            {
+                emitError(loc(append), "Invalid condition value!");
+                return llvm::failure();
+            }
+            // Only build assert with the explicit message if we have three arguments
+            if (num_args == 3)
+            {
+                // Get the message string attr
+                auto message = builder.getStringAttr(
+                    std::get<std::string>(
+                        std::get<ast::Expression::Constant>(
+                            append.expressions[2]->expression)
+                        .constant->value.value()));
+                builder.create<mlir::fsharp::AssertOp>(loc(append.get_range()), condition.value(), message);
+            }
+            else
+            {
+                builder.create<mlir::fsharp::AssertOp>(loc(append.get_range()), condition.value());
+            }
+            return llvm::success();
         }
 
         mlir::Value mlirGen(const ast::Expression::OP& op)
@@ -680,6 +739,10 @@ namespace fsharpgrammar::compiler
             }
         }
 
+        mlir::Value mlirGen(const ast::Expression::Unary& unary)
+        {
+        }
+
         mlir::Value getRelationOp(const ast::Expression::OP& op)
         {
             auto relationOps = std::get<std::vector<ast::Expression::OP::RelationType>>(op.ops);
@@ -842,10 +905,9 @@ namespace fsharpgrammar::compiler
             const ast::Pattern::PatternType& pattern)
         {
             static const std::string no_type = "";
-            if (std::holds_alternative<ast::Pattern::Named>(pattern))
+            if (auto named = std::get_if<ast::Pattern::Named>(&pattern))
             {
-                auto named = std::get<ast::Pattern::Named>(pattern);
-                auto& name = named.ident->ident;
+                auto& name = named->ident->ident;
                 return {name, no_type};
             }
             else
@@ -854,8 +916,8 @@ namespace fsharpgrammar::compiler
                 assert(
                     std::holds_alternative<ast::Pattern::Named>(typed.pattern->pattern) &&
                     "Only named patterns are supported for typed variable declaration!");
-                auto named = std::get<ast::Pattern::Named>(typed.pattern->pattern);
-                auto& name = named.ident->ident;
+                named = &std::get<ast::Pattern::Named>(typed.pattern->pattern);
+                auto& name = named->ident->ident;
                 assert(
                     std::holds_alternative<ast::Type::Var>(typed.type->type) &&
                     "Only var types are supported for typed variable declaration!");
@@ -884,22 +946,22 @@ namespace fsharpgrammar::compiler
 
         std::tuple<mlir::StringRef, mlir::Type> getFunctionArg(const ast::Pattern& pattern)
         {
-            if (std::holds_alternative<ast::Pattern::Paren>(pattern.pattern))
-                return getFunctionArg(*std::get<ast::Pattern::Paren>(pattern.pattern).pattern);
-            if (std::holds_alternative<ast::Pattern::Typed>(pattern.pattern))
+            if (auto paren = std::get_if<ast::Pattern::Paren>(&pattern.pattern))
+                return getFunctionArg(*paren->pattern);
+            if (auto typed = std::get_if<ast::Pattern::Typed>(&pattern.pattern))
             {
-                auto& typed = std::get<ast::Pattern::Typed>(pattern.pattern);
-                if (!std::holds_alternative<ast::Pattern::Named>(typed.pattern->pattern))
+                if (auto named = std::get_if<ast::Pattern::Named>(&typed->pattern->pattern))
                 {
-                    mlir::emitError(loc(pattern), "Invalid function arg name. Only non nested names allowed!");
-                    return {"", nullptr};
+                    return {
+                        named->ident->ident, getMLIRType(*typed->type)
+                    };
                 }
-                return {
-                    std::get<ast::Pattern::Named>(typed.pattern->pattern).ident->ident, getMLIRType(*typed.type)
-                };
+
+                mlir::emitError(loc(pattern), "Invalid function arg name. Only non nested names allowed!");
+                return {"", nullptr};
             }
-            if (std::holds_alternative<ast::Pattern::Named>(pattern.pattern))
-                return {std::get<ast::Pattern::Named>(pattern.pattern).ident->ident, builder.getNoneType()};
+            if (auto named = std::get_if<ast::Pattern::Named>(&pattern.pattern))
+                return {named->ident->ident, builder.getNoneType()};
 
             mlir::emitError(loc(pattern), "Invalid function arg pattern.");
             return {"", nullptr};
@@ -909,12 +971,11 @@ namespace fsharpgrammar::compiler
             const ast::Pattern& pattern)
         {
             // If we are looking at a long ident pattern we only want to look at the patterns following the identifier
-            if (std::holds_alternative<ast::Pattern::LongIdent>(pattern.pattern))
+            if (auto long_ident = std::get_if<ast::Pattern::LongIdent>(&pattern.pattern))
             {
-                auto& long_ident = std::get<ast::Pattern::LongIdent>(pattern.pattern);
                 mlir::SmallVector<mlir::StringRef, 4> arg_names;
                 mlir::SmallVector<mlir::Type, 4> arg_types;
-                for (auto& p : long_ident.patterns)
+                for (auto& p : long_ident->patterns)
                 {
                     auto [name, type] = getFunctionArg(*p);
                     arg_names.push_back(name);
@@ -923,9 +984,9 @@ namespace fsharpgrammar::compiler
                 return {arg_names, arg_types};
             }
             // If we are looking at a typed pattern for the function definition we only want to look at the enclosed pattern
-            if (std::holds_alternative<ast::Pattern::Typed>(pattern.pattern))
+            if (auto typed = std::get_if<ast::Pattern::Typed>(&pattern.pattern))
             {
-                return getFunctionSignature(*std::get<ast::Pattern::Typed>(pattern.pattern).pattern);
+                return getFunctionSignature(*typed->pattern);
             }
 
             mlir::emitError(loc(pattern), "Invalid function definition pattern.");
@@ -937,16 +998,14 @@ namespace fsharpgrammar::compiler
             mlir::StringRef func_name;
             mlir::Type return_type = mlir::NoneType::get(builder.getContext());
             // If the return-type of the function is specified we should save the return-type for later
-            if (std::holds_alternative<ast::Pattern::Typed>(let.args->pattern))
+            if (auto typed = std::get_if<ast::Pattern::Typed>(&let.args->pattern))
             {
-                auto& typed_pattern = std::get<ast::Pattern::Typed>(let.args->pattern);
-                func_name = getFuncName(typed_pattern);
-                return_type = getMLIRType(*typed_pattern.type);
+                func_name = getFuncName(*typed);
+                return_type = getMLIRType(*typed->type);
             }
-            else if (std::holds_alternative<ast::Pattern::LongIdent>(let.args->pattern))
+            else if (auto long_ident = std::get_if<ast::Pattern::LongIdent>(&let.args->pattern))
             {
-                auto& long_ident = std::get<ast::Pattern::LongIdent>(let.args->pattern);
-                func_name = getFuncName(long_ident);
+                func_name = getFuncName(*long_ident);
             }
             else
             {

@@ -202,6 +202,7 @@ GENERATE_OP_CONVERSION_PATTERN(AndOp)
         case IntegerType::Signless:
         case IntegerType::Signed:
             new_op = rewriter.create<arith::MinSIOp>(op.getLoc(), op.getLhs(), op.getRhs());
+            break;
         case IntegerType::Unsigned:
             new_op = rewriter.create<arith::MinUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
             break;
@@ -570,6 +571,7 @@ namespace
                 target.addLegalOp<fsharp::CallOp>();
                 target.addLegalOp<fsharp::PrintOp>();
                 target.addLegalOp<fsharp::ConstantOp>();
+                target.addLegalOp<fsharp::AssertOp>();
 
                 RewritePatternSet patterns(&getContext());
 
@@ -608,6 +610,7 @@ namespace
                 target.addLegalOp<fsharp::ReturnOp>();
                 target.addLegalOp<fsharp::CallOp>();
                 target.addLegalOp<fsharp::PrintOp>();
+                target.addLegalOp<fsharp::AssertOp>();
 
                 RewritePatternSet patterns(&getContext());
 

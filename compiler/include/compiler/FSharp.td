@@ -318,6 +318,52 @@ def PrintOp : FSharp_Op<"printf", [BufferizableOpInterface, DeclareOpInterfaceMe
 }
 
 //===----------------------------------------------------------------------===//
+// AssertOp
+//===----------------------------------------------------------------------===//
+
+def AssertOp : FSharp_Op<"assert", [DeclareOpInterfaceMethods<ImplicitTypeInferenceOpInterface>]> {
+  let summary = "Assert operation";
+  let description = [{
+    The assert operation verifies that the condition evaluates to true.
+    If the condition is false, an assertion failure occurs with an optional message.
+
+    Example:
+    ```mlir
+      %1 = fsharp.const true : i1
+      fsharp.assert(%1) ["message" = "Condition failed"]
+    ```
+  }];
+
+  // The operation takes a single operand of AnyType (expected to be i1).
+  let arguments = (ins AnyType:$condition, StrAttr:$message);
+
+  // No results as assert doesn't return anything.
+  let results = (outs);
+
+  // Custom build methods for the assert operation.
+  let builders = [
+    OpBuilder<(ins "Value":$condition), [{
+      $_state.addOperands(condition);
+      // Set a default message if none is provided.
+      StringRef defaultMessage = "Assertion failed";
+      $_state.addAttribute("message", StringAttr::get($_builder.getContext(), defaultMessage));
+    }]>,
+    OpBuilder<(ins "Value":$condition, "StringAttr":$msg), [{
+      $_state.addOperands(condition);
+      $_state.addAttribute("message", msg);
+    }]>,
+
+  ];
+
+  let skipDefaultBuilders = 1;
+  let hasVerifier = 1;
+
+  let assemblyFormat = [{
+    $condition attr-dict `:` type($condition)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
 
