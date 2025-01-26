@@ -199,7 +199,7 @@ namespace mlir::fsharp::utils
 
     // Helper function to create a global memref for the string.
     Value createGlobalMemrefForString(Location loc, StringRef stringValue,
-                                             OpBuilder& builder, ModuleOp module, Operation* op)
+                                      OpBuilder& builder, ModuleOp module, Operation* op)
     {
         // Check if the global already exists in the module.
         std::string globalName = "__printf_format_" + std::to_string(hash_value(stringValue));
@@ -228,5 +228,82 @@ namespace mlir::fsharp::utils
         builder.setInsertionPoint(op);
         return builder.create<memref::GetGlobalOp>(
             loc, globalOp.getType(), globalOp.getName());
+    }
+
+    llvm::SmallVector<std::tuple<char, mlir::Type>, 4> getFormatSpecifiedTypes(
+        llvm::StringRef format, mlir::MLIRContext* context)
+    {
+        llvm::SmallVector<std::tuple<char, mlir::Type>, 4> types;
+
+        // Define a simple state machine to parse the format string
+        for (size_t i = 0; i < format.size(); ++i)
+        {
+            if (format[i] == '%')
+            {
+                ++i; // Advance to the character after '%'
+
+                // Skip flags and width/precision modifiers (e.g., "%-10.3d").
+                while (i < format.size() && (format[i] == '-' || format[i] == '+' ||
+                    format[i] == ' ' || format[i] == '#' ||
+                    format[i] == '0' || std::isdigit(format[i]) ||
+                    format[i] == '.'))
+                {
+                    ++i;
+                }
+
+                // Ensure we haven't reached the end of the string.
+                if (i >= format.size())
+                {
+                    break;
+                }
+
+                // Check the specifier and map to an MLIR type.
+                switch (format[i])
+                {
+                case 'b':
+                    types.push_back({format[i], IntegerType::get(context, 1)});
+                    break;
+                case 's': // String
+                    types.push_back({format[i], mlir::UnrankedTensorType::get(IntegerType::get(context, 8))});
+                    break;
+                case 'c': // Character
+                    types.push_back({format[i], IntegerType::get(context, 8, IntegerType::Signless)});
+                    break;
+                case 'i': // Integer
+                case 'd':
+                case 'u':
+                case 'o':
+                case 'x':
+                case 'X':
+                    types.push_back({
+                        format[i], IntegerType::get(context, 64, IntegerType::SignednessSemantics::Signless)
+                    });
+                    break;
+                case 'f':
+                case 'F':
+                case 'e':
+                case 'E':
+                case 'g':
+                case 'G': // Float
+                    types.push_back({format[i], mlir::FloatType::getF64(context)}); // Default to 32-bit float
+                    break;
+                case '%': // Literal '%' (no type, skip)
+                    break;
+                case 'A':
+                // Formatted using structured plain text formatting with the default layout settings. Not actually supported.
+                // TODO implement and provide a default method for printing arrays and lists
+                case 'a':
+                // Requires two arguments: a formatting function accepting a context parameter and the value, and the particular value to print
+                case 't':
+                //Requires one argument: a formatting function accepting a context parameter that either outputs or returns the appropriate text
+                case 'O': // Box object and call System.Object.ToString()
+                default:
+                    llvm::errs() << "Unsupported format specifier: " << format[i] << "\n";
+                    break;
+                }
+            }
+        }
+
+        return types;
     }
 }

@@ -73,80 +73,6 @@ void FSharpDialect::registerAttributes()
 // PrintOp
 //===----------------------------------------------------------------------===//
 
-llvm::SmallVector<mlir::Type, 4> getFormatSpecifiedTypes(llvm::StringRef format, mlir::MLIRContext* context)
-{
-    llvm::SmallVector<mlir::Type, 4> types;
-
-    // Define a simple state machine to parse the format string
-    for (size_t i = 0; i < format.size(); ++i)
-    {
-        if (format[i] == '%')
-        {
-            ++i; // Advance to the character after '%'
-
-            // Skip flags and width/precision modifiers (e.g., "%-10.3d").
-            while (i < format.size() && (format[i] == '-' || format[i] == '+' ||
-                format[i] == ' ' || format[i] == '#' ||
-                format[i] == '0' || std::isdigit(format[i]) ||
-                format[i] == '.'))
-            {
-                ++i;
-            }
-
-            // Ensure we haven't reached the end of the string.
-            if (i >= format.size())
-            {
-                break;
-            }
-
-            // Check the specifier and map to an MLIR type.
-            switch (format[i])
-            {
-            case 'b':
-                types.push_back(IntegerType::get(context, 1));
-                break;
-            case 's': // String
-                types.push_back(mlir::UnrankedTensorType::get(IntegerType::get(context, 8)));
-                break;
-            case 'c': // Character
-                types.push_back(IntegerType::get(context, 8, IntegerType::Signless));
-                break;
-            case 'i': // Integer
-            case 'd':
-            case 'u':
-            case 'o':
-            case 'x':
-            case 'X':
-                types.push_back(IntegerType::get(context, 64, IntegerType::SignednessSemantics::Signless));
-                break;
-            case 'f':
-            case 'F':
-            case 'e':
-            case 'E':
-            case 'g':
-            case 'G': // Float
-                types.push_back(mlir::FloatType::getF64(context)); // Default to 32-bit float
-                break;
-            case '%': // Literal '%' (no type, skip)
-                break;
-            case 'A':
-            // Formatted using structured plain text formatting with the default layout settings. Not actually supported.
-            // TODO implement and provide a default method for printing arrays and lists
-            case 'a':
-            // Requires two arguments: a formatting function accepting a context parameter and the value, and the particular value to print
-            case 't':
-            //Requires one argument: a formatting function accepting a context parameter that either outputs or returns the appropriate text
-            case 'O': // Box object and call System.Object.ToString()
-            default:
-                llvm::errs() << "Unsupported format specifier: " << format[i] << "\n";
-                break;
-            }
-        }
-    }
-
-    return types;
-}
-
 llvm::LogicalResult PrintOp::verify()
 {
     auto attrs = getOperation()->getAttrDictionary();
@@ -161,7 +87,7 @@ llvm::LogicalResult PrintOp::verify()
     }
 
 
-    auto fmt_types = getFormatSpecifiedTypes(getFmtString(), getContext());
+    auto fmt_types = utils::getFormatSpecifiedTypes(getFmtString(), getContext());
     if (fmt_types.size() != getFmtOperands().size())
     {
         mlir::emitError(getLoc(), fmt::format("expected {} operands got {}",
@@ -176,7 +102,7 @@ llvm::LogicalResult PrintOp::verify()
         if (isa<NoneType>(operand.getType()))
             continue;
 
-        if (auto fmt_int_type = mlir::dyn_cast<IntegerType>(fmt_types[i]))
+        if (auto fmt_int_type = mlir::dyn_cast<IntegerType>(std::get<1>(fmt_types[i])))
         {
             // Check if the operand type matches the format specifier.
             if (auto oper_type = mlir::dyn_cast<IntegerType>(operand.getType()))
@@ -218,12 +144,12 @@ llvm::LogicalResult PrintOp::verify()
                                 getTypeString(operand.getType())));
             return mlir::failure();
         }
-        else if (auto fmt_float_type = mlir::dyn_cast<FloatType>(fmt_types[i]))
+        else if (auto fmt_float_type = mlir::dyn_cast<FloatType>(std::get<1>(fmt_types[i])))
         {
             // Floating types are always compatible with each formater.
             continue;
         }
-        else if (auto fmt_string_type = mlir::dyn_cast<UnrankedTensorType>(fmt_types[i]))
+        else if (auto fmt_string_type = mlir::dyn_cast<UnrankedTensorType>(std::get<1>(fmt_types[i])))
         {
             // Check if the operand type matches the format specifier which we expect to be i8.
             if (auto oper_tensor_type = mlir::dyn_cast<UnrankedTensorType>(operand.getType()))
@@ -238,7 +164,8 @@ llvm::LogicalResult PrintOp::verify()
             return mlir::failure();
         }
 
-        mlir::emitError(getLoc(), fmt::format("Unsupported format specifier type {}", getTypeString(fmt_types[i])));
+        mlir::emitError(getLoc(), fmt::format("Unsupported format specifier type {}",
+                                              getTypeString(std::get<1>(fmt_types[i]))));
         return mlir::failure();
     }
 

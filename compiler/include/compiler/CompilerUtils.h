@@ -46,4 +46,6 @@ namespace mlir::fsharp::utils
     // Helper function to create a global memref for the string.
     Value createGlobalMemrefForString(Location loc, StringRef stringValue,
                                       OpBuilder& builder, ModuleOp module, Operation* op);
+
+    llvm::SmallVector<std::tuple<char, mlir::Type>, 4> getFormatSpecifiedTypes(llvm::StringRef format, mlir::MLIRContext* context);
 }
