@@ -18,139 +18,153 @@
 using namespace fsharp::compiler;
 using namespace std::chrono_literals;
 
-void RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitExe = false, std::optional<std::string> executableOutputPath = std::nullopt)
+int RunFullTestSuite(InputType inputType, std::string_view fileName, bool emitExe = false,
+                     std::optional<std::string> executableOutputPath = std::nullopt)
 {
-    FSharpCompiler::compileProgram(
+    int result = 0;
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::DumpAST,
-        false
-    );
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::DumpMLIR,
-        false
-    );
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::DumpMLIRTypeInference,
-        false
-    );
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::DumpMLIRArith,
-        false
-    );
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
-       inputType,
-       fileName,
-       Action::DumpMLIRFunc,
-       false
-   );
+    result = FSharpCompiler::compileProgram(
+        inputType,
+        fileName,
+        Action::DumpMLIRFunc,
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
-       inputType,
-       fileName,
-       Action::DumpMLIRBufferized,
-       false
-   );
+    result = FSharpCompiler::compileProgram(
+        inputType,
+        fileName,
+        Action::DumpMLIRBufferized,
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::DumpMLIRLLVM,
-        true
-    );
+        true);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::DumpLLVMIR,
-        false
-    );
+        false);
+    if (result != 0)
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::RunJIT,
-        true
-    );
+        true);
+    if (result != 0)
+        return result;
 
     if (!emitExe)
-        return;
+        return result;
 
-    FSharpCompiler::compileProgram(
+    result = FSharpCompiler::compileProgram(
         inputType,
         fileName,
         Action::EmitExecutable,
         true,
         std::move(executableOutputPath)
     );
+
+    return result;
 }
 
 TEST(Assert, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/Assert.fs", false, "Assert");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/Assert.fs", false, "Assert"), 0);
 }
 
 TEST(HelloWorld, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorld.fs", true, "HelloWorld");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorld.fs", true, "HelloWorld"), 0);
 }
 
 TEST(HelloWorldVariable, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs", false, "HelloWorldVariable");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldVariable.fs", false, "HelloWorldVariable"), 0);
 }
 
 TEST(HelloWorldBranchConstant, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchConstant.fs", false, "HelloWorldBranchConstant");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchConstant.fs", false, "HelloWorldBranchConstant"), 0);
 }
 
 TEST(HelloWorldBranchNestedConstant, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchNestedConstant.fs", false, "HelloWorldBranchNestedConstant");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchNestedConstant.fs", false,
+                     "HelloWorldBranchNestedConstant"), 0);
 }
 
 TEST(HelloWorldBranchRelation, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchRelation.fs", false, "HelloWorldBranchRelation");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/HelloWorldBranchRelation.fs", false, "HelloWorldBranchRelation"), 0);
 }
 
 TEST(FunctionDefinition, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/FunctionDefinition.fs");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/FunctionDefinition.fs"), 0);
 }
 
 TEST(NestedFunctionDefinition, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/NestedFunctionDefinitions.fs");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/NestedFunctionDefinitions.fs"), 0);
 }
 
 TEST(SimpleAdd, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/SimpleAdd.fs", false, "SimpleAdd");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/SimpleAdd.fs", false, "SimpleAdd"), 0);
 }
 
 TEST(Logical, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/Logical.fs", false, "Logical");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/Logical.fs", false, "Logical"), 0);
 }
 
 TEST(LogicalNoDynamicReturn, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/LogicalNoDynamicReturn.fs", false, "LogicalNoDynamicReturn");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/LogicalNoDynamicReturn.fs", false, "LogicalNoDynamicReturn"), 0);
 }
 
 TEST(Relation, BasicAssertion)
 {
-    RunFullTestSuite(InputType::FSharp, "TestFiles/Relation.fs", false, "Relation");
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/Relation.fs", false, "Relation"), 0);
 }

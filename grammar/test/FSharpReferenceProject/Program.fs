@@ -78,4 +78,6 @@ let test x y =
     else
         printf "x and y are not true"
 
-printf "%a" [-10.0; 20.0]
+
+let add a b = a + b
+assert (add 1 2 = 3) "add 1 2 = 3"

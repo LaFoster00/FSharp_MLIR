@@ -45,7 +45,7 @@ namespace fsharp::compiler
             fmt::print("Type infered mlir result:\n");
             break;
         case Action::DumpMLIRArith:
-            fmt::print("Affine mlir result:\n");
+            fmt::print("Arith mlir result:\n");
             break;
         case Action::DumpMLIRFunc:
             fmt::print("Func mlir result:\n");

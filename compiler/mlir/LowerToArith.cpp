@@ -196,17 +196,7 @@ GENERATE_OP_CONVERSION_PATTERN(AndOp)
     auto operand_type = op.getOperandTypes()[0];
     if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
     {
-        Operation* new_op = nullptr;
-        switch (int_type.getSignedness())
-        {
-        case IntegerType::Signless:
-        case IntegerType::Signed:
-            new_op = rewriter.create<arith::MinSIOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            break;
-        case IntegerType::Unsigned:
-            new_op = rewriter.create<arith::MinUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            break;
-        }
+        Operation* new_op = rewriter.create<arith::MinUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
 
         op.replaceAllUsesWith(new_op->getResult(0));
         rewriter.eraseOp(op);
@@ -227,17 +217,7 @@ GENERATE_OP_CONVERSION_PATTERN(OrOp)
     auto operand_type = op.getOperandTypes()[0];
     if (auto int_type = llvm::dyn_cast_or_null<IntegerType>(operand_type))
     {
-        Operation* new_op = nullptr;
-        switch (int_type.getSignedness())
-        {
-        case IntegerType::Signless:
-        case IntegerType::Signed:
-            new_op = rewriter.create<arith::MaxSIOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            break;
-        case IntegerType::Unsigned:
-            new_op = rewriter.create<arith::MaxUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
-            break;
-        }
+        Operation* new_op = rewriter.create<arith::MaxUIOp>(op.getLoc(), op.getLhs(), op.getRhs());
 
         op.replaceAllUsesWith(new_op->getResult(0));
         rewriter.eraseOp(op);
@@ -471,7 +451,20 @@ GENERATE_OP_CONVERSION_PATTERN(GreaterEqualOp)
 END_GENERATE_OP_CONVERSION_PATTERN()
 
 //===----------------------------------------------------------------------===//
-// TypeInferencePass
+// LowerToArith RewritePatterns: NotOp operations
+//===----------------------------------------------------------------------===//
+
+GENERATE_OP_CONVERSION_PATTERN(NotOp)
+    auto constant_1 = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI1Type(), rewriter.getBoolAttr(true));
+    // Subtract the operand from 1 to get the inverted result
+    auto new_op = rewriter.create<arith::SubIOp>(op.getLoc(), constant_1, op.getOperand());
+    op.replaceAllUsesWith(new_op->getResult(0));
+    rewriter.eraseOp(op);
+    return success();
+END_GENERATE_OP_CONVERSION_PATTERN()
+
+//===----------------------------------------------------------------------===//
+// LowerToArithPass
 //===----------------------------------------------------------------------===//
 
 namespace
@@ -589,6 +582,7 @@ namespace
                 patterns.add<LessEqualOpLowering>(&getContext());
                 patterns.add<GreaterOpLowering>(&getContext());
                 patterns.add<GreaterEqualOpLowering>(&getContext());
+                patterns.add<NotOpLowering>(&getContext());
 
                 auto module = getOperation();
                 if (failed(applyFullConversion(module, target, std::move(patterns))))

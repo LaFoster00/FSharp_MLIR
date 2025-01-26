@@ -676,4 +676,55 @@ def FSharp_GreaterEqualOp : FSharp_Op<"greaterequal", [DeclareOpInterfaceMethods
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// NotOp
+//===----------------------------------------------------------------------===//
+
+def FSharp_NotOp : FSharp_Op<"not", [DeclareOpInterfaceMethods<ImplicitTypeInferenceOpInterface>]> {
+  let summary = "Logical not operation";
+  let description = [{
+    This operation performs a logical not of the input boolean.
+  }];
+
+  // The operation takes a single operand of AnyType (expected to be i1).
+  let arguments = (ins AnyType:$operand);
+  let results = (outs I1);
+
+  let assemblyFormat = [{
+    $operand attr-dict `:` type($operand)
+  }];
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// NegateOp
+//===----------------------------------------------------------------------===//
+
+def FSharp_NegateOp : FSharp_Op<"negate", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
+  let summary = "Negate operation";
+  let description = [{
+    This operation performs a negation of the input scalar.
+  }];
+
+  // The operation takes a single operand of AnyType (expected to be integer or float).
+  let arguments = (ins AnyType:$operand);
+  let results = (outs AnyType);
+
+  let builders = [
+    OpBuilder<(ins "Value":$operand), [{
+     $_state.addOperands(operand);
+     $_state.addTypes(operand.getType());
+     }]>
+  ];
+
+  let skipDefaultBuilders = 1;
+
+  let assemblyFormat = [{
+     $operand attr-dict `:` functional-type(operands, results)
+  }];
+
+  let hasVerifier = 1;
+}
+
 #endif // FSHARP_OPS

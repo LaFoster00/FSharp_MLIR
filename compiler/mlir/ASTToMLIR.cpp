@@ -343,7 +343,7 @@ namespace fsharpgrammar::compiler
                 auto result = mlirGen(*let);
                 // If the function definition was not successful return the invalid state nullptr
                 if (auto logical_result = std::get_if<llvm::LogicalResult>(&result))
-                    return llvm::succeeded(logical_result)
+                    return logical_result->succeeded()
                                ? std::optional<mlir::Value>{}
                                : mlir::Value(nullptr);
                 else
@@ -741,6 +741,27 @@ namespace fsharpgrammar::compiler
 
         mlir::Value mlirGen(const ast::Expression::Unary& unary)
         {
+            auto expression = mlirGen(*unary.expression);
+            if (!expression.has_value() || expression.value() == nullptr)
+            {
+                mlir::emitError(loc(unary), "Unary expression did not return value!");
+                return nullptr;
+            }
+
+            mlir::fsharp::ConstantOp factor = nullptr;
+            mlir::Value result = expression.value();
+            switch (unary.type)
+            {
+            case ast::Expression::Unary::Type::PLUS:
+                break;
+            case ast::Expression::Unary::Type::MINUS:
+                result = builder.create<mlir::fsharp::NegateOp>(loc(unary), expression.value());
+                break;
+            case ast::Expression::Unary::Type::NOT:
+                result = builder.create<mlir::fsharp::NotOp>(loc(unary), expression.value());
+                break;
+            }
+            return result;
         }
 
         mlir::Value getRelationOp(const ast::Expression::OP& op)

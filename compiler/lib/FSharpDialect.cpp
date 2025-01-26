@@ -861,3 +861,54 @@ GENERATE_LOGICAL_OP(AndOp)
 //===----------------------------------------------------------------------===//
 
 GENERATE_LOGICAL_OP(OrOp)
+
+//===----------------------------------------------------------------------===//
+// NotOp
+//===----------------------------------------------------------------------===//
+
+llvm::LogicalResult NotOp::verify()
+{
+    if (mlir::isa<NoneType>(getOperand().getType()))
+        return llvm::success();
+
+    if (auto operandType = mlir::dyn_cast<IntegerType>(getOperand().getType()))
+        if (operandType.getWidth() == 1)
+            return llvm::success();
+
+    mlir::emitError(getOperand().getLoc(), "Expected operand to have type bool.");
+    return llvm::failure();
+}
+
+llvm::LogicalResult NegateOp::verify()
+{
+    if (mlir::isa<NoneType>(getOperand().getType()))
+        return llvm::success();
+
+    if (auto operandType = mlir::dyn_cast<TensorType>(getOperand().getType()))
+    {
+        mlir::emitError(getOperand().getLoc(), "Expected operand to have scalar type.");
+        return llvm::failure();
+    }
+
+    return llvm::success();
+}
+
+// NegateOp always returns the same type as the operand
+void NegateOp::inferFromOperands()
+{
+    getResult().setType(getOperand().getType());
+}
+
+// NegateOp always returns the same type as the operand
+void NegateOp::inferFromReturnType()
+{
+    getOperand().setType(getResult().getType());
+}
+
+
+// NegateOp always returns the same type as the operand and the operand type can be assumed to be integer
+void NegateOp::inferFromUnknown()
+{
+    getOperand().setType(IntegerType::get(getContext(), 32, IntegerType::Signed));
+    getResult().setType(getOperand().getType());
+}
