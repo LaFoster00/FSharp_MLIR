@@ -18,14 +18,18 @@
 
 #include "boost/algorithm/string.hpp"
 
-namespace fsharpgrammar::compiler
+using namespace fsharpgrammar;
+using namespace mlir::fsharp;
+
+namespace fsharp::compiler
 {
     mlir::Value convertTensorToDType(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value, mlir::Type toType)
     {
         if (!mlir::tensor::CastOp::areCastCompatible(value.getType(), toType))
         {
             mlir::emitError(loc, fmt::format("Can't cast tensor from {} to {}!",
-                                             getTypeString(value.getType()), getTypeString(toType)));
+                                             mlir::fsharp::utils::getTypeString(value.getType()),
+                                             mlir::fsharp::utils::getTypeString(toType)));
             return value;
         }
 
@@ -100,10 +104,7 @@ namespace fsharpgrammar::compiler
     private:
         mlir::Location loc(const ast::Range& range)
         {
-            return mlir::FileLineColLoc::get(
-                builder.getStringAttr(filename),
-                range.start_line(),
-                range.start_column());
+            return mlir::fsharp::utils::loc(range, filename, builder.getContext());
         }
 
         mlir::Location loc(const ast::IASTNode& node)
@@ -130,74 +131,6 @@ namespace fsharpgrammar::compiler
             }
             symbolTable.insert(var, value);
             return mlir::success();
-        }
-
-        mlir::Type getMLIRType(const std::string& type_name)
-        {
-            if (type_name == "int")
-                return builder.getIntegerType(32, true);
-            if (type_name == "float")
-                return builder.getF64Type();
-            if (type_name == "bool")
-                return builder.getI8Type();
-            if (type_name == "string")
-                return mlir::UnrankedTensorType::get(builder.getI8Type());
-            assert(false && "Type not supported!");
-        }
-
-        mlir::Type getMLIRType(const fsharpgrammar::ast::Type& type)
-        {
-            return std::visit<mlir::Type>(
-                utils::overloaded{
-                    [&](const fsharpgrammar::ast::Type::Fun& t)
-                    {
-                        mlir::emitError(loc(t), "Parameters with function types not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::Tuple& t)
-                    {
-                        mlir::emitError(loc(t), "Tuples not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::Postfix& t)
-                    {
-                        mlir::emitError(loc(t), "Postfix types not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::Array& t)
-                    {
-                        mlir::emitError(loc(t), "Arrays not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::Paren& t)
-                    {
-                        return getMLIRType(*t.type);
-                    },
-                    [&](const fsharpgrammar::ast::Type::Var& t)
-                    {
-                        return getMLIRType(t.ident->ident);
-                    },
-                    [&](const fsharpgrammar::ast::Type::LongIdent& t)
-                    {
-                        mlir::emitError(loc(t), "Namespace- and module-types not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::Anon& t)
-                    {
-                        mlir::emitError(loc(t), "Anonymous types not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::StaticConstant& t)
-                    {
-                        mlir::emitError(loc(t), "Static constants not supported!");
-                        return builder.getNoneType();
-                    },
-                    [&](const fsharpgrammar::ast::Type::StaticNull& t)
-                    {
-                        mlir::emitError(loc(t), "Static null not supported!");
-                        return builder.getNoneType();
-                    }
-                }, type.type);
         }
 
         mlir::Type getSmallestCommonType(mlir::ArrayRef<mlir::Value> values)
@@ -400,7 +333,7 @@ namespace fsharpgrammar::compiler
                 if (!arg.has_value())
                 {
                     fmt::print(fmt::fg(fmt::color::orange_red), "Function argument value does not return a value! {}",
-                               utils::to_string(expr->get_range()));
+                               ::utils::to_string(expr->get_range()));
                     return {};
                 };
                 operands.push_back(arg.value());
@@ -974,7 +907,8 @@ namespace fsharpgrammar::compiler
                 if (auto named = std::get_if<ast::Pattern::Named>(&typed->pattern->pattern))
                 {
                     return {
-                        named->ident->ident, getMLIRType(*typed->type)
+                        named->ident->ident,
+                        mlir::fsharp::utils::getMLIRType(*typed->type, builder.getContext(), loc(*typed))
                     };
                 }
 
@@ -1022,7 +956,7 @@ namespace fsharpgrammar::compiler
             if (auto typed = std::get_if<ast::Pattern::Typed>(&let.args->pattern))
             {
                 func_name = getFuncName(*typed);
-                return_type = getMLIRType(*typed->type);
+                return_type = mlir::fsharp::utils::getMLIRType(*typed->type, builder.getContext(), loc(*typed));
             }
             else if (auto long_ident = std::get_if<ast::Pattern::LongIdent>(&let.args->pattern))
             {
@@ -1145,7 +1079,8 @@ namespace fsharpgrammar::compiler
 
             if (type.get() != "")
             {
-                genCast(builder, loc(let.get_range()), value, getMLIRType(type));
+                genCast(builder, loc(let.get_range()), value,
+                        mlir::fsharp::utils::getMLIRType(type.get(), builder.getContext()));
             }
 
 
@@ -1204,7 +1139,7 @@ namespace fsharpgrammar::compiler
         mlir::Type getType(const ast::Constant& constant)
         {
             auto value = constant.value.value();
-            return std::visit<mlir::Type>(utils::overloaded{
+            return std::visit<mlir::Type>(::utils::overloaded{
                                               [&](const int32_t&)
                                               {
                                                   return builder.getIntegerType(32, true);
@@ -1229,7 +1164,7 @@ namespace fsharpgrammar::compiler
         {
             auto value = constant.value.value();
             auto type = getType(constant);
-            return std::visit<mlir::Value>(utils::overloaded{
+            return std::visit<mlir::Value>(::utils::overloaded{
                                                [&](const int32_t& i)
                                                {
                                                    return builder.create<mlir::fsharp::ConstantOp>(
@@ -1274,12 +1209,14 @@ namespace fsharpgrammar::compiler
     mlir::OwningOpRef<mlir::ModuleOp> MLIRGen::mlirGen(mlir::MLIRContext& context, std::unique_ptr<ast::Main>& ast,
                                                        std::string_view source_filename)
     {
+        context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
         context.getOrLoadDialect<mlir::BuiltinDialect>();
         context.getOrLoadDialect<mlir::arith::ArithDialect>();
         context.getOrLoadDialect<mlir::LLVM::LLVMDialect>();
         context.getOrLoadDialect<mlir::func::FuncDialect>();
         context.getOrLoadDialect<mlir::bufferization::BufferizationDialect>();
         context.getOrLoadDialect<mlir::scf::SCFDialect>();
+        context.getOrLoadDialect<mlir::cf::ControlFlowDialect>();
 
         mlir::DialectRegistry registry;
         mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);

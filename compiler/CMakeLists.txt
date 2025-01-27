@@ -21,7 +21,7 @@ add_dependencies(FSharpCompiler
         MLIRFSharpDialect
 )
 
-target_precompile_headers(FSharpCompiler PUBLIC
+target_precompile_headers(FSharpCompiler PRIVATE
         include/compiler/PrecompileHeaders.h
 )
 
@@ -76,3 +76,4 @@ link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(test)
+add_subdirectory(app)

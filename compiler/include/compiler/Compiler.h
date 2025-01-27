@@ -1,6 +1,9 @@
 #pragma once
 
+
 #include "ast/ASTNode.h"
+
+#include <llvm/ADT/StringRef.h>
 
 enum class InputType { FSharp = 0, MLIR };
 

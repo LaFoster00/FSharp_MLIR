@@ -77,8 +77,6 @@ namespace fsharp::compiler
         mlir::func::registerAllExtensions(registry);
 
         mlir::MLIRContext context(registry);
-        // Load our Dialect in this MLIR Context.
-        context.getOrLoadDialect<mlir::fsharp::FSharpDialect>();
 
         mlir::OwningOpRef<mlir::ModuleOp> module;
         if (int error = loadAndProcessMLIR(context, module))
@@ -135,7 +133,7 @@ namespace fsharp::compiler
             auto moduleAST = parseInputFile(inputFilename);
             if (!moduleAST)
                 return 6;
-            module = fsharpgrammar::compiler::MLIRGen::mlirGen(context, moduleAST, inputFilename);
+            module = MLIRGen::mlirGen(context, moduleAST, inputFilename);
             return !module ? 1 : 0;
         }
 

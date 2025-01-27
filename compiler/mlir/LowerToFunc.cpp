@@ -86,25 +86,6 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
         {
             return failure();
         }
-        /*
-        closure_op->getParentOp()->walk([&](fsharp::CallOp call_op)
-        {
-            if (call_op.getCallee() == closure_op.getSymName())
-            {
-                OpBuilder builder(call_op);
-                auto loc = call_op.getLoc();
-
-                // Get the arguments for the CallOp
-                SmallVector<Value, 4> callArgs = call_op.getOperands();
-
-                // Create a new func::CallOp with the new function name
-                auto newCallOp = builder.create<fsharp::CallOp>(loc, funcName, call_op->getResultTypes(), callArgs);
-
-                // Replace the old CallOp with the new CallOp
-                call_op.replaceAllUsesWith(newCallOp.getResult());
-                call_op.erase();
-            }
-        });*/
         rewriter.eraseOp(closure_op);
         return success();
     }

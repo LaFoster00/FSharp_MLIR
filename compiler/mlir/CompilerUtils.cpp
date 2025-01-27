@@ -3,8 +3,111 @@
 //
 #include "compiler/CompilerUtils.h"
 
+#include <ast/ASTNode.h>
+#include <utils/Utils.h>
+
 namespace mlir::fsharp::utils
 {
+    std::string getTypeString(mlir::Type type)
+    {
+        std::string typeStr;
+        llvm::raw_string_ostream rso(typeStr);
+        type.print(rso);
+        return rso.str();
+    }
+
+    mlir::Location loc(const fsharpgrammar::ast::Range& range,
+                       const std::string_view filename,
+                       mlir::MLIRContext* context)
+    {
+        return mlir::FileLineColLoc::get(
+            StringAttr::get(context, filename),
+            range.start_line(),
+            range.start_column());
+    }
+
+    mlir::Location loc(const fsharpgrammar::ast::IASTNode& node,
+                       const std::string_view filename,
+                       mlir::MLIRContext* context)
+    {
+        return loc(node.get_range(), filename, context);
+    }
+
+    mlir::Location loc(const fsharpgrammar::ast::INodeAlternative& node_alternative,
+                       const std::string_view filename,
+                       mlir::MLIRContext* context)
+    {
+        return loc(node_alternative.get_range(), filename, context);
+    }
+
+    mlir::Type getMLIRType(const std::string_view type_name, mlir::MLIRContext* context)
+    {
+        if (type_name == "int")
+            return IntegerType::get(context, 32, IntegerType::Signed);
+        if (type_name == "float")
+            return FloatType::getF64(context);
+        if (type_name == "bool")
+            return IntegerType::get(context, 8, IntegerType::Signless);
+        if (type_name == "string")
+            return mlir::UnrankedTensorType::get(IntegerType::get(context, 8, IntegerType::Signless));
+        assert(false && "Type not supported!");
+    }
+
+    mlir::Type getMLIRType(const fsharpgrammar::ast::Type& type, mlir::MLIRContext* context, mlir::Location loc)
+    {
+        return std::visit<mlir::Type>(
+            ::utils::overloaded{
+                [&](const fsharpgrammar::ast::Type::Fun& t)
+                {
+                    mlir::emitError(loc, "Parameters with function types not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::Tuple& t)
+                {
+                    mlir::emitError(loc, "Tuples not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::Postfix& t)
+                {
+                    mlir::emitError(loc, "Postfix types not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::Array& t)
+                {
+                    mlir::emitError(loc, "Arrays not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::Paren& t)
+                {
+                    return getMLIRType(*t.type, context, loc);
+                },
+                [&](const fsharpgrammar::ast::Type::Var& t)
+                {
+                    return getMLIRType(t.ident->ident, context);
+                },
+                [&](const fsharpgrammar::ast::Type::LongIdent& t)
+                {
+                    mlir::emitError(loc, "Namespace- and module-types not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::Anon& t)
+                {
+                    mlir::emitError(loc, "Anonymous types not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::StaticConstant& t)
+                {
+                    mlir::emitError(loc, "Static constants not supported!");
+                    return NoneType::get(context);
+                },
+                [&](const fsharpgrammar::ast::Type::StaticNull& t)
+                {
+                    mlir::emitError(loc, "Static null not supported!");
+                    return NoneType::get(context);
+                }
+            }, type.type);
+    }
+
     mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::StringRef closureName)
     {
         mlir::Operation* currentOp = startOp;

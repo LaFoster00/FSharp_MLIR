@@ -4,7 +4,6 @@ add_executable(FSharpCompilerTest
         ASTToMLIRTest.cpp
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 target_link_libraries(FSharpCompilerTest
         PRIVATE
         GTest::gtest_main
@@ -14,7 +13,8 @@ target_link_libraries(FSharpCompilerTest
         FSharpCompiler
 )
 
-target_precompile_headers(FSharpCompilerTest REUSE_FROM FSharpCompiler)
+target_precompile_headers(FSharpCompilerTest PRIVATE
+        ${PROJECT_SOURCE_DIR}/include/compiler/PrecompileHeaders.h)
 
 include(GoogleTest)
 gtest_discover_tests(FSharpCompilerTest)

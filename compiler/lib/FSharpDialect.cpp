@@ -117,7 +117,7 @@ llvm::LogicalResult PrintOp::verify()
                         mlir::emitError(getLoc(), fmt::format(
                                             "operand {} has type {} but the format specified bool type",
                                             i,
-                                            getTypeString(operand.getType())));
+                                            utils::getTypeString(operand.getType())));
                         return mlir::failure();
                     }
                 }
@@ -131,7 +131,7 @@ llvm::LogicalResult PrintOp::verify()
                         mlir::emitError(getLoc(), fmt::format(
                                             "operand {} has type {} but the format specified char type",
                                             i,
-                                            getTypeString(operand.getType())));
+                                            utils::getTypeString(operand.getType())));
                         return mlir::failure();
                     }
                 }
@@ -141,7 +141,7 @@ llvm::LogicalResult PrintOp::verify()
             mlir::emitError(getLoc(), fmt::format(
                                 "operand {} has type {} but the format specified înteger or bool type",
                                 i,
-                                getTypeString(operand.getType())));
+                                utils::getTypeString(operand.getType())));
             return mlir::failure();
         }
         else if (auto fmt_float_type = mlir::dyn_cast<FloatType>(std::get<1>(fmt_types[i])))
@@ -160,12 +160,12 @@ llvm::LogicalResult PrintOp::verify()
             mlir::emitError(getLoc(), fmt::format(
                                 "operand {} has type {} but the format specified string type",
                                 i,
-                                getTypeString(operand.getType())));
+                                utils::getTypeString(operand.getType())));
             return mlir::failure();
         }
 
         mlir::emitError(getLoc(), fmt::format("Unsupported format specifier type {}",
-                                              getTypeString(std::get<1>(fmt_types[i]))));
+                                              utils::getTypeString(std::get<1>(fmt_types[i]))));
         return mlir::failure();
     }
 
@@ -253,7 +253,7 @@ llvm::LogicalResult AssertOp::verify()
         return success();
     }
     mlir::emitError(getLoc(), "Condition must be of type bool, got ")
-        << getTypeString(getCondition().getType());
+        << utils::getTypeString(getCondition().getType());
     return failure();
 }
 
@@ -264,14 +264,6 @@ llvm::LogicalResult AssertOp::verify()
 
 #define GET_OP_CLASSES
 #include "compiler/FSharp.cpp.inc"
-
-std::string getTypeString(mlir::Type type)
-{
-    std::string typeStr;
-    llvm::raw_string_ostream rso(typeStr);
-    type.print(rso);
-    return rso.str();
-}
 
 //===----------------------------------------------------------------------===//
 // ClosureOp
