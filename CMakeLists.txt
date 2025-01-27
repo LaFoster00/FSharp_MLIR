@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.20)
 
 if(POLICY CMP0068)
     cmake_policy(SET CMP0068 NEW)
@@ -30,7 +30,7 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
-set(CMAKE_CXX_STANDARD 23 CACHE STRING "C++ standard to conform to" FORCE)
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard to conform to" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
