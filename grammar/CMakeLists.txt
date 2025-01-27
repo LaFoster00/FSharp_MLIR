@@ -1,7 +1,3 @@
-if (NOT UNIX)
-    message(WARNING "Unsupported operating system")
-endif ()
-
 project(
         grammar
         VERSION 0.1

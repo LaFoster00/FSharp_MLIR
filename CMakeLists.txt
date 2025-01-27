@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Check if the operating system is supported
+if (NOT UNIX)
+    message(WARNING "Unsupported operating system")
+endif ()
+
+# Check if the compiler is supported, by matching against a regex pattern containing the supported compiler clang
+if (NOT CMAKE_CXX_COMPILER MATCHES ".*clang.*")
+    message(WARNING "Unsupported compiler")
+endif ()
+
 if(POLICY CMP0068)
     cmake_policy(SET CMP0068 NEW)
     set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)

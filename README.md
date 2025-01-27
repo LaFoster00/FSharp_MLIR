@@ -31,12 +31,12 @@ Use the scripts below to install the required dependencies.
 
 FSharp MLIR requires the following dependencies to be installed on the system:
 ```bash
-sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" \
-sudo apt install default-jdk \
-sudo apt install ccache \
-sudo apt install cmake \
-sudo apt install build-essential \
-sudo apt install lld \
+sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 
+sudo apt install default-jdk 
+sudo apt install ccache 
+sudo apt install cmake 
+sudo apt install build-essential 
+sudo apt install lld 
 sudo apt install ninja-build
 ```
 
@@ -45,18 +45,34 @@ sudo apt install ninja-build
 Clone the project into a directory of your choice and build the project using the following commands:
 
 ```bash
-git clone https://github.com/LaFoster00/FSharp_MLIR.git --recursive --progress --shallow-submodules \
-cd FSharp_MLIR \
-mkdir build \
-cd build \
-cmake -G Ninja .. \
-ninja
+git clone https://github.com/LaFoster00/FSharp_MLIR.git --recursive --progress --shallow-submodules 
+cd FSharp_MLIR 
+mkdir build 
+cd build 
+cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++-18 -DCMAKE_C_COMPILER=/usr/bin/clang-18
+ninja FSharpCompilerApp
 ```
 
-If you want to only build the FSharpCompilerApp target use the following command:
+If you want to only build the another target use the following command:
 
 ```bash
+ninja target_name
+```
+
+Possible target are:
+```bash
 ninja FSharpCompilerApp
+```
+The GTEST targets:
+```bash
+ninja FSharpCompilerTests
+```
+```bash
+ninja FSharpGrammarTests
+```
+Some legacy test targets:
+```bash
+ninja FSharpGrammarTimedTest
 ```
 
 Configuring the project the first time will take a while since it will build the LLVM project. It will also download a
