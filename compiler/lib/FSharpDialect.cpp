@@ -312,11 +312,12 @@ llvm::LogicalResult ClosureOp::verify()
     if (!getOperation()->hasAttr("recursive"))
     {
         llvm::LogicalResult result = success();
-        this->walk([&] (CallOp op)
+        this->walk([&](CallOp op)
         {
             if (op.getCallee() == getSymName())
             {
-                mlir::emitError(getLoc(), "Recursive function must be marked as recursive! Func: '") << getSymName() << '\'';
+                mlir::emitError(getLoc(), "Recursive function must be marked as recursive! Func: '") << getSymName() <<
+                    '\'';
                 result = failure();
                 return mlir::WalkResult::interrupt();
             }
@@ -410,30 +411,72 @@ mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::Strin
 
 void ClosureOp::updateSignatureFromBody()
 {
+    // Make sure the block args have the same type as the function arguments
+    // Create a new array with the previous types and update the block args and function type where applicable
     mlir::SmallVector<mlir::Type, 4> inputs(getFunctionType().getInputs());
     for (auto [i, block_arg] : llvm::enumerate(front().getArguments()))
     {
-        inputs[i] = block_arg.getType();
+        // First update the nonetype blockargs which have a corresponding type in the func type
+        if (isa<NoneType>(block_arg.getType()))
+        {
+            block_arg.setType(inputs[i]);
+        }
+        // Then update the function type if the block arg has a type
+        else if (isa<NoneType>(inputs[i]))
+        {
+            inputs[i] = block_arg.getType();
+        }
     }
+
+    // Now check that the return type matches with the function return type
+    // We will use the results vector to update both the return operands and the function signature
     mlir::SmallVector<Type, 4> results(getFunctionType().getResults());
     walk<WalkOrder::PreOrder>([&](fsharp::ReturnOp return_op)
     {
-        for (auto [i, operand_type] : llvm::enumerate(return_op.getOperandTypes()))
+        if (results.size() != return_op.getOperands().size())
         {
-            if (results.size() > i)
-                results[i] = operand_type;
-            else
-                mlir::emitError(getLoc(), "Function return type mismatch!");
+            mlir::emitError(getLoc(), "Function return type count mismatch!");
+            return mlir::WalkResult::interrupt();
+        }
+
+        for (auto [i, return_type] : llvm::enumerate(return_op.getOperandTypes()))
+        {
+            // First update the return parameters with the function signature
+            if (isa<NoneType>(return_type))
+            {
+                return_op.getOperands()[i].setType(results[i]);
+            }
+
+            // Then update the function signature with the return type
+            else if (isa<NoneType>(results[i]))
+            {
+                results[i] = return_type;
+            }
         }
         return mlir::WalkResult::interrupt();
     });
 
+    // Update the function signature
     setType(mlir::FunctionType::get(getContext(), inputs, results));
+
+    // Update the return op operand types with the updated results vector
+    walk<WalkOrder::PreOrder>([&](fsharp::ReturnOp return_op)
+    {
+        for (auto [i, return_type] : llvm::enumerate(return_op.getOperandTypes()))
+        {
+            if (isa<NoneType>(return_type))
+            {
+                return_op.getOperands()[i].setType(results[i]);
+            }
+        }
+        return mlir::WalkResult::advance();
+    });
 
     if (getFunctionType().getNumResults() == 0)
     {
         return;
     }
+    // Update the users of this function to match the return type wherever necessary
     auto uses = getSymbolUses(getOperation()->getParentOfType<ModuleOp>());
     if (!uses.has_value())
         return;
@@ -442,6 +485,15 @@ void ClosureOp::updateSignatureFromBody()
     {
         if (auto call_op = dyn_cast<fsharp::CallOp>(symbol_user.getUser()))
         {
+            // Update the function call parameters with the new function signature
+            for (auto [i, operand] : llvm::enumerate(call_op.getOperands()))
+            {
+                if (isa<NoneType>(operand.getType()))
+                {
+                    operand.setType(inputs[i]);
+                }
+            }
+            // Update the call return type with the new function signature
             call_op.getResult(0).setType(getFunctionType().getResult(0));
         }
     }
@@ -486,11 +538,6 @@ void ReturnOp::inferFromReturnType()
 
 void ReturnOp::inferFromUnknown()
 {
-    if (isa<NoneType>(getOperand().getType()))
-    {
-        getOperand().setType(IntegerType::get(getContext(), 32, IntegerType::Signed));
-    }
-    getParentOp().updateSignatureFromBody();
 }
 
 
@@ -527,7 +574,7 @@ void CallOp::inferFromReturnType()
 }
 
 
-// In case one of the arguments for this call is not inferred yet, we check if the callee is infered and change the
+// In case one of the arguments for this call is not inferred yet, we check if the callee is inferred and change the
 // type of the arguments for the call to match the callee.
 void CallOp::inferFromUnknown()
 {
@@ -590,7 +637,7 @@ static void inferBinaryOpFromResultType(Operation* op, OpOperand& lhs, OpOperand
     {
         rhs.get().setType(op->getResultTypes()[0]);
     }
-    // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
+    // Update the surrounding closure so that its input args match with the block args of the closure region.
     if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
     {
         closure.updateSignatureFromBody();
@@ -599,10 +646,15 @@ static void inferBinaryOpFromResultType(Operation* op, OpOperand& lhs, OpOperand
 
 static void assumeBinaryOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::Signed));
-    rhs.get().setType(lhs.get().getType());
+    // Get the inferred operand in case there is one
+    auto common_type = mlir::isa<NoneType>(lhs.get().getType()) ? rhs.get().getType() : lhs.get().getType();
+    common_type = mlir::isa<NoneType>(common_type)
+                      ? IntegerType::get(op->getContext(), 32, IntegerType::Signed)
+                      : common_type;
+    lhs.get().setType(common_type);
+    rhs.get().setType(common_type);
     op->getResult(0).setType(rhs.get().getType());
-    // Update the surrounding closure so that its input args match with the block args of the closure region. //TODO this is a bit hacky
+    // Update the surrounding closure so that its input args match with the block args of the closure region.
     if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
     {
         closure.updateSignatureFromBody();
@@ -693,8 +745,13 @@ static void inferEqualityOpFromResultType(Operation* op, OpOperand& lhs, OpOpera
 
 static void assumeEqualityOp(Operation* op, OpOperand& lhs, OpOperand& rhs)
 {
-    lhs.get().setType(IntegerType::get(op->getContext(), 32, IntegerType::Signed));
-    rhs.get().setType(lhs.get().getType());
+    // Get the inferred operand in case there is one
+    auto common_type = mlir::isa<NoneType>(lhs.get().getType()) ? rhs.get().getType() : lhs.get().getType();
+    common_type = mlir::isa<NoneType>(common_type)
+                      ? IntegerType::get(op->getContext(), 32, IntegerType::Signed)
+                      : common_type;
+    lhs.get().setType(common_type);
+    rhs.get().setType(common_type);
     // Update the surrounding closure so that its input args match with the block args of the closure region.
     if (auto closure = mlir::dyn_cast<ClosureOp>(op->getParentOp()))
     {
@@ -938,9 +995,8 @@ void NegateOp::inferFromReturnType()
 }
 
 
-// NegateOp always returns the same type as the operand and the operand type can be assumed to be integer
+// NegateOp always returns the same type as the operand
 void NegateOp::inferFromUnknown()
 {
-    getOperand().setType(IntegerType::get(getContext(), 32, IntegerType::Signed));
-    getResult().setType(getOperand().getType());
+    getOperand().setType(getResult().getType());
 }

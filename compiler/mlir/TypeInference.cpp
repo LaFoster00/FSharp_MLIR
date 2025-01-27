@@ -128,6 +128,8 @@ namespace
         }
 
         // Infers all operations that have a specific way of resolving unknown types.
+        // Currently this is also taking care of cases where only one of the operands is known and the rest can be infered
+        // from that. (e.g., AddOp) // TODO this should be handled by the inferFromOperands function
         void inferFromUnknown(ModuleOp module_op)
         {
             llvm::SmallVector<Operation*, 16> work_list;
@@ -241,6 +243,40 @@ namespace
             print_op.setFmtString(new_format);
         }
 
+        void updateScfTypes(ModuleOp module_op)
+        {
+            module_op.walk([&](scf::IfOp op)
+            {
+                if (op.getNumResults() == 0)
+                    return WalkResult::advance();
+
+                if (!isa<NoneType>(op.getResultTypes()[0]))
+                    return WalkResult::advance();
+
+                mlir::Type yield_type = mlir::NoneType::get(op.getContext());
+                op.walk([&] (scf::YieldOp yield)
+                {
+                    // If the yield does not return a value dont check it
+                    if (yield.getNumOperands() == 0)
+                        return WalkResult::advance();
+
+                    if (isa<NoneType>(yield_type))
+                    {
+                        yield_type = yield.getOperand(0).getType();
+                    }
+                    else if (yield_type != yield.getOperand(0).getType())
+                    {
+                        mlir::emitError(yield.getLoc(), "Yield types do not match in scf.if");
+                    }
+
+                    return WalkResult::interrupt();
+                });
+
+                op.getResult(0).setType(yield_type);
+                return WalkResult::advance();
+            });
+        }
+
         void runOnOperation() final
         {
             auto f = getOperation();
@@ -252,6 +288,7 @@ namespace
                 last_open_ops = current_open_ops;
                 inferFromReturnType(f);
                 inferFromOperands(f);
+                updateScfTypes(f);
                 current_open_ops = opsToResolve(f);
             }
             // At last assume int type for all unresolved types.
@@ -265,6 +302,7 @@ namespace
                 last_open_ops = current_open_ops;
                 inferFromReturnType(f);
                 inferFromOperands(f);
+                updateScfTypes(f);
                 current_open_ops = opsToResolve(f);
             }
 

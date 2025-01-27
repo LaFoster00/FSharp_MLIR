@@ -71,3 +71,36 @@ let nested_add a b c =
     internal_add a b + c
 
 assert ((nested_add 1 2 3) = 6) "nested_add 1 2 3 = 6"
+
+// Recursive function test
+printf "============= Recursive function test =============\n"
+let rec factorial num =
+    if num > 1 then
+        num * (factorial (num - 1))
+    else
+        num
+
+assert ((factorial 10) = 3628800) "factorial 10 = 3628800"
+
+// Branching
+printf "============= Branching test =============\n"
+let and_func x y =
+    if x && y then
+        true
+    else
+        false
+
+assert ((and_func true true) = true) "and_func true true = true"
+assert ((and_func false true) = false) "and_func false true = false"
+assert ((and_func false false) = false) "and_func false false = false"
+
+let and_func_internal_assert x y =
+    if x && y then
+        assert (x && y) "and_func_internal_assert true true"
+    else
+        assert (!(x && y)) "and_func_internal_assert false true | false false | true false"
+
+and_func_internal_assert true true
+and_func_internal_assert false true
+and_func_internal_assert false false
+and_func_internal_assert true false
