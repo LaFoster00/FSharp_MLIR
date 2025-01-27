@@ -1,7 +1,3 @@
-if(NOT UNIX)
-    message(WARNING "Unsupported operating system")
-endif()
-
 project(
         grammar
         VERSION 0.1
@@ -11,20 +7,21 @@ project(
 add_subdirectory(antlr)
 add_subdirectory(ast)
 
-add_library(FSharpGrammar SHARED
+add_library(FSharpGrammar STATIC
         Grammar.h
         Grammar.cpp
 )
+
 target_link_libraries(FSharpGrammar
-    PUBLIC
+        PUBLIC
+        magic_enum::magic_enum
+
         FSharpGrammarAntlr
         FSharpGrammarAST
-        antlr4_shared
-        ${FSHARP_MLIR_UTILITY_LIBS}
 )
+
 target_include_directories(FSharpGrammar PUBLIC
-    ${PROJECT_SOURCE_DIR}
-    ${FSHARP_MLIR_UTILITY_INCLUDES}
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
 )
 
 add_subdirectory(test)

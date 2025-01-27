@@ -5,16 +5,11 @@ set(LLVM_LINK_COMPONENTS
 )
 
 # add generated grammar to demo binary target
-add_executable(FSharpGrammarTest
+add_executable(FSharpGrammarTimedTest
         main.cpp
 )
 
-# include generated files in project environment
-target_include_directories(FSharpGrammarTest PRIVATE
-        ${PROJECT_SOURCE_DIR}/../
-)
-
-target_link_libraries(FSharpGrammarTest
+target_link_libraries(FSharpGrammarTimedTest
         PRIVATE
         FSharpGrammar
 )

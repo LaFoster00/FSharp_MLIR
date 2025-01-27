@@ -4,6 +4,8 @@
 
 #include "AstBuilder.h"
 
+#include <boost/algorithm/string.hpp>
+
 #include "ASTNode.h"
 #include "ASTHelper.h"
 #include "utils/FunctionTimer.h"
@@ -12,6 +14,7 @@ namespace fsharpgrammar::ast
 {
     std::unique_ptr<Main> AstBuilder::BuildAst(FSharpParser::MainContext* ctx)
     {
+        utils::FunctionTimer timer("BuildAst");
         return std::unique_ptr<Main>(std::any_cast<Main*>(visitMain(ctx)));
     }
 
@@ -182,14 +185,18 @@ namespace fsharpgrammar::ast
         {
             expressions.push_back(ast::any_cast<Expression>(tuple_expr->accept(this), context));
         }
+
         if (expressions.size() > 1)
+        {
             return make_ast<Expression>(
                 Expression::Append(
                     std::move(expressions),
+                    true,
                     Range::create(context))
             );
+        }
 
-        return expressions[0];
+        return expressions.front();
     }
 
     std::any AstBuilder::visitTuple_expr(FSharpParser::Tuple_exprContext* context)
@@ -206,7 +213,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
 
-        return expressions[0];
+        return expressions.front();
     }
 
 
@@ -239,7 +246,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
         else
-            return context->and_expr().front()->accept(this);
+            return std::move(results.front());
     }
 
     std::any AstBuilder::visitAnd_expr(FSharpParser::And_exprContext* context)
@@ -270,7 +277,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
         else
-            return context->equality_expr().front()->accept(this);
+            return results.front();
     }
 
     std::any AstBuilder::visitEquality_expr(FSharpParser::Equality_exprContext* context)
@@ -312,7 +319,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
         else
-            return context->relation_expr().front()->accept(this);
+            return results.front();
     }
 
     std::any AstBuilder::visitRelation_expr(FSharpParser::Relation_exprContext* context)
@@ -360,7 +367,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
         else
-            return context->additive_expr().front()->accept(this);
+            return std::move(results.front());
     }
 
     std::any AstBuilder::visitAdditive_expr(FSharpParser::Additive_exprContext* context)
@@ -402,7 +409,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
         else
-            return context->multiplicative_expr().front()->accept(this);
+            return std::move(results.front());
     }
 
     std::any AstBuilder::visitMultiplicative_expr(FSharpParser::Multiplicative_exprContext* context)
@@ -444,7 +451,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
         else
-            return context->dot_get_expr().front()->accept(this);
+            return std::move(results.front());
     }
 
     std::any AstBuilder::visitDot_get_expr(FSharpParser::Dot_get_exprContext* context)
@@ -517,7 +524,7 @@ namespace fsharpgrammar::ast
 
     std::any AstBuilder::visitAtomic_expr(FSharpParser::Atomic_exprContext* context)
     {
-        return context->children[0]->accept(this);
+        return context->children.front()->accept(this);
     }
 
     std::any AstBuilder::visitParen_expr(FSharpParser::Paren_exprContext* context)
@@ -686,7 +693,7 @@ namespace fsharpgrammar::ast
 
     std::any AstBuilder::visitAssignment_expr(FSharpParser::Assignment_exprContext* context)
     {
-        return context->children[0]->accept(this);
+        return context->children.front()->accept(this);
     }
 
     std::any AstBuilder::visitLet_expr(FSharpParser::Let_exprContext* context)
@@ -770,8 +777,8 @@ namespace fsharpgrammar::ast
 
     std::any AstBuilder::visitFun_type(FSharpParser::Fun_typeContext* context)
     {
-        if (!context->type().empty())
-            return context->type().front()->accept(this);
+        if (context->type().empty())
+            return context->tuple_type()->accept(this);
 
         std::vector<ast_ptr<Type>> types;
         for (const auto type : context->type())
@@ -841,7 +848,7 @@ namespace fsharpgrammar::ast
 
     std::any AstBuilder::visitAtomic_type(FSharpParser::Atomic_typeContext* context)
     {
-        return context->children[0]->accept(this);
+        return context->children.front()->accept(this);
     }
 
     std::any AstBuilder::visitParen_type(FSharpParser::Paren_typeContext* context)
@@ -885,16 +892,34 @@ namespace fsharpgrammar::ast
         return make_ast<Type>(Type::StaticNull(Range::create(context)));
     }
 
+    std::string escapeSpecialCharacters(std::string s)
+    {
+        boost::algorithm::replace_all(s, "\\t", "\t");
+        boost::algorithm::replace_all(s, "\\n", "\n");
+        boost::algorithm::replace_all(s, "\\r", "\r");
+        boost::algorithm::replace_all(s, "\\b", "\b");
+        boost::algorithm::replace_all(s, "\\f", "\f");
+        boost::algorithm::replace_all(s, "\\v", "\v");
+        boost::algorithm::replace_all(s, "\\a", "\a");
+        boost::algorithm::replace_all(s, "\\'", "\'");
+        boost::algorithm::replace_all(s, "\\\"", "\"");
+        boost::algorithm::replace_all(s, "\\\\", "\\");
+        boost::algorithm::replace_first(s, "\"", "");
+        boost::algorithm::replace_last(s, "\"", "");
+        return s;
+    }
+
     std::any AstBuilder::visitConstant(FSharpParser::ConstantContext* context)
     {
         if (context->INTEGER())
             return make_ast<Constant>(std::stoi(context->INTEGER()->getText()), Range::create(context));
         if (context->FLOAT_NUMBER())
-            return make_ast<Constant>(std::stof(context->FLOAT_NUMBER()->getText()), Range::create(context));
+            return make_ast<Constant>(std::stod(context->FLOAT_NUMBER()->getText()), Range::create(context));
         if (context->STRING())
-            return make_ast<Constant>(context->STRING()->getText(), Range::create(context));
+            return make_ast<Constant>(escapeSpecialCharacters(context->STRING()->getText()), Range::create(context));
         if (context->CHARACTER())
-            return make_ast<Constant>(context->CHARACTER()->getText()[0], Range::create(context));
+            // Move past ' in the beginning of the parsed character text e.g 'a'[1] -> a
+            return make_ast<Constant>(context->CHARACTER()->getText()[1], Range::create(context));
         if (context->BOOL())
             return make_ast<Constant>(context->BOOL()->getText() == "true", Range::create(context));
 
@@ -933,7 +958,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
 
-        return patterns[0];
+        return patterns.front();
     }
 
     std::any AstBuilder::visitAnd_pat(FSharpParser::And_patContext* context)
@@ -948,7 +973,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
 
-        return patterns[0];
+        return patterns.front();
     }
 
     std::any AstBuilder::visitOr_pat(FSharpParser::Or_patContext* context)
@@ -963,7 +988,7 @@ namespace fsharpgrammar::ast
                     Range::create(context))
             );
 
-        return patterns[0];
+        return patterns.front();
     }
 
     std::any AstBuilder::visitAs_pat(FSharpParser::As_patContext* context)
@@ -1012,7 +1037,7 @@ namespace fsharpgrammar::ast
 
     std::any AstBuilder::visitAtomic_pat(FSharpParser::Atomic_patContext* context)
     {
-        return context->children[0]->accept(this);
+        return context->children.front()->accept(this);
     }
 
     std::any AstBuilder::visitParen_pat(FSharpParser::Paren_patContext* context)

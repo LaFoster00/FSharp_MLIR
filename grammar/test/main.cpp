@@ -65,9 +65,9 @@ int main(int , const char **) {
   std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
   std::cout << "Simplifying tree" << std::endl;
 
-  AstBuilder builder;
+  ast::AstBuilder builder;
   auto start_ast = std::chrono::high_resolution_clock::now();
-  auto ast = std::any_cast<ast_ptr<Main>>(builder.visitMain(dynamic_cast<FSharpParser::MainContext*>(tree)));
+  auto ast =builder.BuildAst(dynamic_cast<FSharpParser::MainContext*>(tree));
   auto stop_ast = std::chrono::high_resolution_clock::now();
   auto duration_ast = std::chrono::duration_cast<std::chrono::milliseconds>(stop_ast - start_ast);
 
@@ -88,7 +88,7 @@ int main(int , const char **) {
     duration_lexer.count(),
     duration_parser.count());
 
-  FunctionTimer::PrintTimings();
+  utils::FunctionTimer::PrintTimings();
 
   return 0;
 }

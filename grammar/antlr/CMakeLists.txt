@@ -47,12 +47,12 @@ add_dependencies(FSharpGrammarAntlr
 
 target_link_libraries(FSharpGrammarAntlr
         PUBLIC
-        antlr4_shared
+        antlr4_static
 )
 
 target_include_directories(FSharpGrammarAntlr
         PUBLIC
-        ${FSharpLexer_OUTPUT_DIR}
-        ${FSharpParser_OUTPUT_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        "$<BUILD_INTERFACE:${FSharpLexer_OUTPUT_DIR}>"
+        "$<BUILD_INTERFACE:${FSharpParser_OUTPUT_DIR}>"
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
 )

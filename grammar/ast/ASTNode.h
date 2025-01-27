@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "Range.h"
-#include "fmt/core.h"
 #include <type_traits>
 #include <variant>
 
@@ -133,8 +132,7 @@ namespace fsharpgrammar::ast
 
         friend std::string to_string(const Main& main);
 
-    private:
-        std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
+        const std::vector<ast_ptr<ModuleOrNamespace>> modules_or_namespaces;
         const Range range;
     };
 
@@ -172,6 +170,7 @@ namespace fsharpgrammar::ast
 
         friend std::string to_string(const LongIdent& ident);
         [[nodiscard]] Range get_range() const override { return range; }
+        [[nodiscard]] std::string get_as_string() const;
 
     public:
         const std::vector<ast_ptr<Ident>> idents;
@@ -183,9 +182,8 @@ namespace fsharpgrammar::ast
     public:
         using Type = std::variant<
             int32_t,
-            float_t,
+            double_t,
             std::string,
-            char8_t,
             bool>;
 
     public:
@@ -343,8 +341,9 @@ namespace fsharpgrammar::ast
 
         struct Append final : IExpressionType
         {
-            Append(std::vector<ast_ptr<Expression>>&& expressions, const Range&& range)
+            Append(std::vector<ast_ptr<Expression>>&& expressions, const bool isFuncionCall, const Range&& range)
                 : expressions(std::move(expressions)),
+                  isFunctionCall(isFuncionCall),
                   range(range)
             {
             }
@@ -357,6 +356,8 @@ namespace fsharpgrammar::ast
             }
 
             const std::vector<ast_ptr<Expression>> expressions;
+            // True if the append is standing on its own, False if it is on the right side of an assignment or the like
+            const bool isFunctionCall;
             const Range range;
         };
 
@@ -1149,8 +1150,7 @@ namespace fsharpgrammar::ast
             LongIdent,
             Record,
             Array,
-            Null,
-            PlaceholderNodeAlternative
+            Null
         >;
 
     public:
@@ -1334,8 +1334,7 @@ namespace fsharpgrammar::ast
             LongIdent,
             Anon,
             StaticConstant,
-            StaticNull,
-            PlaceholderNodeAlternative
+            StaticNull
         >;
 
     public:

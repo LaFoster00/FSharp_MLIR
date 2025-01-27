@@ -16,7 +16,7 @@ options {
 
 channels { CommentsChannel }
 
-@header {#include "FSharpLexerBase.h"}
+@header {#include "antlr/FSharpLexerBase.h"}
 
 STRING: STRING_LITERAL;
 CHARACTER: CHARACTER_LITERAL;
@@ -35,7 +35,7 @@ IF          : 'if';
 THEN        : 'then';
 ELIF        : 'elif';
 ELSE        : 'else';
-BOOL        : 'True' | 'False';
+BOOL        : 'true' | 'false';
 FOR         : 'for';
 IN          : 'in';
 TO          : 'to';
@@ -59,10 +59,10 @@ STRING_LITERAL: SHORT_STRING;
 CHARACTER_LITERAL: '\'' (STRING_ESCAPE_SEQ | ~[\\\r\n\f'])? '\'';
 
 /// decimalinteger ::=  nonzerodigit digit* | "0"+
-DECIMAL_INTEGER: NON_ZERO_DIGIT DIGIT* | '0'+;
+DECIMAL_INTEGER: (MINUS | PLUS)? NON_ZERO_DIGIT DIGIT* | '0'+;
 
 /// floatnumber   ::=  pointfloat | exponentfloat
-FLOAT_NUMBER: POINT_FLOAT;
+FLOAT_NUMBER: (MINUS | PLUS)? POINT_FLOAT;
 
 DOT                 : '.';
 STAR                : '*';
@@ -84,6 +84,8 @@ OPEN_BRACK          : '[' {this->openBrace();};
 CLOSE_BRACK         : ']' {this->closeBrace();};
 PIPE                : '|';
 AMPERCENT           : '&';
+AND                 : '&&';
+OR                  : '||';
 COMPO_LEFT          : '<<';
 COMPO_RIGHT         : '>>';
 LESS_THAN           : '<';

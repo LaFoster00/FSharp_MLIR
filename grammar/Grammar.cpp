@@ -8,14 +8,32 @@
 #include <FSharpLexer.h>
 #include <FSharpParser.h>
 #include <magic_enum/magic_enum.hpp>
+#include <fmt/format.h>
+#include <utils/Utils.h>
+#include "utils/FunctionTimer.h"
 
 #include "ast/AstBuilder.h"
-#include "utils/FunctionTimer.h"
+#include "ast/ASTNode.h"
 
 namespace fsharpgrammar
 {
+    class FSharpErrorListener : public antlr4::BaseErrorListener {
+    public:
+        bool hasErrors = false;
+        std::vector<std::string> errors;
+
+        void syntaxError(antlr4::Recognizer *recognizer, antlr4::Token *offendingSymbol,
+                         size_t line, size_t charPositionInLine, const std::string &msg,
+                         std::exception_ptr e) override {
+            hasErrors = true;
+            errors.push_back("line " + std::to_string(line) + ":" +
+                             std::to_string(charPositionInLine) + " " + msg);
+        }
+    };
+
     void lex_source(const bool print_lexer_output, antlr4::CommonTokenStream& tokens)
     {
+        utils::FunctionTimer timer("lex_source");
         tokens.fill();
         if (print_lexer_output)
         {
@@ -33,7 +51,19 @@ namespace fsharpgrammar
 
     antlr4::tree::ParseTree* parse_source(const bool print_parser_output, FSharpParser& parser)
     {
+        utils::FunctionTimer timer("parse_source");
+        FSharpErrorListener error_listener;
+        parser.removeErrorListeners();
+        parser.addErrorListener(&error_listener);
         antlr4::tree::ParseTree* tree = parser.main();
+        if (error_listener.hasErrors)
+        {
+            std::cerr << "Parsing failed with the following errors:\n";
+            for (const auto &error : error_listener.errors) {
+                std::cerr << error << "\n";
+            }
+            throw std::exception();
+        }
         if (print_parser_output)
             std::cout << tree->toStringTree(&parser, true) << std::endl << std::endl;
         return tree;

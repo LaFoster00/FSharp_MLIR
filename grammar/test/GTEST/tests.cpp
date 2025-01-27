@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "Grammar.h"
+#include "ast/ASTNode.h"
 
 #define AST_GENERATION_TEST(Name, Type, SourceCode) \
 TEST(Name, Type) \

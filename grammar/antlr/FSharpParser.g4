@@ -5,7 +5,7 @@ options {
     tokenVocab = FSharpLexer;
 }
 
-@header { #include "FSharpParserBase.h" }
+@header { #include "antlr/FSharpParserBase.h" }
 
 main: (NEWLINE | module_or_namespace)+ EOF;
 
@@ -183,13 +183,13 @@ app_expr
     ;
 
 or_expr
-    /// F# syntax: expr | expr
-    : and_expr (PIPE and_expr)*
+    /// F# syntax: expr || expr
+    : and_expr ((PIPE | OR) and_expr)*
     ;
 
 and_expr
-    /// F# syntax: expr & expr
-    : equality_expr (AMPERCENT equality_expr)*
+    /// F# syntax: expr && expr
+    : equality_expr ((AMPERCENT | AND) equality_expr)*
     ;
 
 equality_expr
