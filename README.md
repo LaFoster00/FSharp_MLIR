@@ -1,5 +1,14 @@
 # FSharp_MLIR
 
+FSharp MLIR is a compiler for the FSharp programming language that uses the MLIR infrastructure to lower the FSharp code
+to LLVM IR and then to machine code.
+
+It is a research project that aims to explore the possibilities of using MLIR to lower a functional programming language
+to machine code.
+
+The supported feature set is currently very limited, but simple test programs can be compiled and run using the
+FSharpCompilerApp.
+
 ## Requirements
 
 ### Platform Support
@@ -30,6 +39,7 @@ Use the scripts below to install the required dependencies.
 ### Dependencies
 
 FSharp MLIR requires the following dependencies to be installed on the system:
+
 ```bash
 sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" 
 sudo apt install default-jdk 
@@ -60,17 +70,23 @@ ninja target_name
 ```
 
 Possible target are:
+
 ```bash
 ninja FSharpCompilerApp
 ```
+
 The GTEST targets:
+
 ```bash
 ninja FSharpCompilerTests
 ```
+
 ```bash
 ninja FSharpGrammarTests
 ```
+
 Some legacy test targets:
+
 ```bash
 ninja FSharpGrammarTimedTest
 ```
@@ -79,6 +95,7 @@ Configuring the project the first time will take a while since it will build the
 couple of additional dependencies such as boost which will also take some time.
 
 ## Running the Compiler
+
 To run the compiler use the following command:
 
 ```bash
@@ -86,6 +103,7 @@ To run the compiler use the following command:
 ```
 
 Possible options are:
+
 ```bash
 ./compiler/app/FSharpCompilerApp --help
 OVERVIEW: fsharp compiler
