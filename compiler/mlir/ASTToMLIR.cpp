@@ -90,6 +90,10 @@ namespace fsharp::compiler
         /// A "module" matches a fsharp source file: containing a list of functions.
         mlir::ModuleOp fileModule;
 
+        /// An optional cached op that can be used to pass a specific op to functions which might be called in a context
+        /// where accessing the actual mlir is not possible (e.g. branch generators of ScfIfOp)
+        mlir::fsharp::ClosureOp lastDeclaredFunction;
+
         /// The builder is a helper class to create IR inside a function. The builder
         /// is stateful, in particular it keeps an "insertion point": this is where
         /// the next operations will be introduced.
@@ -347,10 +351,14 @@ namespace fsharp::compiler
             {
                 std::string func_name;
                 if (auto ident = std::get_if<ast::Expression::Ident>(&append.expressions.front()->expression))
+                {
                     func_name = ident->ident->ident;
+                }
                 else if (auto long_ident = std::get_if<ast::Expression::LongIdent>(
                     &append.expressions.front()->expression))
+                {
                     func_name = long_ident->longIdent->get_as_string();
+                }
 
                 if (func_name == "print" || func_name == "printf" || func_name == "printfn")
                     return generatePrint(append);
@@ -370,6 +378,10 @@ namespace fsharp::compiler
         mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::StringRef closureName)
         {
             mlir::Operation* currentOp = startOp;
+            if (currentOp == nullptr)
+                currentOp = lastDeclaredFunction;
+
+            //mlir::emitError(currentOp->getLoc(), "Looking into the block") << *currentOp;
 
             // Traverse up through parent operations (or regions) to find the closure
             while (currentOp)
@@ -379,9 +391,12 @@ namespace fsharp::compiler
                 {
                     // Try to lookup the closure in the current SymbolTable
                     mlir::Operation* closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-                    if (auto closure_op = mlir::dyn_cast_or_null<mlir::fsharp::ClosureOp>(closure))
+                    if (closure)
                     {
-                        return closure_op; // Found the closure
+                        if (auto closure_op = mlir::dyn_cast_or_null<mlir::fsharp::ClosureOp>(closure))
+                        {
+                            return closure_op; // Found the closure
+                        }
                     }
                 }
 
@@ -997,6 +1012,7 @@ namespace fsharp::compiler
 
 
             mlir::fsharp::ClosureOp function = getFuncProto(let);
+            lastDeclaredFunction = function;
             if (!function)
                 return llvm::failure();
 

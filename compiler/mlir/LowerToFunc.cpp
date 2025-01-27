@@ -82,7 +82,7 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
 
         if (failed(SymbolTable::replaceAllSymbolUses(closure_op.getSymNameAttr(),
                                                      new_func_op.getSymNameAttr(),
-                                                     closure_op->getParentOp())))
+                                                     closure_op->getParentOfType<ModuleOp>())))
         {
             return failure();
         }

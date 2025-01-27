@@ -69,7 +69,8 @@ namespace
                     shapeOp.inferFromOperands();
                     //shapeOp->emitError("Inferred: ") << shapeOp << '\n';
                 }
-                else
+                else if (!op->hasTrait<OpTrait::IsTerminator>()
+                    && !op->hasTrait<InferTypeOpInterface::Trait>())
                 {
                     op->emitError("Unable to infer type of operation without type inference interface. \n"
                         "This op is likely not compatible with type inference. All types should be resolved prior"
@@ -113,7 +114,8 @@ namespace
                 {
                     shapeOp.inferFromReturnType();
                 }
-                else
+                else if (!op->hasTrait<OpTrait::IsTerminator>()
+                    && !op->hasTrait<InferTypeOpInterface::Trait>())
                 {
                     op->emitError("Unable to infer type of operation without type inference interface. \n"
                         "This op is likely not compatible with type inference. All types should be resolved prior"
@@ -131,8 +133,9 @@ namespace
             llvm::SmallVector<Operation*, 16> work_list;
             module_op.walk([&](mlir::Operation* op)
             {
-                if (fsharp::utils::noOperandsInferred(op) && fsharp::utils::returnsUnknownType(op) && !
-                    fsharp::utils::isImplicitTypeInferred(op))
+                if (!fsharp::utils::allOperandsInferred(op)
+                    && fsharp::utils::returnsUnknownType(op)
+                    && !fsharp::utils::isImplicitTypeInferred(op))
                 {
                     work_list.push_back(op);
                 }

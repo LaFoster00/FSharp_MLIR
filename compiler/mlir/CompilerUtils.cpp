@@ -146,9 +146,12 @@ namespace mlir::fsharp::utils
             {
                 // Try to lookup the closure in the current SymbolTable
                 mlir::Operation* function = mlir::SymbolTable::lookupSymbolIn(currentOp, funcName);
-                if (auto func_op = mlir::dyn_cast<mlir::func::FuncOp>(function))
+                if (function)
                 {
-                    return func_op; // Found the closure
+                    if (auto func_op = mlir::dyn_cast<mlir::func::FuncOp>(function))
+                    {
+                        return func_op; // Found the closure
+                    }
                 }
             }
 

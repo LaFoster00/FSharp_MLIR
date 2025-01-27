@@ -173,7 +173,7 @@ def ClosureOp : FSharp_Op<"closure",
 // CallOp
 //===----------------------------------------------------------------------===//
 
-def CallOp : FSharp_Op<"call", [CallOpInterface, DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def CallOp : FSharp_Op<"call", [CallOpInterface, DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "Call operation";
   let description = [{
     Calls represent calls to a user defined function that needs to
@@ -367,7 +367,7 @@ def AssertOp : FSharp_Op<"assert", [DeclareOpInterfaceMethods<ImplicitTypeInfere
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "addition operation";
   let description = [{
     The "add" operation performs addition of any two types that are compatible.
@@ -391,7 +391,7 @@ def AddOp : FSharp_Op<"add", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // SubOp
 //===----------------------------------------------------------------------===//
 
-def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "subtraction operation";
   let description = [{
     The "sub" operation performs subtraction of any two types that are compatible.
@@ -415,7 +415,7 @@ def SubOp : FSharp_Op<"sub", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // MulOp
 //===----------------------------------------------------------------------===//
 
-def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "multiplication operation";
   let description = [{
     The "sub" operation performs multiplication of any two types that are compatible.
@@ -439,7 +439,7 @@ def MulOp : FSharp_Op<"mul", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // DivOp
 //===----------------------------------------------------------------------===//
 
-def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "division operation";
   let description = [{
     The "sub" operation performs division of any two types that are compatible.
@@ -463,7 +463,7 @@ def DivOp : FSharp_Op<"div", [DeclareOpInterfaceMethods<TypeInferenceOpInterface
 // ModOp
 //===----------------------------------------------------------------------===//
 
-def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>, HasParent<"ClosureOp">]> {
+def FSharp_ModOp : FSharp_Op<"mod", [DeclareOpInterfaceMethods<TypeInferenceOpInterface>]> {
   let summary = "modulo operation";
   let description = [{
     This operation performs element-wise modulo of two tensors.

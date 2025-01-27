@@ -371,9 +371,12 @@ mlir::fsharp::ClosureOp findClosureInScope(mlir::Operation* startOp, mlir::Strin
         {
             // Try to lookup the closure in the current SymbolTable
             mlir::Operation* closure = mlir::SymbolTable::lookupSymbolIn(currentOp, closureName);
-            if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure))
+            if (closure)
             {
-                return closure_op; // Found the closure
+                if (auto closure_op = mlir::dyn_cast<mlir::fsharp::ClosureOp>(closure))
+                {
+                    return closure_op; // Found the closure
+                }
             }
         }
 
@@ -406,6 +409,22 @@ void ClosureOp::updateSignatureFromBody()
     });
 
     setType(mlir::FunctionType::get(getContext(), inputs, results));
+
+    if (getFunctionType().getNumResults() == 0)
+    {
+        return;
+    }
+    auto uses = getSymbolUses(getOperation()->getParentOfType<ModuleOp>());
+    if (!uses.has_value())
+        return;
+
+    for (auto symbol_user : uses.value())
+    {
+        if (auto call_op = dyn_cast<fsharp::CallOp>(symbol_user.getUser()))
+        {
+            call_op.getResult(0).setType(getFunctionType().getResult(0));
+        }
+    }
 }
 
 
@@ -480,6 +499,7 @@ void CallOp::inferFromOperands()
         }
     }
     closureOp.setFunctionType(mlir::FunctionType::get(getContext(), new_closure_inputs, closure_type.getResults()));
+    closureOp.updateSignatureFromBody();
 }
 
 void CallOp::inferFromReturnType()

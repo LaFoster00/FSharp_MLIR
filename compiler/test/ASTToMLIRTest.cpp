@@ -168,3 +168,8 @@ TEST(Relation, BasicAssertion)
 {
     EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/Relation.fs", false, "Relation"), 0);
 }
+
+TEST(Recursion, BasicAssertion)
+{
+    EXPECT_EQ(RunFullTestSuite(InputType::FSharp, "TestFiles/Recursion.fs", false, "Recursion"), 0);
+}
