@@ -78,7 +78,9 @@ namespace fsharp::compiler
             if (failed(mlir::verify(fileModule)))
             {
                 fileModule.emitError("module verification error");
-                //return nullptr;
+#ifndef DEBUG
+                return nullptr;
+#endif
             }
 
             return fileModule;
@@ -963,7 +965,7 @@ namespace fsharp::compiler
             return {};
         }
 
-        mlir::fsharp::ClosureOp getFuncProto(const ast::Expression::Let& let)
+        mlir::fsharp::ClosureOp getClosureProto(const ast::Expression::Let& let)
         {
             mlir::StringRef func_name;
             mlir::Type return_type = mlir::NoneType::get(builder.getContext());
@@ -1004,20 +1006,23 @@ namespace fsharp::compiler
             return function;
         }
 
-        llvm::LogicalResult declareFunction(const ast::Expression::Let& let)
+        llvm::LogicalResult declareClosure(const ast::Expression::Let& let)
         {
             mlir::OpBuilder::InsertionGuard guard(builder);
             // Create a scope in the symbol table to hold variable declarations.
             llvm::ScopedHashTableScope<llvm::StringRef, mlir::Value> varScope(symbolTable);
 
-
-            mlir::fsharp::ClosureOp function = getFuncProto(let);
-            lastDeclaredFunction = function;
-            if (!function)
+            mlir::fsharp::ClosureOp closure = getClosureProto(let);
+            if (let.isRecursive)
+            {
+                mlir::fsharp::utils::addOrUpdateAttrDictEntry(closure, "recursive", builder.getUnitAttr());
+            }
+            lastDeclaredFunction = closure;
+            if (!closure)
                 return llvm::failure();
 
-            auto func_type = function.getFunctionType();
-            mlir::Block& entry_block = function.front();
+            auto func_type = closure.getFunctionType();
+            mlir::Block& entry_block = closure.front();
 
             // Set the insertion point in the builder to the beginning of the function
             // body, it will be used throughout the codegen to create operations in this
@@ -1041,25 +1046,25 @@ namespace fsharp::compiler
             // If the function returns a specified type, we need to set the return type of the function
             // But only if the last statement actually returns a value
             if (body_result.has_value())
-                if (!mlir::isa<mlir::NoneType>(function.getFunctionType().getResult(0)))
-                    body_result.value().setType(function.getFunctionType().getResult(0));
+                if (!mlir::isa<mlir::NoneType>(closure.getFunctionType().getResult(0)))
+                    body_result.value().setType(closure.getFunctionType().getResult(0));
 
             builder.setInsertionPointToEnd(&entry_block);
             if (body_result.has_value())
             {
                 builder.create<mlir::fsharp::ReturnOp>(body_result->getLoc(), body_result.value());
-                function.setFunctionType(mlir::FunctionType::get(
+                closure.setFunctionType(mlir::FunctionType::get(
                         builder.getContext(),
-                        function.getFunctionType().getInputs(),
+                        closure.getFunctionType().getInputs(),
                         body_result->getType())
                 );
             }
             else
             {
                 builder.create<mlir::fsharp::ReturnOp>(loc(let));
-                function.setFunctionType(mlir::FunctionType::get(
+                closure.setFunctionType(mlir::FunctionType::get(
                         builder.getContext(),
-                        function.getFunctionType().getInputs(),
+                        closure.getFunctionType().getInputs(),
                         {})
                 );
             }
@@ -1115,7 +1120,7 @@ namespace fsharp::compiler
                     std::holds_alternative<ast::Pattern::LongIdent>(
                         std::get<ast::Pattern::Typed>(let.args->pattern).pattern->pattern)))
             {
-                return declareFunction(let);
+                return declareClosure(let);
             }
             return generateVariable(let);
         }

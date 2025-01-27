@@ -307,6 +307,26 @@ void ClosureOp::print(mlir::OpAsmPrinter& p)
         getArgAttrsAttrName(), getResAttrsAttrName());
 }
 
+llvm::LogicalResult ClosureOp::verify()
+{
+    if (!getOperation()->hasAttr("recursive"))
+    {
+        llvm::LogicalResult result = success();
+        this->walk([&] (CallOp op)
+        {
+            if (op.getCallee() == getSymName())
+            {
+                mlir::emitError(getLoc(), "Recursive function must be marked as recursive! Func: '") << getSymName() << '\'';
+                result = failure();
+                return mlir::WalkResult::interrupt();
+            }
+            return mlir::WalkResult::advance();
+        });
+        return result;
+    }
+    return success();
+}
+
 void ClosureOp::inferFromOperands()
 {
     auto& entry_block = front();
