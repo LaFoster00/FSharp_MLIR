@@ -89,8 +89,6 @@ def ImplicitTypeInferenceOpInterface : OpInterface<"ImplicitTypeInference"> {
 // constant operation is marked as 'Pure' as it is a pure operation
 // and may be removed if dead.
 def ConstantOp : FSharp_Op<"constant", [Pure, AllTypesMatch<["value", "result"]>]> {
-  // Provide a summary and description for this operation. This can be used to
-  // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
   let description = [{
     Constant operation turns a literal into an SSA value. The data is attached
@@ -116,7 +114,6 @@ def ConstantOp : FSharp_Op<"constant", [Pure, AllTypesMatch<["value", "result"]>
       }
     }];
 
-  // Indicate that the operation has a custom parser and printer method.
   let assemblyFormat = "attr-dict $value";
 }
 
