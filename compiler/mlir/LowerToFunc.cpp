@@ -33,6 +33,8 @@ struct ClosureOpLowering : public OpConversionPattern<fsharp::ClosureOp>
             for (Value operand : op->getOperands())
             {
                 // Skip values already defined inside the closure region.
+                // This is done by getting the region the operand belongs to and checking if it is the same as the closure region
+                // or if the closure_op is a parent to the operand parent region.
                 if (closure_op->isAncestor(operand.getParentRegion()->getParentOp()))
                     continue;
 
